@@ -14,6 +14,7 @@ import { router, Link } from "expo-router";
 import Animated, { useSharedValue, withTiming, useAnimatedStyle, interpolateColor } from "react-native-reanimated";
 import AuthTabsHeader from "@/src/components/AuthTabsHeader";
 import React from "react";
+import { login as authLogin } from "@/src/features/auth/authSlice";
 
 export default function Login() {
   const { control, handleSubmit } = useForm({
@@ -32,8 +33,8 @@ export default function Login() {
   // React.useEffect(() => { progress.value = withTiming(0, { duration: 280 }); }, []);
   const dispatch = useDispatch();
   const onSubmit = async (values) => {
-    //const ok = await dispatch(authLogin(values)).unwrap().catch(() => false);
-    if (true) router.replace("/(main)/(tabs)/home");
+    const ok = await dispatch(authLogin(values)).unwrap().catch(() => false);
+    if (ok) router.replace("/role-gateway");
   };
 
   return (

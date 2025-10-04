@@ -15,7 +15,22 @@ export const login = createAsyncThunk(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const { data } = await http.post('/auth/login', { email, password });
+      // const { data } = await http.post('/auth/login', { email, password });//mocked
+      const data = { 
+                    user: { 
+                      UserID: 1, 
+                      FullName: "Test User" ,
+                      Phone: "123456789",
+                      Email: "test@example.com",
+                      CitizenshipIdentity: "123456789",
+                      role: "resident",
+                      Apartment:"A101",
+                    },
+                    tokens: {
+                      access: "mocked_access_token",
+                      refresh: "mocked_refresh_token",
+                    },
+                  };
       if (data?.tokens) await saveTokens(data.tokens);
       return data.user;
     } catch (err) {
@@ -51,7 +66,16 @@ export const fetchProfile = createAsyncThunk(
   'auth/fetchProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await http.get('/me');
+      // const { data } = await http.get('/me'); //mocked
+      const data = { 
+                    UserID: 1, 
+                    FullName: "Test User" ,
+                    Phone: "123456789",
+                    Email: "test@example.com",
+                    CitizenshipIdentity: "123456789",
+                    role: "resident",
+                    Apartment:"A101",
+                  }; // mocked
       return data;
     } catch (err) {
       const message = err?.response?.data?.message || 'Không lấy được hồ sơ';
@@ -97,6 +121,10 @@ export const forgotPassword = createAsyncThunk(
  */
 export const logout = createAsyncThunk('auth/logout', async () => {
   await clearTokens();
+  try {
+   const mod = await import("@/src/services/http");
+   delete mod.default.defaults.headers.common["Authorization"];
+  } catch {} // dọn axios header + persist khi logout 
   return true;
 });
 

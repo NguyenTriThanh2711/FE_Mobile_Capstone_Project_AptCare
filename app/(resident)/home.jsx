@@ -11,8 +11,11 @@ import {
 } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
 import { Button } from "@/src/components/common/Button";
+import { useSelector } from "react-redux";
 
 export default function ResidentHome() {
+  const user = useSelector((s) => s.auth.user);//mocked, có thể sau này xài fecthProfile để lấy thông tin đầy đủ hơn
+  console.log("ResidentHome: user =", user);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestForm, setRequestForm] = useState({
     category: "",
@@ -25,8 +28,8 @@ export default function ResidentHome() {
     {
       id: 1,
       category: "Plumbing",
-      issue: "Leaking faucet in kitchen",
-      status: "In Progress",
+      issue: "Vòi nước rò rỉ trong bếp",
+      status: "Đang xử lý",
       date: "2024-01-15",
       technician: "John Smith",
     },
@@ -41,10 +44,10 @@ export default function ResidentHome() {
   ]);
 
   const quickActions = [
-    { id: 1, title: "New Request", icon: "plus.circle.fill", color: "#007AFF", action: () => setShowRequestModal(true) },
-    { id: 2, title: "Emergency",   icon: "exclamationmark.triangle.fill", color: "#FF3B30", action: handleEmergency },
-    { id: 3, title: "Feedback",    icon: "star.fill", color: "#FF9500", action: handleFeedback },
-    { id: 4, title: "Report Issue",icon: "flag.fill", color: "#34C759", action: handleReportIssue },
+    { id: 1, title: "Yều cầu sửa chữa mới", icon: "plus.circle.fill", color: "#007AFF", action: () => setShowRequestModal(true) },
+    { id: 2, title: "Khẩn cấp",   icon: "exclamationmark.triangle.fill", color: "#FF3B30", action: handleEmergency },
+    { id: 3, title: "Phản hồi",    icon: "star.fill", color: "#FF9500", action: handleFeedback },
+    { id: 4, title: "Báo cáo sự cố tòa nhà",icon: "flag.fill", color: "#34C759", action: handleReportIssue },
 ];
 
 
@@ -57,7 +60,7 @@ export default function ResidentHome() {
     "Other",
   ];
 
-  const priorities = ["Low", "Medium", "High", "Urgent"];
+  const priorities = ["Medium", "Urgent"];
 
   const handleEmergency = () => {
     Alert.alert(
@@ -131,13 +134,13 @@ export default function ResidentHome() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>Welcome back!</Text>
-          <Text style={styles.apartmentText}>Apartment 204-A</Text>
+          <Text style={styles.welcomeText}>Chào mừng quay trở lại!</Text>
+          <Text style={styles.apartmentText}>Căn hộ {user?.Apartment}</Text>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>Hành động nhanh</Text>
           <View style={styles.quickActionsGrid}>
             {quickActions.map((action) => (
               <Pressable
@@ -162,9 +165,9 @@ export default function ResidentHome() {
         {/* Recent Requests */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Requests</Text>
+            <Text style={styles.sectionTitle}>Yêu cầu gần đây</Text>
             <Pressable>
-              <Text style={styles.viewAllText}>View All</Text>
+              <Text style={styles.viewAllText}>Xem tất cả</Text>
             </Pressable>
           </View>
           
@@ -194,26 +197,26 @@ export default function ResidentHome() {
 
         {/* Building Info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Building Information</Text>
+          <Text style={styles.sectionTitle}>Thông tin tòa nhà</Text>
           <View style={styles.infoCard}>
             <View style={styles.infoItem}>
               <Icon name="phone.fill" size={20} color="#007AFF" />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Emergency Contact</Text>
+                <Text style={styles.infoLabel}>Liên hệ khẩn cấp</Text>
                 <Text style={styles.infoValue}>(555) 123-4567</Text>
               </View>
             </View>
             <View style={styles.infoItem}>
               <Icon name="clock.fill" size={20} color="#34C759" />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Office Hours</Text>
-                <Text style={styles.infoValue}>Mon-Fri: 9AM-6PM</Text>
+                <Text style={styles.infoLabel}>Giờ làm việc</Text>
+                <Text style={styles.infoValue}>Thứ 2 - Thứ 6: 9AM-6PM</Text>
               </View>
             </View>
             <View style={styles.infoItem}>
               <Icon name="envelope.fill" size={20} color="#FF9500" />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Management Email</Text>
+                <Text style={styles.infoLabel}>Email quản lý</Text>
                 <Text style={styles.infoValue}>manager@aptcare.com</Text>
               </View>
             </View>
@@ -303,7 +306,7 @@ export default function ResidentHome() {
               <Text style={styles.formLabel}>Vị trí</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="e.g., Kitchen, Bedroom, Living Room"
+                placeholder="e.g., Bếp, Phòng ngủ, Phòng khách"
                 value={requestForm.location}
                 onChangeText={(text) =>
                   setRequestForm(prev => ({ ...prev, location: text }))
@@ -315,7 +318,7 @@ export default function ResidentHome() {
               <Text style={styles.formLabel}>Mô tả *</Text>
               <TextInput
                 style={[styles.textInput, styles.textArea]}
-                placeholder="Please describe the issue in detail..."
+                placeholder="Vui lòng mô tả chi tiết vấn đề..."
                 value={requestForm.description}
                 onChangeText={(text) =>
                   setRequestForm(prev => ({ ...prev, description: text }))

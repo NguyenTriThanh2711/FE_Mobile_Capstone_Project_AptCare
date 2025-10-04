@@ -16,7 +16,8 @@ function AuthGate() {
 
   const triedBootstrap = useRef(false);
   const [bootstrapped, setBootstrapped] = useState(false);
-
+  console.log("AuthGate: user =", user);//mocked
+  console.log("AuthGate: segments =", segments);
   // nếu chưa có user, thử gọi /me (sử dụng token trong SecureStore)
   useEffect(() => {
     (async () => {
@@ -37,14 +38,13 @@ function AuthGate() {
   // Chờ điều hướng sẵn sàng & bootstrap xong
   useEffect(() => {
     if (!rootState?.key || !bootstrapped) return;
-
-    const inAuth = segments?.[0] === "(auth)";
-
+    const inAuth = segments?.[0] === "(auth)"; 
     if (!user && !inAuth) {
       router.replace("/(auth)/login");
     } else if (user && inAuth) {
       // Đưa vào role gateway để tự điều hướng theo role
-      router.replace("/role-gateway");
+      //  router.replace("/role-gateway");
+       router.replace("/(auth)/login");
     }
   }, [user, segments, rootState?.key, bootstrapped]);
 
