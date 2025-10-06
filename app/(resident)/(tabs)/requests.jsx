@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
+import { router } from "expo-router";
 
 const styles = StyleSheet.create({
   container: {
@@ -106,36 +107,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#f0f0f0",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    margin: 20,
-    borderRadius: 16,
-    padding: 24,
-    width: "90%",
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
@@ -143,40 +114,6 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: "#f9f9f9",
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: "top",
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    color: "#666",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  submitButton: {
-    flex: 1,
-    backgroundColor: "#007AFF",
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  submitButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
   },
   emptyState: {
     flex: 1,
@@ -307,7 +244,7 @@ export default function ResidentRequests() {
 
       <Pressable
         style={styles.addButton}
-        onPress={() => setShowModal(true)}
+        onPress={() => router.push({ pathname: "/(resident)/request-create" })}
       >
         <Icon name="plus" size={20} color="white" />
         <Text style={styles.addButtonText}>Tạo yêu cầu</Text>
@@ -364,94 +301,6 @@ export default function ResidentRequests() {
           ))
         )}
       </ScrollView>
-
-      <Modal
-        visible={showModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Tạo yêu cầu mới</Text>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Tiêu đề *</Text>
-              <TextInput
-                style={styles.input}
-                value={newRequest.title}
-                onChangeText={(text) =>
-                  setNewRequest({ ...newRequest, title: text })
-                }
-                placeholder="Mô tả ngắn gọn về vấn đề"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Mô tả *</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={newRequest.description}
-                onChangeText={(text) =>
-                  setNewRequest({ ...newRequest, description: text })
-                }
-                placeholder="Mô tả chi tiết về vấn đề"
-                multiline={true}
-                numberOfLines={4}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Độ ưu tiên</Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {["medium", "high"].map((priority) => (
-                  <Pressable
-                    key={priority}
-                    style={[
-                      styles.actionButton,
-                      {
-                        backgroundColor:
-                          newRequest.priority === priority ? "#007AFF" : "#f0f0f0",
-                        flex: 1,
-                        alignItems: "center",
-                      },
-                    ]}
-                    onPress={() =>
-                      setNewRequest({ ...newRequest, priority })
-                    }
-                  >
-                    <Text
-                      style={{
-                        color:
-                          newRequest.priority === priority ? "white" : "#666",
-                        fontWeight: "600",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {priority}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable
-                style={styles.cancelButton}
-                onPress={() => setShowModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Hủy</Text>
-              </Pressable>
-              <Pressable
-                style={styles.submitButton}
-                onPress={handleSubmitRequest}
-              >
-                <Text style={styles.submitButtonText}>Gửi</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

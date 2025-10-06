@@ -12,11 +12,11 @@ import {
 import { Icon } from "@/src/components/Icon.native";
 import { Button } from "@/src/components/common/Button";
 import { useSelector } from "react-redux";
+import { router } from "expo-router";
 
 export default function ResidentHome() {
   const user = useSelector((s) => s.auth.user);//mocked, có thể sau này xài fecthProfile để lấy thông tin đầy đủ hơn
   console.log("ResidentHome: user =", user);
-  const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestForm, setRequestForm] = useState({
     category: "",
     priority: "",
@@ -44,11 +44,11 @@ export default function ResidentHome() {
   ]);
 
   const quickActions = [
-    { id: 1, title: "Yều cầu sửa chữa mới", icon: "plus.circle.fill", color: "#007AFF", action: () => setShowRequestModal(true) },
-    { id: 2, title: "Khẩn cấp",   icon: "exclamationmark.triangle.fill", color: "#FF3B30", action: handleEmergency },
+    { id: 1, title: "Yều cầu sửa chữa mới", icon: "plus.circle.fill", color: "#007AFF", action: () => router.push({ pathname: "/(resident)/request-create" }) },
+    { id: 2, title: "Khẩn cấp",   icon: "exclamationmark.triangle.fill", color: "#FF3B30", action: () => router.push({ pathname: "/(resident)/request-create", params: { emergency: "true" } }) },
     { id: 3, title: "Phản hồi",    icon: "star.fill", color: "#FF9500", action: handleFeedback },
     { id: 4, title: "Báo cáo sự cố tòa nhà",icon: "flag.fill", color: "#34C759", action: handleReportIssue },
-];
+  ];
 
 
   const categories = [
@@ -109,9 +109,6 @@ export default function ResidentHome() {
 
     setRecentRequests(prev => [newRequest, ...prev]);
     setRequestForm({ category: "", priority: "", description: "", location: "" });
-    setShowRequestModal(false);
-    
-    Alert.alert("Success", "Your request has been submitted successfully!");
   };
 
   const getStatusColor = (status) => {
@@ -135,7 +132,7 @@ export default function ResidentHome() {
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Chào mừng quay trở lại!</Text>
-          <Text style={styles.apartmentText}>Căn hộ {user?.Apartment}</Text>
+          <Text style={styles.apartmentText}>Căn hộ {user?.Apartment?.ApartmentName}</Text>
         </View>
 
         {/* Quick Actions */}
@@ -166,7 +163,7 @@ export default function ResidentHome() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Yêu cầu gần đây</Text>
-            <Pressable>
+            <Pressable onPress={() => router.push("/(resident)/requests")}>
               <Text style={styles.viewAllText}>Xem tất cả</Text>
             </Pressable>
           </View>
@@ -225,112 +222,6 @@ export default function ResidentHome() {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
-
-      {/* Request Modal */}
-      <Modal
-        visible={showRequestModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Pressable onPress={() => setShowRequestModal(false)}>
-              <Text style={styles.cancelButton}>Hủy</Text>
-            </Pressable>
-            <Text style={styles.modalTitle}>Yêu cầu mới</Text>
-            <Pressable onPress={handleSubmitRequest}>
-              <Text style={styles.submitButton}>Gửi</Text>
-            </Pressable>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Danh mục *</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoryScroll}
-              >
-                {categories.map((category) => (
-                  <Pressable
-                    key={category}
-                    style={[
-                      styles.categoryChip,
-                      requestForm.category === category && styles.selectedChip,
-                    ]}
-                    onPress={() =>
-                      setRequestForm(prev => ({ ...prev, category }))
-                    }
-                  >
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        requestForm.category === category && styles.selectedChipText,
-                      ]}
-                    >
-                      {category}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Mức độ ưu tiên</Text>
-              <View style={styles.priorityContainer}>
-                {priorities.map((priority) => (
-                  <Pressable
-                    key={priority}
-                    style={[
-                      styles.priorityButton,
-                      requestForm.priority === priority && styles.selectedPriority,
-                    ]}
-                    onPress={() =>
-                      setRequestForm(prev => ({ ...prev, priority }))
-                    }
-                  >
-                    <Text
-                      style={[
-                        styles.priorityText,
-                        requestForm.priority === priority && styles.selectedPriorityText,
-                      ]}
-                    >
-                      {priority}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Vị trí</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., Bếp, Phòng ngủ, Phòng khách"
-                value={requestForm.location}
-                onChangeText={(text) =>
-                  setRequestForm(prev => ({ ...prev, location: text }))
-                }
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Mô tả *</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="Vui lòng mô tả chi tiết vấn đề..."
-                value={requestForm.description}
-                onChangeText={(text) =>
-                  setRequestForm(prev => ({ ...prev, description: text }))
-                }
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -494,103 +385,5 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 20,
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-  },
-  cancelButton: {
-    fontSize: 16,
-    color: "#FF3B30",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1a1a1a",
-  },
-  submitButton: {
-    fontSize: 16,
-    color: "#007AFF",
-    fontWeight: "600",
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  formGroup: {
-    marginBottom: 24,
-  },
-  formLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1a1a1a",
-    marginBottom: 8,
-  },
-  categoryScroll: {
-    marginTop: 8,
-  },
-  categoryChip: {
-    backgroundColor: "#f0f0f0",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  selectedChip: {
-    backgroundColor: "#007AFF",
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
-  },
-  selectedChipText: {
-    color: "white",
-  },
-  priorityContainer: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
-  },
-  priorityButton: {
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  selectedPriority: {
-    backgroundColor: "#007AFF",
-  },
-  priorityText: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
-  },
-  selectedPriorityText: {
-    color: "white",
-  },
-  textInput: {
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: "#1a1a1a",
-    marginTop: 8,
-  },
-  textArea: {
-    height: 100,
   },
 });

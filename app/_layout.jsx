@@ -6,6 +6,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import { store, persistor } from "@/src/store";
 import { fetchProfile } from "@/src/features/auth/authSlice";
 import '../global.css';
+import { MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
 
 function AuthGate() {
   const user = useSelector((s) => s.auth.user);
@@ -55,7 +56,9 @@ export default function RootLayout() {
   return (
     <Provider store={store}>
       <PersistGate persistor={persistor} loading={null}>
-        <AuthGate />
+          <PaperProvider theme={MD3LightTheme}>
+            <AuthGate />
+          </PaperProvider>
       </PersistGate>
     </Provider>
   );

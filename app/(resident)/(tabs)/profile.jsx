@@ -216,7 +216,7 @@ export default function ResidentProfile() {
       email: user?.Email ?? user?.email ?? "",
       phone: user?.Phone ?? user?.phone ?? "",
       emergencyContact: user?.EmergencyContact ?? user?.emergencyContact ?? "",
-      apartment: user?.Apartment ?? user?.apartment ?? "",
+      apartment: user?.Apartment ?? user?.apartment ?? "",//mocked
       building: user?.Building ?? user?.building ?? "",
     };
     setEditingProfile(mapped);
@@ -238,7 +238,7 @@ export default function ResidentProfile() {
       Email: editingProfile.email,
       Phone: editingProfile.phone,
       EmergencyContact: editingProfile.emergencyContact,
-      Apartment: editingProfile.apartment,
+      Apartment: editingProfile.apartment, //mocked
       Building: editingProfile.building,
     };
     dispatch(setUser(merged));
@@ -307,7 +307,7 @@ export default function ResidentProfile() {
           <Image alt="profile" source={require('@/assets/profile.png')} style={{ width: 80, height: 80, borderRadius: 40 }} />
         </View>
         <Text style={styles.profileName}>{user?.FullName ?? "Unknown User"}</Text>
-        <Text style={styles.profileApartment}>Căn hộ {user?.Apartment ?? "Unknown Apartment"}</Text>
+        <Text style={styles.profileApartment}>Căn hộ {user?.Apartment?.ApartmentName ?? "Unknown Apartment"}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -8,6 +8,7 @@ import Animated, { useSharedValue, withTiming, useAnimatedStyle, interpolateColo
 import AuthTabsHeader from "@/src/components/AuthTabsHeader";
 import { authRegister } from "@/src/features/auth/authSlice";
 import React from "react";
+import MUITextField from "@/src/components/common/MUITextField";
 
 const schema = yup.object({
   fullName: yup.string().trim().required("Vui lòng nhập họ và tên"),
@@ -39,25 +40,42 @@ export default function Register() {
     if (ok) router.replace("/(auth)/login");
   };
 
-  const Field = ({ name, label, placeholder, secure = false, keyboardType }) => (
+  const Field = ({
+    name,
+    label,
+    placeholder,
+    secure = false,
+    keyboardType,
+    startIcon,           // "email-outline", "phone-outline", ...
+    endIcon,
+    variant = "outlined", // "outlined" | "filled"
+    size = "medium",      // "small" | "medium"
+    style,
+  }) => (
     <View className="mb-3">
-      <Text className="text-gray-600 mb-2">{label}</Text>
       <Controller
         control={control}
         name={name}
-        render={({ field: { onChange, value } }) => (
-          <TextInput
-            className="border border-gray-200 rounded-xl px-4 py-3 bg-white"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <MUITextField
+            label={label}
             placeholder={placeholder}
-            onChangeText={onChange}
             value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
             secureTextEntry={secure}
-            autoCapitalize={name === "email" ? "none" : "words"}
             keyboardType={keyboardType}
+            startIcon={startIcon}
+            endIcon={endIcon}
+            variant={variant}
+            size={size}
+            autoCapitalize={name === "email" ? "none" : "words"}
+            error={!!errors[name]}
+            helperText={errors[name]?.message}
+            style={style}
           />
         )}
       />
-      {errors[name]?.message ? <Text className="text-red-500 mt-1 text-xs">{String(errors[name].message)}</Text> : null}
     </View>
   );
 
@@ -81,7 +99,7 @@ export default function Register() {
 
             {/* Card nội dung: màu trùng tab Register + margin/padding giống Login */}
             <Animated.View style={cardStyle} className="rounded-b-3xl p-6 shadow-lg">
-              <Field name="fullName" label="Họ và tên" placeholder="Nguyễn Văn A" />
+              <Field name="fullName" label="Họ và tên" placeholder="Nguyễn Văn A" startIcon="account-outline" />
               <Field name="phone" label="Số điện thoại" placeholder="09xxxxxxxx" keyboardType="phone-pad" />
               <Field name="email" label="Email" placeholder="you@domain.com" keyboardType="email-address" />
               <Field name="password" label="Mật khẩu" placeholder="••••••••" secure />

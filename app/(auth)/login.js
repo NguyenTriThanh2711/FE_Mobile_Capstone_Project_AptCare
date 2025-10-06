@@ -15,10 +15,12 @@ import Animated, { useSharedValue, withTiming, useAnimatedStyle, interpolateColo
 import AuthTabsHeader from "@/src/components/AuthTabsHeader";
 import React from "react";
 import { login as authLogin } from "@/src/features/auth/authSlice";
+import MUITextField from "@/src/components/common/MUITextField";
 
 export default function Login() {
-  const { control, handleSubmit } = useForm({
+  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     defaultValues: { email: "", password: "" },
+    mode: "onTouched",
   });
   // Animation
   // const progress = useSharedValue(0);
@@ -36,7 +38,44 @@ export default function Login() {
     const ok = await dispatch(authLogin(values)).unwrap().catch(() => false);
     if (ok) router.replace("/role-gateway");
   };
-
+  const Field = ({
+    name,
+    label,
+    placeholder,
+    secure = false,
+    keyboardType,
+    startIcon,
+    variant = "outlined",
+    size = "medium",
+    rules,
+    style,
+  }) => (
+    <View className="mb-3">
+      <Controller
+        control={control}
+        name={name}
+        rules={rules}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <MUITextField
+            label={label}
+            placeholder={placeholder}
+            value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            secureTextEntry={secure}
+            keyboardType={keyboardType}
+            startIcon={startIcon}
+            variant={variant}
+            size={size}
+            autoCapitalize={name === "email" ? "none" : "none"}
+            error={!!errors[name]}
+            helperText={errors[name]?.message}
+            style={style}
+          />
+        )}
+      />
+    </View>
+  );
   return (
     <ImageBackground
       source={require("@/assets/building.jpg")} 
@@ -65,43 +104,28 @@ export default function Login() {
             />
             <Animated.View style={cardStyle} className="rounded-b-3xl p-6 shadow-lg">
               {/* Email */}
-              <View className="mb-3">
-                <Text className="text-gray-600 mb-2">Email</Text>
-                <Controller
-                  control={control}
-                  name="email"
-                  rules={{ required: true }}
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      className="border border-gray-200 rounded-xl px-4 py-3 bg-white"
-                      placeholder="vd: thanh@gmail.com"
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                      onChangeText={onChange}
-                      value={value}
-                    />
-                  )}
-                />
-              </View>
+              <Field
+                name="email"
+                label="Email"
+                placeholder="vd: thanh@gmail.com"
+                keyboardType="email-address"
+                startIcon="email-outline"
+                rules={{
+                  required: "Vui lòng nhập email",
+                  pattern: { value: /\S+@\S+\.\S+/, message: "Email không hợp lệ" },
+                }}
+              />
 
               {/* Password */}
-              <View className="mb-2">
-                <Text className="text-gray-600 mb-2">Mật khẩu</Text>
-                <Controller
-                  control={control}
-                  name="password"
-                  rules={{ required: true }}
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      className="border border-gray-200 rounded-xl px-4 py-3 bg-white"
-                      placeholder="••••••••"
-                      secureTextEntry
-                      onChangeText={onChange}
-                      value={value}
-                    />
-                  )}
-                />
-              </View>
+              <Field
+                name="password"
+                label="Mật khẩu"
+                placeholder="••••••••"
+                secure
+                startIcon="lock-outline"
+                rules={{ required: "Vui lòng nhập mật khẩu", minLength: { value: 6, message: "Tối thiểu 6 ký tự" } }}
+                style={{ marginBottom: 12 }}
+              />
 
               {/* <View className="items-end mb-5">
                 <Text className="text-primary">Quên mật khẩu?</Text>
@@ -110,10 +134,11 @@ export default function Login() {
               {/* Nút đăng nhập */}
               <TouchableOpacity
                 onPress={handleSubmit(onSubmit)}
-                className=" rounded-2xl py-4 bg-blue-700"
+                disabled={isSubmitting}
+                className={`rounded-2xl py-4 ${isSubmitting ? "bg-gray-300" : "bg-blue-700"}`}
               >
                 <Text className="text-white text-center font-semibold text-base">
-                  Đăng nhập
+                  {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
                 </Text>
               </TouchableOpacity>
             </Animated.View>

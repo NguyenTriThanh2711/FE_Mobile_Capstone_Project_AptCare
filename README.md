@@ -34,8 +34,11 @@ aptcare-mobile/
 │  │  └─ register.jsx
 │  ├─ (resident)/                      # NAV riêng cho cư dân
 │  │  ├─ _layout.jsx                   # Tabs: home/requests/profile
-│  │  ├─ home.jsx
-│  │  ├─ requests.jsx                  # danh sách yêu cầu
+│  │  ├─ (tabs)/                       # <<< NHÓM TABS Ở ĐÂY
+│  │  │  ├─ _layout.jsx                # BottomTabs layout
+│  │  │  ├─ home.jsx
+│  │  │  ├─ requests.jsx               # danh sách yêu cầu
+│  │  │  └─ profile.jsx
 │  │  ├─ request-create.jsx            # tạo yêu cầu
 │  │  └─ request/
 │  │     └─ [id].jsx                   # chi tiết yêu cầu

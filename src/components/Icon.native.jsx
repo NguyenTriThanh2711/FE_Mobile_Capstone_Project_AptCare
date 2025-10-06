@@ -47,6 +47,7 @@ const MAP = {
   "person.fill": "person",
   "person": "person-outline",
   "chevron.right": "chevron-forward",
+  "chevron.left": "chevron-back",
   "lock": "lock-closed-outline", 
   "bell": "notifications-outline",         // hoặc "notifications"
   "envelope": "mail-outline",              // hoặc "mail"

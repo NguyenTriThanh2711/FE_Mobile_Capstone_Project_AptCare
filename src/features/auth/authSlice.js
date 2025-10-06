@@ -24,7 +24,11 @@ export const login = createAsyncThunk(
                       Email: "test@example.com",
                       CitizenshipIdentity: "123456789",
                       role: "resident",
-                      Apartment:"A101",
+                      Apartment:{
+                        ApartmentID:1,
+                        ApartmentName:"A0501",
+                        Floor:5,
+                      }
                     },
                     tokens: {
                       access: "mocked_access_token",
@@ -74,7 +78,11 @@ export const fetchProfile = createAsyncThunk(
                     Email: "test@example.com",
                     CitizenshipIdentity: "123456789",
                     role: "resident",
-                    Apartment:"A101",
+                    Apartment:{
+                      ApartmentID:1,
+                      ApartmentName:"A0501",
+                      Floor:5,
+                    },
                   }; // mocked
       return data;
     } catch (err) {
