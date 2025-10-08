@@ -23,7 +23,7 @@ export const login = createAsyncThunk(
                       Phone: "123456789",
                       Email: "test@example.com",
                       CitizenshipIdentity: "123456789",
-                      role: "resident",
+                      role: "technician",
                       Apartment:{
                         ApartmentID:1,
                         ApartmentName:"A0501",
@@ -77,7 +77,7 @@ export const fetchProfile = createAsyncThunk(
                     Phone: "123456789",
                     Email: "test@example.com",
                     CitizenshipIdentity: "123456789",
-                    role: "resident",
+                    role: "technician",
                     Apartment:{
                       ApartmentID:1,
                       ApartmentName:"A0501",

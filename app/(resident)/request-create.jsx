@@ -148,7 +148,7 @@ export default function RequestCreate() {
         </View>
 
         {/* Mức độ ưu tiên */}
-        <Text style={[styles.fieldLabel, { marginTop: 8 }]}>Mức độ ưu tiên</Text>
+        {/* <Text style={[styles.fieldLabel, { marginTop: 8 }]}>Mức độ ưu tiên</Text>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8, marginBottom: 8 }}>
           {PRIORITIES.map((p) => (
             <Pressable
@@ -159,7 +159,7 @@ export default function RequestCreate() {
               <Text style={[styles.priorityText, watch("priority") === p && styles.priorityTextSelected]}>{p}</Text>
             </Pressable>
           ))}
-        </View>
+        </View> */}
 
         {/* Mô tả ngắn gọn */}
         <Controller

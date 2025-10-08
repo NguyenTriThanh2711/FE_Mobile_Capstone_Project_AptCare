@@ -1,4 +1,4 @@
-Thanh` use pixel 4d, API 33 , Android 13 ("tiramisu")
+Thanh` use pixel 4a, API 33 , Android 13 ("tiramisu")
 
 # Expo Router Example
 

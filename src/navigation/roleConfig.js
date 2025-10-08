@@ -1,6 +1,6 @@
 export const roleToEntry = {
-    resident: "/(resident)/home",
-    technician: "/(technician)/dashboard",
+    resident: "/(resident)/(tabs)/home",
+    technician: "/(technician)/(tabs)/dashboard",
     // manager: "/(resident)/home", 
     // lead: "/(technician)/dashboard"
 };

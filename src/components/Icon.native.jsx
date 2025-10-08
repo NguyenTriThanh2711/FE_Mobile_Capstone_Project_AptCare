@@ -54,7 +54,46 @@ const MAP = {
   "wrench": "construct-outline",           // hoặc "construct"
   "creditcard": "card-outline",            // hoặc "card"
   "questionmark.circle": "help-circle-outline", // hoặc "help-circle"
-  "doc.text": "document-text-outline"
+  "doc.text": "document-text-outline",
+
+   // ===== kỹ thuật viên =====
+  // Lịch
+  "calendar": "calendar",
+  "calendar.fill": "calendar", // Ionicons không có fill riêng
+
+  // Check/Done
+  "checkmark.circle": "checkmark-circle-outline",
+  "checkmark.circle.fill": "checkmark-circle",
+  "checkmark.seal": "shield-checkmark-outline",    
+  "checkmark.seal.fill": "shield-checkmark",
+  // Thời tiết
+  "cloud.sun.fill": "partly-sunny",
+  "sun.max.fill": "sunny",
+  "cloud.rain.fill": "rainy",
+  "cloud.bolt.rain.fill": "thunderstorm",
+  "drop.fill": "water",
+  "wind": "leaf",
+  // Tools / sửa chữa
+  "wrench.and.screwdriver": "construct-outline",
+  "wrench.and.screwdriver.fill": "construct",
+
+  // Play / Pause / Stop (circle)
+  "play.circle.fill": "play-circle",
+  "play.circle": "play-circle-outline",
+  "pause.circle.fill": "pause-circle",
+  "pause.circle": "pause-circle-outline",
+  "stop.circle.fill": "stop-circle",
+  "stop.circle": "stop-circle-outline",
+
+  // Tòa nhà & phòng
+  "building.2": "business",                 // biểu tượng tòa nhà
+  "building.2.fill": "business",            // không có fill riêng
+  "door.left.hand.closed": "enter-outline", // không có icon "door", dùng enter như biểu đạt lối vào
+  "door.left.hand.closed.fill": "enter",    // gần nghĩa solid
+
+  // Thời gian & cảnh báo (đã có ở trên nhưng thêm alias nếu cần)
+  "clock.badge.exclamationmark": "alert-circle-outline",
+  "clock.badge.checkmark": "checkmark-done-circle-outline",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {
