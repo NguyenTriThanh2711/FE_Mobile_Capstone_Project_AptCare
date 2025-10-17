@@ -39,14 +39,19 @@ function AuthGate() {
   // Chờ điều hướng sẵn sàng & bootstrap xong
   useEffect(() => {
     if (!rootState?.key || !bootstrapped) return;
-    const inAuth = segments?.[0] === "(auth)"; 
-    if (!user && !inAuth) {
-      router.replace("/(auth)/login");
-    } else if (user && inAuth) {
-      // Đưa vào role gateway để tự điều hướng theo role
-      //  router.replace("/role-gateway");
-       router.replace("/(auth)/login");
+    const top = segments?.[0];                // "(auth)" | "(resident)" | "(technician)" | undefined
+    const wantTop = user
+      ? user.role === "technician"
+        ? "(technician)"
+        : "(resident)"
+      : "(auth)";
+    if (!user) {
+      if (top !== "(auth)") router.replace("/(auth)");
+      return;
     }
+    else if (top !== wantTop || top === "(auth)") {
+     router.replace("/role-gateway");
+   }
   }, [user, segments, rootState?.key, bootstrapped]);
 
   return <Slot />;

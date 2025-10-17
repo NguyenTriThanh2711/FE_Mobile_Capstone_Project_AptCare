@@ -1,12 +1,19 @@
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Stack } from "expo-router";
 
-export default function TechnicianTabs() {
+export default function TechnicianStackLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <Ionicons name="speedometer" color={color} size={size} /> }} />
-      <Tabs.Screen name="jobs" options={{ title: 'Jobs', tabBarIcon: ({ color, size }) => <Ionicons name="hammer" color={color} size={size} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} /> }} />
-    </Tabs>
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="appointment/[id]"
+        options={{
+          presentation: "modal",          
+          gestureEnabled: true,
+          fullScreenGestureEnabled: false, // có thể bật true nếu muốn swipe toàn màn
+          animation: "slide_from_bottom",  // Android: mượt hơn
+          headerShown: false,
+        }}
+      />
+    </Stack>
   );
 }

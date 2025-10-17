@@ -23,7 +23,7 @@ export const login = createAsyncThunk(
                       Phone: "123456789",
                       Email: "test@example.com",
                       CitizenshipIdentity: "123456789",
-                      role: "resident",
+                      role: "technician",
                       Apartment:{
                         ApartmentID:1,
                         ApartmentName:"A0501",
@@ -49,19 +49,51 @@ export const login = createAsyncThunk(
  */
 export const register = createAsyncThunk(
   'auth/register',
-  async (payload, { rejectWithValue }) => {
+  async ({email,password}, { rejectWithValue }) => {
     try {
-      const { data } = await http.post('/auth/register', payload);
-      // Tuỳ BE: nếu trả tokens thì lưu, nếu không thì bỏ qua
-      if (data?.tokens) await saveTokens(data.tokens);
-      return data?.user ?? true;
+      const { data } = await http.post('/auth/register', { email, password });
+      return data; // { accountId, otpSent, message }
     } catch (err) {
-      const message = err?.response?.data?.message || 'Đăng ký thất bại';
+      const message = err?.response?.data?.detail || err?.response?.data?.message || 'Đăng ký thất bại';
+      return rejectWithValue(message);
+    }
+  }
+);
+ /**  POST /auth/verify-otp  -> xác thực mã OTP
+ * payload gợi ý: { accountId, otp } hoặc { email, otp } tuỳ BE
+ */
+export const verifyOtp = createAsyncThunk(
+  'auth/verifyOtp',
+  async ({ accountId, otp }, { rejectWithValue }) => {
+    try {
+      const { data } = await http.post('/auth/verify-otp', { accountId, otp });
+      // Nếu BE trả tokens + user sau khi verify, có thể lưu tại đây:
+      if (data?.tokens) await saveTokens(data.tokens);
+      // nếu có user thì return user để set vào store, còn không thì return true
+     return data?.user ?? true;
+    } catch (err) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || 'OTP không hợp lệ';
       return rejectWithValue(message);
     }
   }
 );
 
+/**
+ * POST /auth/resend-otp  -> gửi lại OTP
+ * payload gợi ý: { accountId } hoặc { email }
+ */
+export const resendOtp = createAsyncThunk(
+  'auth/resendOtp',
+  async ({ accountId }, { rejectWithValue }) => {
+    try {
+      const { data } = await http.post('/auth/resend-otp', { accountId });
+      return data ?? true;
+    } catch (err) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || 'Không gửi lại được OTP';
+      return rejectWithValue(message);
+    }
+ }
+);
 /**
  * GET /me -> user
  * Dùng khi app khởi động hoặc sau khi login để đồng bộ role/profile
@@ -77,7 +109,7 @@ export const fetchProfile = createAsyncThunk(
                     Phone: "123456789",
                     Email: "test@example.com",
                     CitizenshipIdentity: "123456789",
-                    role: "resident",
+                    role: "technician",
                     Apartment:{
                       ApartmentID:1,
                       ApartmentName:"A0501",
