@@ -3,7 +3,6 @@ import React, { useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 
-// ⬇️ màu lấy từ file của bạn (đừng sửa file đó)
 import {
   Colors,
   zincColors,
@@ -13,6 +12,7 @@ import {
   borderColor,
 } from "@/src/utils/colors";
 import { Icon } from "@/src/components/Icon.native";
+import { getOrderTypeLabel } from "@/src/utils/helper";
 
 // ===== mock data gọn để chạy UI ngay (không import mockRepairRequests/currentUser) =====
 const CURRENT_USER = { id: "u-1", role: "technician", name: "Technician A" };
@@ -26,15 +26,16 @@ const SAMPLE_INSPECTIONS = [
     residentName: "Nguyễn Văn B",
     residentId: "res-12",
     apartment: "B2-12.05",
-    priority: "high", // low | medium | high
-    status: "pending", // pending | in_progress | completed
+    priority: "high",
+    status: "pending", 
+    type : "inspection", 
     technicianName: "Trần Kỹ Thuật",
     createdAt: "2025-01-10T09:45:00Z",
     updatedAt: "2025-01-10T10:00:00Z",
     scheduledDate: "2025-01-11T14:00:00Z",
     appointmentId: "appt-7788",
-    faultOwner: "BuildingFault", // BuildingFault | ResidentFault
-    solutionType: "Repair",
+    faultOwner: "", // BuildingFault | ResidentFault
+    solutionType: "",
     solution: "-",
   },
   {
@@ -47,6 +48,7 @@ const SAMPLE_INSPECTIONS = [
     apartment: "C1-08.02",
     priority: "medium",
     status: "in_progress",
+    type : "inspection", 
     technicianName: "Trần Kỹ Thuật",
     createdAt: "2025-01-09T07:20:00Z",
     updatedAt: "2025-01-10T03:30:00Z",
@@ -154,15 +156,30 @@ export default function InspectionDetailsScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Quay lại"
+            >
+              <Icon name="chevron.left" size={22} color={appleBlue} />
+            </Pressable>
             <Icon name="wrench.and.screwdriver" size={22} color={appleBlue} />
-            <Text style={styles.headerCategory}>INSPECTION</Text>
+            <Text style={styles.headerCategory}>{getOrderTypeLabel(inspection)}</Text>
           </View>
+
           <Badge
             text={(inspection.priority || "").toUpperCase()}
-            tone={inspection.priority === "high" ? "danger" : inspection.priority === "low" ? "muted" : "warning"}
+            tone={
+              inspection.priority === "high"
+                ? "danger"
+                : inspection.priority === "low"
+                ? "muted"
+                : "warning"
+            }
           />
         </View>
-
         <Text style={styles.title} numberOfLines={2}>
           {inspection.title}
         </Text>
@@ -275,7 +292,7 @@ export default function InspectionDetailsScreen() {
       <View style={styles.actionBar}>
         <Pressable style={styles.primaryBtn} onPress={handleCreateReport}>
           <Icon name="doc.text" size={20} color={THEME.background} />
-          <Text style={styles.primaryBtnText}>Tạo báo cáo</Text>
+          <Text style={styles.primaryBtnText}>Báo cáo khảo sát</Text>
         </Pressable>
 
         {isTechnician ? (
@@ -332,7 +349,7 @@ function TimelineItem({ icon, title, date, desc }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: THEME.background },
+  container: { flex: 1, backgroundColor: THEME.background , paddingTop: 30},
   header: {
     padding: 20,
     backgroundColor: THEME.background,
@@ -346,6 +363,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headerLeft: { flexDirection: "row", alignItems: "center" },
+  backBtn: {
+    marginRight: 8,
+    padding: 4,          // để dễ bấm hơn (kết hợp hitSlop)
+    borderRadius: 999,
+  },
   headerCategory: {
     marginLeft: 8,
     fontSize: 12,
@@ -433,9 +455,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: appleBlue,
     paddingVertical: 14,
+    paddingLeft:12,
     borderRadius: 12,
   },
-  primaryBtnText: { marginLeft: 8, color: THEME.background, fontSize: 16, fontWeight: "700" },
+  primaryBtnText: { marginLeft: 1, color: THEME.background, fontSize: 15, fontWeight: "700" },
 
   secondaryBtn: {
     flex: 1,

@@ -44,9 +44,12 @@ aptcare-mobile/
 │  │     └─ [id].jsx                   # chi tiết yêu cầu
 │  ├─ (technician)/                    # NAV riêng cho kỹ thuật
 │  │  ├─ _layout.jsx                   # Tabs: dashboard/jobs/profile
-│  │  ├─ dashboard.jsx
-│  │  ├─ jobs.jsx                      # danh sách job
-│  │  └─ jobs/
+│  │  ├─ (tabs)/ 
+│  │  │  ├─ dashboard.jsx
+│  │  │  ├─ schedule.jsx                      # danh sách job
+│  │  │  ├─ profile.jsx 
+│  │  │  ├─ _layout.jsx 
+│  │  └─ appoiment/
 │  │     └─ [id].jsx                   # chi tiết job
 │  ├─ role-gateway.jsx                 # chuyển hướng theo role sau đăng nhập
 │  ├─ _layout.jsx                      # Root: Redux Provider + Tailwind CSS

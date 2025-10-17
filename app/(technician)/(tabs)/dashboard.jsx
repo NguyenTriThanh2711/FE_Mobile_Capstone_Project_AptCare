@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
+import { WeatherCard } from "@/src/components/WeatherCard";
+import { useWeather } from "@/src/hooks/useWeather";
+import { router } from "expo-router";
 
 export default function TechnicianDashboard() {
-  // ===== Mock thời tiết hôm nay =====
   const [weather, setWeather] = useState({
     location: "AptCare City",
     tempC: 32,
@@ -11,7 +13,6 @@ export default function TechnicianDashboard() {
     condition: "Nắng nhẹ",
     humidity: 58,
     windKmh: 12,
-    // gợi ý icon: “sun.max.fill” | “cloud.sun.fill” | “cloud.rain.fill” | “cloud.bolt.rain.fill”
     icon: "cloud.sun.fill",
   });
 
@@ -30,7 +31,7 @@ export default function TechnicianDashboard() {
       apartment: { apartmentId: "A-204", floor: "2" },
       title: "Rò rỉ vòi nước",
       type: "Repair",
-      priority: "Cao",
+      priority: "Thường",
       time: "09:30",
       status: "Đang xử lý",
       contact: { name: "Anh Huy", phone: "0901234567" },
@@ -50,7 +51,7 @@ export default function TechnicianDashboard() {
       apartment: { apartmentId: "C-301", floor: "3" },
       title: "Ổ cắm phòng ngủ",
       type: "Repair",
-      priority: "Trung bình",
+      priority: "Thường",
       time: "14:15",
       status: "Đã xếp lịch",
       contact: { name: "Anh Minh", phone: "0987654321" },
@@ -88,7 +89,8 @@ export default function TechnicianDashboard() {
   const todayStr = new Date().toLocaleDateString("vi-VN", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
-
+  const { data, loading, error } = useWeather();
+  console.log("Weather hook:", { data, loading, error });
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={true}>
       {/* Header */}
@@ -97,26 +99,7 @@ export default function TechnicianDashboard() {
         <Text style={styles.date}>{todayStr}</Text>
       </View>
 
-      {/* Thời tiết hôm nay */}
-      <View style={styles.weatherCard}>
-        <View style={styles.weatherLeft}>
-          <Icon name={weather.icon} size={38} color="#0B5ED7" />
-          <View>
-            <Text style={styles.weatherTemp}>{weather.tempC}°C</Text>
-            <Text style={styles.weatherFeels}>Cảm giác như {weather.feelsLikeC}°C</Text>
-          </View>
-        </View>
-        <View style={styles.weatherRight}>
-          <Text style={styles.weatherRow}>
-            <Icon name="drop.fill" size={14} color="#0EA5E9" />  {weather.humidity}%  Ẩm
-          </Text>
-          <Text style={styles.weatherRow}>
-            <Icon name="wind" size={14} color="#64748B" />  {weather.windKmh} km/h Gió
-          </Text>
-          <Text style={styles.weatherCond}>{weather.condition}</Text>
-        </View>
-      </View>
-
+      <WeatherCard weather={data} loading={loading} error={error} />
       {/* Tổng quan hôm nay */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Tổng quan hôm nay</Text>
@@ -158,28 +141,6 @@ export default function TechnicianDashboard() {
         </View>
       </View>
 
-      {/* Thao tác nhanh */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
-        <View style={styles.quickActions}>
-          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Bắt đầu ca")}>
-            <Icon name="play.circle.fill" size={26} color="#34C759" />
-            <Text style={styles.quickActionText}>Bắt đầu ca</Text>
-          </Pressable>
-          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Khẩn cấp")}>
-            <Icon name="exclamationmark.triangle.fill" size={26} color="#FF3B30" />
-            <Text style={styles.quickActionText}>Khẩn cấp</Text>
-          </Pressable>
-          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Nghỉ giải lao")}>
-            <Icon name="pause.circle.fill" size={26} color="#FF9500" />
-            <Text style={styles.quickActionText}>Nghỉ giải lao</Text>
-          </Pressable>
-          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Kết thúc ngày")}>
-            <Icon name="stop.circle.fill" size={26} color="#8E8E93" />
-            <Text style={styles.quickActionText}>Kết thúc ngày</Text>
-          </Pressable>
-        </View>
-      </View>
 
       {/* Công việc hôm nay (gần nhất) */}
       <View style={styles.section}>
@@ -228,7 +189,7 @@ export default function TechnicianDashboard() {
                 <Text style={styles.statusChipText}>{job.status}</Text>
               </View>
 
-              <Pressable style={styles.linkBtn} onPress={() => Alert.alert("Chi tiết", "Đi đến chi tiết công việc…")}>
+              <Pressable style={styles.linkBtn} onPress={() => router.push(`appointment/${job.id}`)}>
                 <Text style={styles.linkText}>Xem chi tiết</Text>
                 <Icon name="chevron.right" size={16} color="#007AFF" />
               </Pressable>

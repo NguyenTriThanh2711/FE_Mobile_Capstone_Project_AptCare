@@ -69,6 +69,23 @@ const MAP = {
   // Thời tiết
   "cloud.sun.fill": "partly-sunny",
   "sun.max.fill": "sunny",
+  "sun.max": "sunny-outline",
+  "cloud.fill": "cloud",
+  "cloud": "cloud-outline",
+  "cloud.sun": "partly-sunny-outline",
+  "cloud.fog.fill": "cloudy",         // gần nghĩa sương mù
+  "cloud.fog": "cloudy-outline",
+  "cloud.drizzle.fill": "rainy",      // gần nghĩa mưa phùn
+  "cloud.drizzle": "rainy-outline",
+  "cloud.heavyrain.fill": "rainy",    // dùng cùng 'rainy' cho mưa to
+  "cloud.heavyrain": "rainy-outline",
+  "cloud.snow.fill": "snow",
+  "cloud.snow": "snow-outline",
+  "cloud.sun.rain.fill": "partly-sunny",
+  "cloud.sun.rain": "partly-sunny-outline",
+  "cloud.bolt.rain": "thunderstorm-outline",
+  "smoke.fill": "cloudy",          
+  "smoke": "cloudy-outline",
   "cloud.rain.fill": "rainy",
   "cloud.bolt.rain.fill": "thunderstorm",
   "drop.fill": "water",

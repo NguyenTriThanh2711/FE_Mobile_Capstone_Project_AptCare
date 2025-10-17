@@ -210,8 +210,8 @@ export default function TechnicianSchedule() {
       case "details": {
           const path =
             job.type === "inspection"
-              ? `/inspection/${job.id}`
-              : `/repairs/${job.id}`;
+              ? `/appointment /${job.id}`
+              : `/appointment /${job.id}`;
           router.push(path);
         return;
       }
