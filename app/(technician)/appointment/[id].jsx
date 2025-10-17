@@ -12,7 +12,7 @@ import {
   borderColor,
 } from "@/src/utils/colors";
 import { Icon } from "@/src/components/Icon.native";
-import { getOrderTypeLabel } from "@/src/utils/helper";
+import { getOrderTypeLabel } from "@/src/helper/request-header";
 
 // ===== mock data gọn để chạy UI ngay (không import mockRepairRequests/currentUser) =====
 const CURRENT_USER = { id: "u-1", role: "technician", name: "Technician A" };

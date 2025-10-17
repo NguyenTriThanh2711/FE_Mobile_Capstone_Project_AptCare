@@ -7,8 +7,8 @@ import {
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
 import { router, Link } from "expo-router";
 import Animated, { useSharedValue, withTiming, useAnimatedStyle, interpolateColor } from "react-native-reanimated";
@@ -19,7 +19,7 @@ import MUITextField from "@/src/components/common/MUITextField";
 
 export default function Login() {
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: { email: "", password: "" },
+    defaultValues: { usernameOrEmail: "", password: "" },
     mode: "onTouched",
   });
   // Animation
@@ -35,8 +35,22 @@ export default function Login() {
   // React.useEffect(() => { progress.value = withTiming(0, { duration: 280 }); }, []);
   const dispatch = useDispatch();
   const onSubmit = async (values) => {
-    const ok = await dispatch(authLogin(values)).unwrap().catch(() => false);
-    if (ok) router.replace("/role-gateway");
+    try {
+      console.log('call')
+      await dispatch(authLogin(
+        { usernameOrEmail: values.usernameOrEmail.trim(), password: values.password }
+      )).unwrap().catch(() => false);
+      router.replace("/role-gateway");
+    } catch (e) {
+      if (e?.type === "PASSWORD_CHANGE_REQUIRED" && e?.accountId) {
+        router.replace({
+          pathname: "/(auth)/first-change",
+          params: { accountId: String(e.accountId) },
+        });
+        return;
+      }
+      Alert.alert("Đăng nhập thất bại", e?.message || "Vui lòng kiểm tra lại thông tin.");
+    }
   };
   const Field = ({
     name,
@@ -103,16 +117,14 @@ export default function Login() {
               onRegister={() => router.replace("/(auth)/register")}
             />
             <Animated.View style={cardStyle} className="rounded-b-3xl p-6 shadow-lg">
-              {/* Email */}
+              {/* Email or Username */}
               <Field
-                name="email"
-                label="Email"
+                name="usernameOrEmail"
+                label="Email hoặc tên đăng nhập"
                 placeholder="vd: thanh@gmail.com"
-                keyboardType="email-address"
-                startIcon="email-outline"
+                startIcon="account-outline"
                 rules={{
-                  required: "Vui lòng nhập email",
-                  pattern: { value: /\S+@\S+\.\S+/, message: "Email không hợp lệ" },
+                  required: "Vui lòng nhập email hoặc tên đăng nhập",
                 }}
               />
 

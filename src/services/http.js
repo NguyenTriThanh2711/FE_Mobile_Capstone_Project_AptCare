@@ -1,9 +1,9 @@
 import axios from 'axios';
-import Constants from 'expo-constants';
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './secure-store';
+const APT_URL = process.env.EXPO_PUBLIC_API_URL || 'http://36.50.135.244';
 
 const http = axios.create({
-  baseURL: Constants?.expoConfig?.extra?.apiUrl,
+  baseURL: APT_URL,
   timeout: 15000,
 });
 
@@ -57,7 +57,7 @@ http.interceptors.response.use(
 
         // gọi API refresh token (điều chỉnh path theo BE)
         const { data } = await axios.post(
-          `${Constants?.expoConfig?.extra?.apiUrl}/auth/refresh`,
+          `${APT_URL}/auth/refresh`,
           { refresh },
           { timeout: 10000 }
         );

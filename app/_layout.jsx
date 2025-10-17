@@ -7,6 +7,7 @@ import { store, persistor } from "@/src/store";
 import { fetchProfile } from "@/src/features/auth/authSlice";
 import '../global.css';
 import { MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 function AuthGate() {
   const user = useSelector((s) => s.auth.user);
@@ -41,7 +42,7 @@ function AuthGate() {
     if (!rootState?.key || !bootstrapped) return;
     const top = segments?.[0];                // "(auth)" | "(resident)" | "(technician)" | undefined
     const wantTop = user
-      ? user.role === "technician"
+      ? user.role === "Technician"
         ? "(technician)"
         : "(resident)"
       : "(auth)";
@@ -62,7 +63,9 @@ export default function RootLayout() {
     <Provider store={store}>
       <PersistGate persistor={persistor} loading={null}>
           <PaperProvider theme={MD3LightTheme}>
-            <AuthGate />
+            <SafeAreaProvider>
+              <AuthGate />
+            </SafeAreaProvider>
           </PaperProvider>
       </PersistGate>
     </Provider>

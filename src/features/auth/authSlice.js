@@ -1,44 +1,83 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
 import { saveTokens, clearTokens } from '@/src/services/secure-store';
+import { getDeviceId } from '@/src/services/device-id';
 
 const initialState = {
-  user: null,      // { id, email, fullName, role: 'resident' | 'technician' | 'manager' }
-  status: 'idle',  // 'idle' | 'loading' | 'succeeded' | 'failed'
+  user: null,      
+  status: 'idle',  
   error: null,
+
+  needsPasswordChange: false,       
+  pendingAccountId: null,           
+
+  registerAccountId: null,          
+  otpStatus: 'idle',                // 'idle' | 'loading' | 'succeeded' | 'failed'  
+  otpError: null,   
 };
 
 /**
- * POST /auth/login  -> { user, tokens: { access, refresh } }
+ * POST /auth/login  -> {  access, refresh  }
  */
 export const login = createAsyncThunk(
   'auth/login',
-  async ({ email, password }, { rejectWithValue }) => {
+  async ({ usernameOrEmail, password }, { dispatch, rejectWithValue, getState }) => {
     try {
-      // const { data } = await http.post('/auth/login', { email, password });//mocked
-      const data = { 
-                    user: { 
-                      UserID: 1, 
-                      FullName: "Test User" ,
-                      Phone: "123456789",
-                      Email: "test@example.com",
-                      CitizenshipIdentity: "123456789",
-                      role: "technician",
-                      Apartment:{
-                        ApartmentID:1,
-                        ApartmentName:"A0501",
-                        Floor:5,
-                      }
-                    },
-                    tokens: {
-                      access: "mocked_access_token",
-                      refresh: "mocked_refresh_token",
-                    },
-                  };
-      if (data?.tokens) await saveTokens(data.tokens);
-      return data.user;
+      const deviceInfo = await getDeviceId(); 
+      const body = {
+        usernameOrEmail,
+        password,
+        deviceInfo,
+      };
+      console.log('authslice body',body) //clg
+      console.log('login URL =', http.defaults.baseURL + '/auth/login'); //clg
+      const { data } = await http.post('/auth/login', body); 
+      console.log('authSlice : data login response', data); //clg
+      const acessTK = data?.accessToken;
+      const refreshTK = data?.refreshToken;
+      if (acessTK && refreshTK) {
+        await saveTokens({ access: acessTK, refresh: refreshTK });
+      }
+      console.log('bat dau goi api fetchProfile'); //clg
+      const me = await dispatch(fetchProfile()).unwrap().catch(() => null);
+      console.log('me trong file authlice dispatch fetch', me); //clg
+      return me || true;
     } catch (err) {
-      const message = err?.response?.data?.message || 'Đăng nhập thất bại';
+      const res = err?.response;
+      if (res?.status === 403 && (res?.data?.message === 'PASSWORD_CHANGE_REQUIRED')) {
+        return rejectWithValue({
+            type: 'PASSWORD_CHANGE_REQUIRED',
+            accountId: res?.data?.accountId,
+            message: res?.data?.message|| 'Bạn cần đổi mật khẩu lần đầu!',
+       });
+      }
+      console.log('login error =', {
+        message: err?.message,
+        url: err?.config?.baseURL + err?.config?.url,
+        status: err?.response?.status,
+        data: err?.response?.data,
+      }); //clg
+      const message = res?.data?.detail || res?.data?.message || 'Đăng nhập thất bại';
+      return rejectWithValue({type: 'GENERAL', message});
+    }
+  }
+);
+
+/**
+ * POST /password/first-change -> đổi mật khẩu lần đầu
+ * payload: { accountId, newPassword }
+ * Nếu thành công trả về true
+ * Nếu lỗi trả về message
+ */
+export const firstChangePassword = createAsyncThunk(
+  'auth/firstChangePassword',
+  async ({ accountId, newPassword }, { rejectWithValue }) => {
+    try {
+      await http.post('/auth/password/first-change', { accountId, newPassword });
+      return true;
+    } catch (err) {
+      const res = err?.response;
+      const message = res?.data?.detail || res?.data?.message || 'Đổi mật khẩu thất bại';
       return rejectWithValue(message);
     }
   }
@@ -102,20 +141,8 @@ export const fetchProfile = createAsyncThunk(
   'auth/fetchProfile',
   async (_, { rejectWithValue }) => {
     try {
-      // const { data } = await http.get('/me'); //mocked
-      const data = { 
-                    UserID: 1, 
-                    FullName: "Test User" ,
-                    Phone: "123456789",
-                    Email: "test@example.com",
-                    CitizenshipIdentity: "123456789",
-                    role: "technician",
-                    Apartment:{
-                      ApartmentID:1,
-                      ApartmentName:"A0501",
-                      Floor:5,
-                    },
-                  }; // mocked
+      const { data } = await http.get('/auth/me'); //mocked
+      console.log('User in authslice', data)
       return data;
     } catch (err) {
       const message = err?.response?.data?.message || 'Không lấy được hồ sơ';
@@ -183,12 +210,35 @@ const authSlice = createSlice({
       .addCase(login.pending, (s) => {
         s.status = 'loading';
         s.error = null;
+        s.needsPasswordChange = false;
+        s.pendingAccountId = null;
       })
       .addCase(login.fulfilled, (s, a) => {
         s.status = 'succeeded';
-        s.user = a.payload;
+        if (a.payload && a.payload !== true) s.user = a.payload;
       })
       .addCase(login.rejected, (s, a) => {
+        s.status = 'failed';
+        if (a.payload?.type === 'PASSWORD_CHANGE_REQUIRED') {
+          s.needsPasswordChange = true;
+          s.pendingAccountId = a.payload.accountId;
+          s.error = a.payload.message || null;
+        } else {
+          s.error = a.payload?.message || a.error.message;
+        }
+      });
+    // FIRST CHANGE PASSWORD
+    builder
+      .addCase(firstChangePassword.pending, (s) => {
+        s.status = 'loading';
+        s.error = null;
+      })
+      .addCase(firstChangePassword.fulfilled, (s) => {
+        s.status = 'succeeded';
+        s.needsPasswordChange = false;
+        s.pendingAccountId = null;
+      })
+      .addCase(firstChangePassword.rejected, (s, a) => {
         s.status = 'failed';
         s.error = a.payload || a.error.message;
       });
@@ -256,6 +306,11 @@ const authSlice = createSlice({
       s.user = null;
       s.status = 'idle';
       s.error = null;
+      s.needsPasswordChange = false;   // << reset
+      s.pendingAccountId = null;       // << reset
+      s.registerAccountId = null;      // << reset
+      s.otpStatus = 'idle';
+      s.otpError = null;
     });
   },
 });
@@ -267,5 +322,8 @@ export const selectUser = (state) => state.auth.user;
 export const selectRole = (state) => state.auth.user?.role ?? null;
 export const selectAuthStatus = (state) => state.auth.status;
 export const selectAuthError = (state) => state.auth.error;
-
+export const selectNeedsPasswordChange = (state) => state.auth.needsPasswordChange;   // <<
+export const selectPendingAccountId = (state) => state.auth.pendingAccountId;         // <<
+export const selectRegisterAccountId = (state) => state.auth.registerAccountId;       // <<
+export const selectOtpState = (state) => ({ status: state.auth.otpStatus, error: state.auth.otpError }); // <<
 export default authSlice.reducer;

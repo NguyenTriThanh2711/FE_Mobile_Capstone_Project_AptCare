@@ -16,6 +16,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchProfile, logout, setUser } from "@/src/features/auth/authSlice";
 import { useRouter } from "expo-router";
 import { persistor } from "@/src/store";
+import { getRoomsLabel } from "@/src/helper/room-labels-profile";
 
 const styles = StyleSheet.create({
   container: {
@@ -306,8 +307,8 @@ export default function ResidentProfile() {
           {/* <Icon name="person.fill" size={40} color="white" /> */}
           <Image alt="profile" source={require('@/assets/profile.png')} style={{ width: 80, height: 80, borderRadius: 40 }} />
         </View>
-        <Text style={styles.profileName}>{user?.FullName ?? "Unknown User"}</Text>
-        <Text style={styles.profileApartment}>Căn hộ {user?.Apartment?.ApartmentName ?? "Unknown Apartment"}</Text>
+        <Text style={styles.profileName}>{(user?.firstName ?? '') + ' ' + (user?.lastName ?? '')?? "Unknown User"}</Text>
+        <Text style={styles.profileApartment}>Căn hộ {getRoomsLabel(user)}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -13,6 +13,6 @@ export default function RoleGateway() {
     const user = useSelector((s) => s.auth.user);
     console.log("RoleGateway: user =", user);
     if (!user) return <Redirect href="/(auth)/login" />;
-    const entry = roleToEntry[user.role] || roleToEntry.resident;
+    const entry = roleToEntry[user.role] || roleToEntry.Resident;
     return <Redirect href={entry} />;
 }

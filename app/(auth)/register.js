@@ -1,5 +1,6 @@
 import { useForm, Controller } from "react-hook-form";
-import { View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform, SafeAreaView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { router } from "expo-router";

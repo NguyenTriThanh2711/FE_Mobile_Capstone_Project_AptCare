@@ -12,8 +12,8 @@ web-build/
 # expo router
 expo-env.d.ts
 
-
-
+package-lock.json
+.env
 ios
 android
 

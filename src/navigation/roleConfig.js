@@ -1,8 +1,8 @@
 export const roleToEntry = {
-    resident: "/(resident)/(tabs)/home",
-    technician: "/(technician)/(tabs)/dashboard",
+    Resident: "/(resident)/(tabs)/home",
+    Technician: "/(technician)/(tabs)/dashboard",
     // manager: "/(resident)/home", 
     // lead: "/(technician)/dashboard"
 };
-export const isResident = (role) => role === 'resident';
-export const isTechnician = (role) => role === 'technician';
+export const isResident = (role) => role === 'Resident';
+export const isTechnician = (role) => role === 'Technician';
