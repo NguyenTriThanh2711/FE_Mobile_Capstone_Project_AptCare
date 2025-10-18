@@ -111,6 +111,31 @@ const MAP = {
   // Thời gian & cảnh báo (đã có ở trên nhưng thêm alias nếu cần)
   "clock.badge.exclamationmark": "alert-circle-outline",
   "clock.badge.checkmark": "checkmark-done-circle-outline",
+
+  // Thiết bị
+  "magnifyingglass": "search-outline",
+  "flashlight.off.fill": "flashlight-outline",
+  "flashlight.off": "flashlight-outline",
+  "xmark.circle": "close-circle-outline",
+  "xmark.circle.fill": "close-circle",
+
+  // SF has "hazardsign" (cảnh báo tam giác)
+  "hazardsign": "alert-circle-outline",
+  "hazardsign.fill": "alert-circle",
+
+  "arrow.up.arrow.down": "swap-vertical", // Ionicons không có outline riêng
+
+  "photo": "image-outline",
+  "photo.fill": "image",
+
+  "camera": "camera-outline",
+  "camera.fill": "camera",
+
+ // “square.and.arrow.up” (SF Symbol = Share/Upload). Tuỳ ngữ cảnh, chọn upload:
+  "square.and.arrow.up": "cloud-upload-outline",
+
+  "tray": "tray-outline",
+  "tray.fill": "tray",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

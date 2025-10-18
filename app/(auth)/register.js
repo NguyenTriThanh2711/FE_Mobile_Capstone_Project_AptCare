@@ -1,5 +1,5 @@
 import { useForm, Controller } from "react-hook-form";
-import { View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -7,23 +7,20 @@ import { router } from "expo-router";
 import { useDispatch } from "react-redux";
 import Animated, { useSharedValue, withTiming, useAnimatedStyle, interpolateColor } from "react-native-reanimated";
 import AuthTabsHeader from "@/src/components/AuthTabsHeader";
-import { authRegister } from "@/src/features/auth/authSlice";
 import React from "react";
 import MUITextField from "@/src/components/common/MUITextField";
+import { register as authRegister } from "@/src/features/auth/authSlice";
 
 const schema = yup.object({
-  fullName: yup.string().trim().required("Vui lòng nhập họ và tên"),
-  phone: yup.string().trim().matches(/^[0-9]{9,12}$/, "Số điện thoại không hợp lệ").required("Vui lòng nhập số điện thoại"),
   email: yup.string().trim().email("Email không hợp lệ").required("Vui lòng nhập email"),
   password: yup.string().min(6, "Tối thiểu 6 ký tự").required("Vui lòng nhập mật khẩu"),
-  confirmPassword: yup.string().oneOf([yup.ref("password")], "Mật khẩu nhập lại không khớp").required("Vui lòng nhập lại mật khẩu"),
 });
 
 export default function Register() {
   const dispatch = useDispatch();
 
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: { fullName: "", phone: "", email: "", password: "", confirmPassword: "", role: "resident" },
+  const { control, handleSubmit, formState: { errors, isSubmitting },getValues } = useForm({
+    defaultValues: {  email: "", password: "" },
     resolver: yupResolver(schema),
     mode: "onTouched",
   });
@@ -36,9 +33,24 @@ export default function Register() {
   }));
 
   const onSubmit = async (values) => {
-    const payload = { fullName: values.fullName, phone: values.phone, email: values.email, password: values.password, role: "resident" };
-    const ok = await dispatch(authRegister(payload)).unwrap().catch(() => false);
-    if (ok) router.replace("/(auth)/login");
+    const payload = {  email: values.email, password: values.password };
+    try {
+      console.log('press register')
+      const res = await dispatch(authRegister(payload)).unwrap();
+      console.log('registerPage: res authRegister =', res);
+      if (res?.otpSent) {
+        const email = encodeURIComponent(getValues("email"));
+        const accountId = encodeURIComponent(String(res.accountId ?? ""));
+        router.replace(`/(auth)/verify-otp?email=${email}&accountId=${accountId}`);
+      } else {
+        // fallback: quay về login nếu không có otp (ít gặp)
+        router.replace("/(auth)/login");
+      }
+    } catch (e) {
+      console.log('registerPage: error =', e);
+      Alert.alert(e || e?.message || "Vui lòng kiểm tra lại thông tin.");
+      return;
+    }
   };
 
   const Field = ({
@@ -91,27 +103,22 @@ export default function Register() {
           </View>
 
           <View className="flex-1 justify-center">
-            {/* Header Tabs */}
             <AuthTabsHeader
               active="register"
               onLogin={() => router.replace("/(auth)/login")}
               onRegister={() => {/* stay */}}
             />
+              <Animated.View style={cardStyle} className="rounded-b-3xl p-6 shadow-lg">
+                <Field name="email" label="Email" placeholder="you@domain.com" keyboardType="email-address" />
+                <Field name="password" label="Mật khẩu" placeholder="••••••••" secure />
+                <Field name="confirmPassword" label="Nhập lại mật khẩu" placeholder="••••••••" secure />
 
-            {/* Card nội dung: màu trùng tab Register + margin/padding giống Login */}
-            <Animated.View style={cardStyle} className="rounded-b-3xl p-6 shadow-lg">
-              <Field name="fullName" label="Họ và tên" placeholder="Nguyễn Văn A" startIcon="account-outline" />
-              <Field name="phone" label="Số điện thoại" placeholder="09xxxxxxxx" keyboardType="phone-pad" />
-              <Field name="email" label="Email" placeholder="you@domain.com" keyboardType="email-address" />
-              <Field name="password" label="Mật khẩu" placeholder="••••••••" secure />
-              <Field name="confirmPassword" label="Nhập lại mật khẩu" placeholder="••••••••" secure />
-
-              <TouchableOpacity disabled={isSubmitting} onPress={handleSubmit(onSubmit)} className={`rounded-2xl bg-blue-700 py-4 mt-2 ${isSubmitting ? "bg-gray-300" : "bg-primary"}`}>
-                <Text className="text-white text-center font-semibold text-base">
-                  {isSubmitting ? "Đang tạo..." : "Tạo tài khoản"}
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
+                <TouchableOpacity disabled={isSubmitting} onPress={handleSubmit(onSubmit)} className={`rounded-2xl bg-blue-700 py-4 mt-2 ${isSubmitting ? "bg-gray-300" : "bg-primary"}`}>
+                  <Text className="text-white text-center font-semibold text-base">
+                    {isSubmitting ? "Đang tạo..." : "Tạo tài khoản"}
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
           </View>
 
           <View className="items-center mb-6">

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
 import { WeatherCard } from "@/src/components/WeatherCard";
 import { useWeather } from "@/src/hooks/useWeather";
 import { router } from "expo-router";
+import callPhone from "@/src/utils/call-phone";
 
 export default function TechnicianDashboard() {
   const [weather, setWeather] = useState({
@@ -79,12 +80,7 @@ export default function TechnicianDashboard() {
     Alert.alert("Thao tác nhanh", `${action} – sắp có!`);
   };
 
-  const callPhone = (phone) => {
-    if (!phone) return;
-    Linking.openURL(`tel:${phone}`).catch(() =>
-      Alert.alert("Lỗi", "Không thể thực hiện cuộc gọi.")
-    );
-  };
+  
 
   const todayStr = new Date().toLocaleDateString("vi-VN", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",

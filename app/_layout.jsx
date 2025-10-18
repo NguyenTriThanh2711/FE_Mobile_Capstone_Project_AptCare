@@ -41,13 +41,16 @@ function AuthGate() {
   useEffect(() => {
     if (!rootState?.key || !bootstrapped) return;
     const top = segments?.[0];                // "(auth)" | "(resident)" | "(technician)" | undefined
-    const wantTop = user
+    const wantTop = user?.role
       ? user.role === "Technician"
         ? "(technician)"
         : "(resident)"
       : "(auth)";
     if (!user) {
-      if (top !== "(auth)") router.replace("/(auth)");
+      if (top !== "(auth)") router.replace("/(auth)/login");
+      return;
+    } else if (!user.role ) {
+      if (top !== "(auth)") router.replace("/(auth)/login");
       return;
     }
     else if (top !== wantTop || top === "(auth)") {

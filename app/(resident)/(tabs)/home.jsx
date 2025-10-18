@@ -13,6 +13,8 @@ import { Icon } from "@/src/components/Icon.native";
 import { Button } from "@/src/components/common/Button";
 import { useSelector } from "react-redux";
 import { router } from "expo-router";
+import callPhone from "@/src/utils/call-phone";
+import { getRoomsLabel } from "@/src/helper/room-labels-profile";
 
 export default function ResidentHome() {
   const user = useSelector((s) => s.auth.user);//mocked, có thể sau này xài fecthProfile để lấy thông tin đầy đủ hơn
@@ -132,7 +134,7 @@ export default function ResidentHome() {
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Chào mừng quay trở lại!</Text>
-          <Text style={styles.apartmentText}>Căn hộ {user?.Apartment?.ApartmentName}</Text>
+          <Text style={styles.apartmentText}>Căn hộ {getRoomsLabel(user)}</Text>
         </View>
 
         {/* Quick Actions */}
@@ -198,10 +200,10 @@ export default function ResidentHome() {
           <View style={styles.infoCard}>
             <View style={styles.infoItem}>
               <Icon name="phone.fill" size={20} color="#007AFF" />
-              <View style={styles.infoContent}>
+              <Pressable style={styles.infoContent} onPress={() => callPhone("0899353935")}>
                 <Text style={styles.infoLabel}>Liên hệ khẩn cấp</Text>
-                <Text style={styles.infoValue}>(555) 123-4567</Text>
-              </View>
+                <Text style={styles.infoValue}>0899-353935</Text>
+              </Pressable>
             </View>
             <View style={styles.infoItem}>
               <Icon name="clock.fill" size={20} color="#34C759" />

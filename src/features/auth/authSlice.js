@@ -29,18 +29,13 @@ export const login = createAsyncThunk(
         password,
         deviceInfo,
       };
-      console.log('authslice body',body) //clg
-      console.log('login URL =', http.defaults.baseURL + '/auth/login'); //clg
-      const { data } = await http.post('/auth/login', body); 
-      console.log('authSlice : data login response', data); //clg
+      const { data } = await http.post('/auth/login', body);
       const acessTK = data?.accessToken;
       const refreshTK = data?.refreshToken;
       if (acessTK && refreshTK) {
         await saveTokens({ access: acessTK, refresh: refreshTK });
       }
-      console.log('bat dau goi api fetchProfile'); //clg
       const me = await dispatch(fetchProfile()).unwrap().catch(() => null);
-      console.log('me trong file authlice dispatch fetch', me); //clg
       return me || true;
     } catch (err) {
       const res = err?.response;
@@ -91,6 +86,7 @@ export const register = createAsyncThunk(
   async ({email,password}, { rejectWithValue }) => {
     try {
       const { data } = await http.post('/auth/register', { email, password });
+      console.log('authenslice res regis : ',data)
       return data; // { accountId, otpSent, message }
     } catch (err) {
       const message = err?.response?.data?.detail || err?.response?.data?.message || 'Đăng ký thất bại';
@@ -102,10 +98,13 @@ export const register = createAsyncThunk(
  * payload gợi ý: { accountId, otp } hoặc { email, otp } tuỳ BE
  */
 export const verifyOtp = createAsyncThunk(
-  'auth/verifyOtp',
+  'register/verifyOtp',
   async ({ accountId, otp }, { rejectWithValue }) => {
     try {
-      const { data } = await http.post('/auth/verify-otp', { accountId, otp });
+      console.log('call verify otp')
+      console.log('data verify otp ', accountId, otp)
+      const { data } = await http.post('/auth/register/verify', { accountId, otp });
+      console.log('data res verify' , data)
       // Nếu BE trả tokens + user sau khi verify, có thể lưu tại đây:
       if (data?.tokens) await saveTokens(data.tokens);
       // nếu có user thì return user để set vào store, còn không thì return true
@@ -122,10 +121,11 @@ export const verifyOtp = createAsyncThunk(
  * payload gợi ý: { accountId } hoặc { email }
  */
 export const resendOtp = createAsyncThunk(
-  'auth/resendOtp',
+  'register/resendOtp',
   async ({ accountId }, { rejectWithValue }) => {
     try {
-      const { data } = await http.post('/auth/resend-otp', { accountId });
+      const { data } = await http.post('/auth/register/resend-otp', { accountId });
+      console.log('data resend-OPT',data)
       return data ?? true;
     } catch (err) {
       const message = err?.response?.data?.detail || err?.response?.data?.message || 'Không gửi lại được OTP';
@@ -251,7 +251,7 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (s, a) => {
         s.status = 'succeeded';
-        if (a.payload && a.payload !== true) s.user = a.payload;
+        s.registerAccountId = a.payload?.accountId ?? null
       })
       .addCase(register.rejected, (s, a) => {
         s.status = 'failed';
