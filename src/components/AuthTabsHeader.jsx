@@ -13,6 +13,7 @@ export default function AuthTabsHeader({
   onRegister = () => {},
   radius = 20,
 }) {
+  const cornerR = 8;
   const target = active === "login" ? 0 : 1; // 0 = login, 1 = register
   const progress = useSharedValue(target);
 
@@ -26,6 +27,7 @@ export default function AuthTabsHeader({
       [0, 1],
       ["rgba(230,249,255,0.95)", "rgba(255,255,255,0.65)"] 
     ),
+    borderTopRightRadius: cornerR,
   }));
   const rightBg = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
@@ -33,6 +35,7 @@ export default function AuthTabsHeader({
       [0, 1],
       ["rgba(255,255,255,0.65)", "rgba(230,249,255,0.95)"] 
     ),
+    borderTopLeftRadius: cornerR,
   }));
 
   const loginText = useAnimatedStyle(() => ({
@@ -54,7 +57,7 @@ export default function AuthTabsHeader({
         borderBottomRightRadius: 0,
         overflow: "hidden",
         backgroundColor: "rgba(255,255,255,0.2)",
-        
+        padding: 8,
         borderBottomWidth: 0,                
         borderColor: "rgba(255,255,255,0.35)",
       }}

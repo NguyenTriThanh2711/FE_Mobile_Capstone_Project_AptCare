@@ -3,7 +3,6 @@ import { Stack } from "expo-router";
 export default function ResidentStackLayout() {
   return (
     <Stack>
-      {/* Toàn bộ tab nằm trong group (tabs) */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
       {/* Màn ngoài-tab: request-create */}
@@ -15,8 +14,7 @@ export default function ResidentStackLayout() {
           headerShown: false,     // vì bạn đã tự render header trong file
         }}
       />
-
-      {/* Nếu có các màn khác ngoài tab, add tương tự */}
+      <Stack.Screen name="device/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="request" options={{ headerShown: false }} />
     </Stack>
   );

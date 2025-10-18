@@ -17,6 +17,7 @@ import { fetchProfile, logout, setUser } from "@/src/features/auth/authSlice";
 import { useRouter } from "expo-router";
 import { persistor } from "@/src/store";
 import { getRoomsLabel } from "@/src/helper/room-labels-profile";
+import GradientButton from "@/src/components/common/GradientButton";
 
 const styles = StyleSheet.create({
   container: {
@@ -167,11 +168,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   logoutButton: {
-    backgroundColor: "#FF3B30",
     margin: 20,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
   },
   logoutButtonText: {
     color: "white",
@@ -416,9 +413,14 @@ export default function ResidentProfile() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Đăng Xuất</Text>
-        </Pressable>
+        <GradientButton
+          title="Đăng xuất"
+          onPress={handleLogout}
+          from="red"
+          to="orange"
+          className="rounded-lg"
+          style={styles.logoutButton}
+        />
       </ScrollView>
 
       {/* Edit Profile Modal */}

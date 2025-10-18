@@ -16,6 +16,7 @@ import AuthTabsHeader from "@/src/components/AuthTabsHeader";
 import React from "react";
 import { login as authLogin } from "@/src/features/auth/authSlice";
 import MUITextField from "@/src/components/common/MUITextField";
+import GradientButton from "@/src/components/common/GradientButton";
 
 export default function Login() {
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm({
@@ -144,15 +145,14 @@ export default function Login() {
               </View> */}
 
               {/* Nút đăng nhập */}
-              <TouchableOpacity
-                onPress={handleSubmit(onSubmit)}
+              <GradientButton
+                title={isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+                loading={isSubmitting}
                 disabled={isSubmitting}
-                className={`rounded-2xl py-4 ${isSubmitting ? "bg-gray-300" : "bg-blue-700"}`}
-              >
-                <Text className="text-white text-center font-semibold text-base">
-                  {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
-                </Text>
-              </TouchableOpacity>
+                from="indigo"
+                to="blue"
+                onPress={handleSubmit(onSubmit)}
+              />
             </Animated.View>
           </Animated.View>
 
