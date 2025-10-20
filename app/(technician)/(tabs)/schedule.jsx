@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
 } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
 import { router } from "expo-router";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchMySchedule, selectWorkSlotsError, selectWorkSlotsLoading, selectWorkSlotsRaw } from "@/src/features/technician/workSlotsSlice";
+import { dotnetArr } from "@/src/helper/dotnetArr";
 const colors = {
   primary: "#007AFF",
   success: "#34C759",
@@ -23,6 +26,7 @@ const colors = {
   border: "#e5e5e5",
 };
 
+const ymd = (d) => new Date(d).toISOString().slice(0, 10);
 function formatViDate(d) {
   return d.toLocaleDateString("vi-VN", {
     weekday: "long",
@@ -91,52 +95,70 @@ function getAvailableActions(job) {
 
 export default function TechnicianSchedule() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [jobs, setJobs] = useState(() => {
-    const todayISO = new Date().toISOString();
-    return [
-      {
-        id: "J1",
-        type: "inspection", // inspection | repair
-        startTime: todayISO,
-        durationMins: 60,
-        apartmentId: "A-204",
-        floor: "2",
-        contact: { name: "Anh Huy", phone: "0901234567" },
-        title: "Khảo sát rò rỉ nước",
-        priority: "high", // low|medium|high|urgent
-        status: "scheduled",
-        inspection: {},
-        events: [{ id: "e1", type: "scheduled", at: todayISO, by: "system" }],
+  const dispatch = useDispatch();
+  const dateListRef = useRef(null);
+  const raw = useSelector(selectWorkSlotsRaw);
+  const loading = useSelector(selectWorkSlotsLoading);
+  const error = useSelector(selectWorkSlotsError);
+  // const [jobs, setJobs] = useState(() => {
+  //   const todayISO = new Date().toISOString();
+  //   return [
+  //     {
+  //       id: "J1",
+  //       type: "inspection", // inspection | repair
+  //       startTime: todayISO,
+  //       durationMins: 60,
+  //       apartmentId: "A-204",
+  //       floor: "2",
+  //       contact: { name: "Anh Huy", phone: "0901234567" },
+  //       title: "Khảo sát rò rỉ nước",
+  //       priority: "high", // low|medium|high|urgent
+  //       status: "scheduled",
+  //       inspection: {},
+  //       events: [{ id: "e1", type: "scheduled", at: todayISO, by: "system" }],
+  //     },
+  //     {
+  //       id: "J2",
+  //       type: "repair",
+  //       startTime: todayISO,
+  //       apartmentId: "B-105",
+  //       floor: "1",
+  //       contact: { name: "Chị Lan", phone: "0912345678" },
+  //       title: "Sửa điều hoà",
+  //       priority: "urgent",
+  //       status: "in_progress",
+  //       repair: { steps: [], progressNotes: [], photos: [] },
+  //       events: [{ id: "e1", type: "started", at: todayISO, by: "KT01" }],
+  //     },
+  //     {
+  //       id: "J3",
+  //       type: "repair",
+  //       startTime: todayISO,
+  //       apartmentId: "C-301",
+  //       floor: "3",
+  //       contact: { name: "Anh Minh", phone: "0987654321" },
+  //       title: "Sửa ổ cắm",
+  //       priority: "medium",
+  //       status: "scheduled",
+  //       repair: { steps: [], progressNotes: [], photos: [] },
+  //       events: [{ id: "e1", type: "scheduled", at: todayISO, by: "system" }],
+  //     },
+  //   ];
+  // });
+  const loadRange = useCallback(// load công việc trong khoảng 2 tuần
+      (baseDate) => {
+        const base = baseDate || selectedDate;
+        const from = new Date(base);
+        const to = new Date(base);
+        from.setDate(from.getDate() - 7);
+        to.setDate(to.getDate() + 7);
+        return dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
       },
-      {
-        id: "J2",
-        type: "repair",
-        startTime: todayISO,
-        apartmentId: "B-105",
-        floor: "1",
-        contact: { name: "Chị Lan", phone: "0912345678" },
-        title: "Sửa điều hoà",
-        priority: "urgent",
-        status: "in_progress",
-        repair: { steps: [], progressNotes: [], photos: [] },
-        events: [{ id: "e1", type: "started", at: todayISO, by: "KT01" }],
-      },
-      {
-        id: "J3",
-        type: "repair",
-        startTime: todayISO,
-        apartmentId: "C-301",
-        floor: "3",
-        contact: { name: "Anh Minh", phone: "0987654321" },
-        title: "Sửa ổ cắm",
-        priority: "medium",
-        status: "scheduled",
-        repair: { steps: [], progressNotes: [], photos: [] },
-        events: [{ id: "e1", type: "scheduled", at: todayISO, by: "system" }],
-      },
-    ];
-  });
-
+      [dispatch, selectedDate]
+    );
+    useEffect(() => {
+      loadRange(selectedDate);
+    }, [selectedDate, loadRange]);
   // ====== Modal states ======
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportPayload, setReportPayload] = useState({
@@ -274,27 +296,42 @@ export default function TechnicianSchedule() {
   };
 
   // ====== Week dates ======
-  const weekDates = useMemo(() => {
-    const today = new Date();
-    const start = new Date(today);
+  const twoWeekDates = useMemo(() => {
+    const base = new Date(selectedDate);
+    const start = new Date(base);
     // Bắt đầu từ Chủ nhật
-    start.setDate(today.getDate() - today.getDay());
-    return Array.from({ length: 7 }, (_, i) => {
+    start.setDate(base.getDate() - 7);
+    return Array.from({ length: 14 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       return d;
     });
   }, []);
-
-  // Lọc jobs theo ngày (demo: tất cả là hôm nay)
-  const jobsToday = jobs; // tuỳ dữ liệu thật lọc theo selectedDate
-
+  useEffect(() => {
+      const idx = twoWeekDates.findIndex((d => d.toDateString() === selectedDate.toDateString()));
+      if (idx < 0 || !dateListRef.current) return;
+      const x = 16 + idx * (50 + 10); // padding + itemWidth + gap - half screen
+      requestAnimationFrame(() => {
+        dateListRef.current.scrollTo({ x, animated: true });
+      });
+    }, [twoWeekDates, selectedDate]);
+  const slotsToday = useMemo(() => {
+      if (!raw) return [];
+      const dayObj = dotnetArr(raw).find((d) => d?.date === ymd(selectedDate));
+      if (!dayObj) return [];
+      return dotnetArr(dayObj.slots); // [{ slotId, technicianWorkSlots }]
+  }, [raw, selectedDate]);
+  const totalToday = useMemo(() => {
+      return slotsToday
+        .map((s) => dotnetArr(s.technicianWorkSlots).length)
+        .reduce((a, b) => a + b, 0);
+  }, [slotsToday]);
   return (
     <View style={styles.container}>
       {/* Week selector */}
       <View style={styles.dateSelector}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateScroll}>
-          {weekDates.map((d, idx) => {
+        <ScrollView ref={dateListRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateScroll}>
+          {twoWeekDates.map((d, idx) => {
             const isSelected = d.toDateString() === selectedDate.toDateString();
             const isToday = d.toDateString() === new Date().toDateString();
             return (
@@ -318,38 +355,38 @@ export default function TechnicianSchedule() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Lịch ngày {formatViDate(selectedDate)}</Text>
-        <Text style={styles.subTitle}>{jobsToday.length} công việc</Text>
+        <Text style={styles.subTitle}>{totalToday} công việc</Text>
       </View>
 
       {/* List */}
       <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-        {jobsToday.map((job) => {
-          const chip = getStatusChip(job);
+        {slotsToday.map((slot, idx) => {
+          const tws = dotnetArr(slot?.technicianWorkSlots);
           return (
-            <View key={job.id} style={styles.card}>
+            <View key={`${slot.slotId}-${idx}`} style={styles.card}>
               {/* Thời gian & trạng thái */}
               <View style={styles.rowTop}>
                 <View style={styles.timeCol}>
                   <Icon name="clock" size={16} color={colors.textSecondary} />
                   <Text style={styles.timeText}>
-                    {new Date(job.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} 
+                    {new Date(slot?.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} 
                   </Text>
                 </View>
-                <View style={[styles.statusChip, { backgroundColor: chip.bg }]}>
-                  <Text style={styles.statusText}>{chip.label}</Text>
+                <View style={[styles.statusChip, { backgroundColor: "#8E8E93" }]}>
+                  <Text style={styles.statusText}>{slot.label}</Text>
                 </View>
               </View>
 
               {/* Info */}
               <View style={styles.rowMid}>
-                <Text style={styles.apartment}>{job.apartmentId}</Text>
-                <View style={[styles.priorityPill, { backgroundColor: getPriorityColor(job.priority) }]}>
+                <Text style={styles.apartment}>{slot.apartmentId}</Text>
+                <View style={[styles.priorityPill, { backgroundColor: getPriorityColor(slot.priority) }]}>
                   <Text style={styles.pillText}>
-                    {job.priority === "urgent" ? "Khẩn cấp" : job.priority === "high" ? "Cao" : job.priority === "medium" ? "Trung bình" : "Thấp"}
+                    {slot.priority === "urgent" ? "Khẩn cấp" : slot.priority === "high" ? "Cao" : slot.priority === "medium" ? "Trung bình" : "Thấp"}
                   </Text>
                 </View>
-                <View style={[styles.typePill, job.type === "inspection" ? styles.inspect : styles.repair]}>
-                  <Text style={styles.typeText}>{job.type === "inspection" ? "Khảo sát" : "Sửa chữa"}</Text>
+                <View style={[styles.typePill, slot.type === "inspection" ? styles.inspect : styles.repair]}>
+                  <Text style={styles.typeText}>{slot.type === "inspection" ? "Khảo sát" : "Sửa chữa"}</Text>
                 </View>
               </View>
 
@@ -357,27 +394,27 @@ export default function TechnicianSchedule() {
               <View style={styles.rowMeta}>
                 <View style={styles.metaItem}>
                   <Icon name="building.2" size={14} color={colors.textSecondary} />
-                  <Text style={styles.metaTxt}>Lầu: <Text style={styles.metaStrong}>{job.floor}</Text></Text>
+                  <Text style={styles.metaTxt}>Lầu: <Text style={styles.metaStrong}>{slot.floor}</Text></Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Icon name="door.left.hand.closed" size={14} color={colors.textSecondary} />
-                  <Text style={styles.metaTxt}>Phòng: <Text style={styles.metaStrong}>{job.apartmentId}</Text></Text>
+                  <Text style={styles.metaTxt}>Phòng: <Text style={styles.metaStrong}>{slot.apartmentId}</Text></Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Icon name="phone" size={14} color={colors.primary} />
-                  <Text style={[styles.metaTxt, styles.metaStrong]}>{job.contact?.phone}</Text>
+                  <Text style={[styles.metaTxt, styles.metaStrong]}>{slot.contact?.phone}</Text>
                 </View>
               </View>
 
               {/* Mô tả ngắn */}
-              <Text style={styles.titleText}>{job.title}</Text>
+              <Text style={styles.titleText}>{slot.title}</Text>
 
               {/* Actions */}
               <View style={styles.actions}>
-                {getAvailableActions(job).map((a) => {
+                {getAvailableActions(slot).map((a) => {
                   if (a.kind === "link") {
                     return (
-                      <Pressable key={a.key} style={styles.linkBtn} onPress={() => handleAction(job, a.key)}>
+                      <Pressable key={a.key} style={styles.linkBtn} onPress={() => handleAction(slot, a.key)}>
                         <Text style={styles.linkText}>{a.label}</Text>
                         <Icon name="chevron.right" size={16} color={colors.primary} />
                       </Pressable>
@@ -386,7 +423,7 @@ export default function TechnicianSchedule() {
                   const btnStyle = a.kind === "primary" ? styles.btnPrimary : styles.btnSecondary;
                   const txtStyle = a.kind === "primary" ? styles.btnPrimaryText : styles.btnSecondaryText;
                   return (
-                    <Pressable key={a.key} style={[styles.btn, btnStyle]} onPress={() => handleAction(job, a.key)}>
+                    <Pressable key={a.key} style={[styles.btn, btnStyle]} onPress={() => handleAction(slot, a.key)}>
                       <Icon name={a.icon} size={16} color={a.kind === "primary" ? "#fff" : colors.primary} />
                       <Text style={[styles.btnText, txtStyle]}>{a.label}</Text>
                     </Pressable>

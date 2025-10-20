@@ -1,0 +1,1 @@
+export const dotnetArr = (o) => (o && Array.isArray(o.$values) ? o.$values : []);

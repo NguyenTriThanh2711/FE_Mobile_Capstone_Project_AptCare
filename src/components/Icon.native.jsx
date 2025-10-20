@@ -48,6 +48,8 @@ const MAP = {
   "person": "person-outline",
   "chevron.right": "chevron-forward",
   "chevron.left": "chevron-back",
+  "chevron.down": "chevron-down",
+  "chevron.up": "chevron-up",
   "lock": "lock-closed-outline", 
   "bell": "notifications-outline",         // hoặc "notifications"
   "envelope": "mail-outline",              // hoặc "mail"
@@ -104,7 +106,6 @@ const MAP = {
 
   // Tòa nhà & phòng
   "building.2": "business",                 // biểu tượng tòa nhà
-  "building.2.fill": "business",            // không có fill riêng
   "door.left.hand.closed": "enter-outline", // không có icon "door", dùng enter như biểu đạt lối vào
   "door.left.hand.closed.fill": "enter",    // gần nghĩa solid
 
@@ -136,6 +137,9 @@ const MAP = {
 
   "tray": "tray-outline",
   "tray.fill": "tray",
+
+  "note-text-outline": "document-text-outline",
+  "text-box-outline": "document-text-outline"
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

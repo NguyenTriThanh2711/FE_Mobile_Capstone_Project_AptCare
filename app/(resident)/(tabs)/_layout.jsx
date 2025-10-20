@@ -23,8 +23,8 @@ export default function ResidentTabsLayout() {
             iconName = focused ? "requests.fill" : "requests";
           } else if (route.name === "payments") {
             iconName = focused ? "payments.fill" : "payments";
-          } else if (route.name === "devices") {
-            iconName = focused ? "flashlight.off.fill" : "flashlight.off";
+          // } else if (route.name === "devices") {
+          //   iconName = focused ? "flashlight.off.fill" : "flashlight.off";
           } else if (route.name === "chat") {
             iconName = focused ? "chat.fill" : "chat";
           } else if (route.name === "profile") {
@@ -69,8 +69,8 @@ export default function ResidentTabsLayout() {
     >
       <Tab.Screen name="home" component={ResidentHome} options={{ title: "Trang chủ", headerTitle: "AptCare" }} />
       <Tab.Screen name="requests" component={ResidentRequests} options={{ title: "Yêu cầu", headerTitle: "AptCare - Tower" }} />
-      <Tab.Screen name="devices" component={ResidentDevices} options={{ title: "Thiết bị", headerTitle: "AptCare - Thiết bị" }} />
-      {/* <Tab.Screen name="payments" component={ResidentPayments} options={{ title: "Payments", headerTitle: "Payments" }} />
+      {/*<Tab.Screen name="devices" component={ResidentDevices} options={{ title: "Thiết bị", headerTitle: "AptCare - Thiết bị" }} />
+       <Tab.Screen name="payments" component={ResidentPayments} options={{ title: "Payments", headerTitle: "Payments" }} />
       <Tab.Screen name="chat" component={ResidentChat} options={{ title: "Chat", headerTitle: "Messages" }} />*/}
       <Tab.Screen name="profile" component={ResidentProfile} options={{ title: "Hồ sơ", headerTitle: "Hồ sơ của tôi" }} />
     </Tab.Navigator>
