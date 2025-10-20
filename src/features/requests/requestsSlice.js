@@ -48,7 +48,37 @@ export const createNormalRepairRequest = createAsyncThunk('requests/createNormal
     return rejectWithValue({ status: res?.status, message });
   }
 });
-
+export const createEmergencyRepairRequest = createAsyncThunk('requests/createEmergencyRepairRequest',
+  async (payload, { rejectWithValue }) => {
+  try {
+    const fd = new FormData();
+    //requried
+    fd.append('ApartmentId', String(payload.ApartmentId));
+    fd.append('Object', payload.Object ?? '');
+    fd.append('Description', payload.Description ?? '');
+    fd.append('IssueId', String(payload.IssueId));
+    //files
+    if (Array.isArray(payload.Files)) {
+      payload.Files.forEach((file) => {
+        fd.append('Files', {
+          uri: file.uri,
+          name: file.name || 'photo.jpg',
+          type: file.type || 'image/jpeg',
+        });
+      });
+    }
+    const { data, status } = await http.post("/api/repairrequests/emergency", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { data, status };
+  } catch (error) {
+    console.log('create repair request emergency error', error)
+    const res = error?.response;
+    const message =
+      res?.data?.detail || res?.data?.message || res?.data || error?.message || "Gửi yêu cầu thất bại";
+    return rejectWithValue({ status: res?.status, message });
+  }
+});
 export const updateRequest = createAsyncThunk('requests/update', async ({ id, patch }) => {
   const { data } = await http.patch(`/requests/${id}`, patch);
   return data;
@@ -77,6 +107,7 @@ const slice = createSlice({
     b.addCase(fetchMyRequests.pending, (s) => { s.status = 'loading'; })
      .addCase(fetchMyRequests.fulfilled, (s, a) => { s.status = 'succeeded'; s.list = a.payload; })
      .addCase(fetchMyRequests.rejected, (s, a) => { s.status = 'failed'; s.error = a.error.message; })
+     //normal
      .addCase(createNormalRepairRequest.pending, (s) => {
       s.creating = true;
       s.createError = null;
@@ -90,6 +121,21 @@ const slice = createSlice({
       s.creating = false;
       s.createError = a.payload || a.error;
      })
+      //emergency
+      .addCase(createEmergencyRepairRequest.pending, (s) => {
+        s.creating = true; 
+        s.createError = null;
+        s.lastCreateResult = null;
+      })
+      .addCase(createEmergencyRepairRequest.fulfilled, (s, a) => {
+        s.creating = false;
+        s.lastCreateResult = a.payload; // giữ nguyên
+      })
+      .addCase(createEmergencyRepairRequest.rejected, (s, a) => {
+        s.creating = false;
+        s.createError = a.payload || a.error;
+      })
+      
      .addCase(updateRequest.fulfilled, (s, a) => {
         s.list = s.list.map((r) => (r.id === a.payload.id ? a.payload : r));
      })
