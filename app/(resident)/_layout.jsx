@@ -14,7 +14,7 @@ export default function ResidentStackLayout() {
           headerShown: false,     // vì bạn đã tự render header trong file
         }}
       />
-      <Stack.Screen name="device/[id]" options={{ headerShown: false }} />
+      {/* <Stack.Screen name="device/[id]" options={{ headerShown: false }} /> */}
       <Stack.Screen name="request" options={{ headerShown: false }} />
     </Stack>
   );

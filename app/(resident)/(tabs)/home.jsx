@@ -53,17 +53,6 @@ export default function ResidentHome() {
   ];
 
 
-  const categories = [
-    "Plumbing",
-    "Electrical",
-    "HVAC",
-    "Appliances",
-    "General Maintenance",
-    "Other",
-  ];
-
-  const priorities = ["Medium", "Urgent"];
-
   const handleEmergency = () => {
     Alert.alert(
       "Emergency Request",

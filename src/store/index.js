@@ -3,11 +3,10 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, createTransform } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Nếu bạn có alias "@", dùng như dưới; nếu chưa có alias, đổi thành đường dẫn tương đối:
-// import auth from '../features/auth/authSlice';
-// import requests from '../features/requests/requestsSlice';
 import auth from '@/src/features/auth/authSlice';
 import requests from '@/src/features/requests/requestsSlice';
+import workslots from '@/src/features/technician/workSlotsSlice';
+import issues from '@/src/features/issues/issuesSlice'; 
 
 // --- Chỉ persist "user" của auth (KHÔNG persist status/error/token)
 const authTransform = createTransform(
@@ -23,7 +22,7 @@ const requestsTransform = createTransform(
   { whitelist: ['requests'] }
 );
 
-const rootReducer = combineReducers({ auth, requests });
+const rootReducer = combineReducers({ auth, requests, workslots, issues });
 
 const persistConfig = {
   key: 'root',

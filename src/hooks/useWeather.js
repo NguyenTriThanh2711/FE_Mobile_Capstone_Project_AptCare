@@ -24,7 +24,7 @@ export function useWeather() {
             setData(cached);
           }
         }
-        console.log("Weather cache:", raw ? JSON.parse(raw) : null);
+        console.log("Weather cache:", raw ? JSON.parse(raw) : null);//clg
 
         // 2) Quyền & toạ độ
         const { status: perm } = await Location.requestForegroundPermissionsAsync();

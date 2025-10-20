@@ -5,6 +5,7 @@ import {
   HelperText,
   useTheme,
 } from "react-native-paper";
+import { Icon } from "../Icon.native";
 
 export default function MUITextField({
   label,
@@ -34,16 +35,23 @@ export default function MUITextField({
   const height = size === "small" ? 44 : 52;
   const contentStyle = { minHeight: height, height };
 
-  const left = startIcon ? <PaperInput.Icon icon={startIcon} /> : undefined;
-
-  const right = isPassword ? (
+  const left = startIcon ? (
     <PaperInput.Icon
-      icon={showPwd ? "eye-off-outline" : "eye-outline"}
-      onPress={() => setShowPwd((v) => !v)}
+      icon = {props => <Icon name={startIcon} size={props.size ?? 20} color={props.color} />}
     />
-  ) : endIcon ? (
-    <PaperInput.Icon icon={endIcon} onPress={rightOnPress} />
   ) : undefined;
+  const right = isPassword ? (
+     <PaperInput.Icon
+       icon={showPwd ? "eye-off-outline" : "eye-outline"}
+       onPress={() => setShowPwd(!showPwd)
+       }
+     />
+    ) : endIcon ? (
+        <PaperInput.Icon
+          icon={props => <Icon name={endIcon} size={props.size ?? 20} color={props.color} />}
+          onPress={rightOnPress}
+        />
+      ) : undefined;
 
   return (
     <View style={style}>

@@ -55,7 +55,7 @@ http.interceptors.response.use(
         const refresh = await getRefreshToken();
         if (!refresh) throw new Error('No refresh token');
 
-        // gọi API refresh token (điều chỉnh path theo BE)
+        // gọi API refresh token 
         const { data } = await axios.post(
           `${APT_URL}/auth/refresh`,
           { refresh },

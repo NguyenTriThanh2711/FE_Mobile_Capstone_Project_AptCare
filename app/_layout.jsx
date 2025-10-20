@@ -8,6 +8,7 @@ import { fetchProfile } from "@/src/features/auth/authSlice";
 import '../global.css';
 import { MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 function AuthGate() {
   const user = useSelector((s) => s.auth.user);
@@ -68,6 +69,7 @@ export default function RootLayout() {
           <PaperProvider theme={MD3LightTheme}>
             <SafeAreaProvider>
               <AuthGate />
+              <Toast />
             </SafeAreaProvider>
           </PaperProvider>
       </PersistGate>

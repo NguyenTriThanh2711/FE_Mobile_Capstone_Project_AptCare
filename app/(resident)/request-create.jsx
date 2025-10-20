@@ -1,15 +1,21 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
-import { useSelector } from "react-redux";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Alert, Modal } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { Icon } from "@/src/components/Icon.native";
 import MUITextField from "@/src/components/common/MUITextField";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import WheelDateTimePicker from "@/src/components/common/WheelDateTimePicker"; // <- mới
+import WheelDateTimePicker from "@/src/components/common/WheelDateTimePicker"; 
+import ImagePickerStrip from "@/src/components/ImagePickerStrip";
+import { createNormalRepairRequest, selectRequestCreateError, selectRequestCreateResult, selectRequestCreating } from "@/src/features/requests/requestsSlice";
+import {  fetchIssues, selectIssues, selectIssuesLoading } from "@/src/features/issues/issuesSlice";
+import { ScrollView } from "react-native";
+import Toast from "react-native-toast-message";
+import { dotnetArr } from "@/src/helper/dotnetArr";
 
-const CATEGORIES = ["Plumbing", "Electrical", "HVAC", "Appliances", "General Maintenance", "Other"];
+
 const PRIORITIES = ["Medium", "Urgent"];
 const FOOTER_HEIGHT = 64;
 
@@ -30,15 +36,32 @@ const fmtVi = (iso) => {
 };
 
 export default function RequestCreate() {
+  const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
+  const priority = "Medium"; 
+
   const [openPicker, setOpenPicker] = useState(false);
   const user = useSelector((s) => s.auth.user);
-  const defaultFloor = user?.Apartment?.Floor ?? "";
-  const defaultRoom  = user?.Apartment?.ApartmentName ?? "";
-  const defaultName  = user?.FullName ?? "";
-  const defaultPhone = user?.Phone ?? "";
+  const [images, setImages] = useState([]);
+  console.log('apartments of user', user.apartments.$values)
+  // const apartmentId  = user?.apartments?.$values?.[0]?.apartmentId;
+  // const defaultFloor = user?.apartments?.$values?.[0]?.floor ?? "";
+  // const defaultRoom  = user?.apartments?.$values?.[0]?.roomNumber ?? "";
+  const apartments = useMemo(() => dotnetArr(user?.apartments), [user]);
+  const firstAptId = apartments?.[0]?.apartmentId ?? null;
 
-  const insets = useSafeAreaInsets();
+  const creating = useSelector(selectRequestCreating);
+  const createErr = useSelector(selectRequestCreateError);
+  const createRes = useSelector(selectRequestCreateResult);
+  
+  const issues = useSelector(selectIssues);
+  const issuesLoading = useSelector(selectIssuesLoading);
 
+
+  useEffect(() => {
+    dispatch(fetchIssues());
+  }, [dispatch]);
+  // Form setup
   const {
     control,
     handleSubmit,
@@ -48,43 +71,59 @@ export default function RequestCreate() {
   } = useForm({
     mode: "onTouched",
     defaultValues: {
-      floor: String(defaultFloor),
-      roomName: String(defaultRoom),
-      residentName: defaultName,
-      residentPhone: defaultPhone,
-      category: "",
-      priority: "Medium",
+      apartmentId: firstAptId,
+      issueId : null,
+      otherIssue: "",
       shortSummary: "",
       description: "",
       preferredAt: new Date().toISOString(),
     },
   });
+  const selectedApartmentId = watch("apartmentId");
+  const selectedApartment = useMemo(
+    () => apartments.find((apt) => apt.apartmentId === selectedApartmentId),
+    [apartments, selectedApartmentId]
+  );
+  const defaultFloor = selectedApartment?.floor ?? "";
+  const defaultRoom = selectedApartment?.roomNumber ?? "";
 
-  const category = watch("category");
-  const priority = watch("priority");
+  const issueId = watch("issueId");
   const preferredAtISO = watch("preferredAt");
+  const [openIssuePicker, setOpenIssuePicker] = useState(false);
+  const [openAptPicker, setOpenAptPicker] = useState(false);
+
+  const currentIssueLabel =
+    issueId == null
+      ? (issues?.length ? "Khác" : "Chọn vấn đề")
+      : (issues.find((i) => i.issueId === issueId)?.name || "Chọn vấn đề");
 
   const onSubmit = async (values) => {
-    if (!values.category || !values.shortSummary) {
-      Alert.alert("Thiếu thông tin", "Vui lòng chọn danh mục và nhập mô tả ngắn gọn.");
-      return;
-    }
-    const preferredAt = values.priority === "Urgent" ? undefined : values.preferredAt;
-
+    try {
+      
+      if ( !values.shortSummary) {
+        Toast.show({ type: 'error', text1: 'Thiếu thông tin', text2: 'Chọn danh mục và mô tả ngắn.' });
+        return;
+      }
+      if (!values.apartmentId) {
+        Toast.show({ type: 'error', text1: 'Thiếu thông tin', text2: 'Vui lòng chọn căn hộ.' });
+        return;
+      }
     const payload = {
-      apartment: { floor: values.floor, roomName: values.roomName },
-      resident:  { name: values.residentName, phone: values.residentPhone },
-      request: {
-        category: values.category,
-        priority: values.priority,
-        shortSummary: values.shortSummary,
-        description: values.description,
-        preferredAt,
-      },
+      ApartmentId: values.apartmentId ?? firstAptId,
+      IssueId: values.issueId ?? null,               // null => không append trong thunk
+      Object: values.shortSummary?.trim(),
+      Description: values.description?.trim() || "",
+      PreferredAppointment: values.preferredAt,
+      Files: images,
     };
     console.log("Submitting maintenance request:", payload);
-    Alert.alert("Đã gửi yêu cầu", "Bộ phận kỹ thuật sẽ liên hệ bạn sớm.");
+    await dispatch(createNormalRepairRequest(payload)).unwrap();
+    Toast.show({ type: 'success', text1: 'Thành công', text2: 'Yêu cầu đã được gửi.' });
     router.back();
+  } catch (e) {
+    Toast.show({ type: 'error', text1: 'Gửi thất bại', text2: e?.message || 'Vui lòng thử lại.' });
+    console.log('Error in onSubmit:', e);
+  }
   };
 
   return (
@@ -111,55 +150,125 @@ export default function RequestCreate() {
         {/* Thông tin căn hộ */}
         <Text style={styles.sectionTitle}>Thông tin căn hộ</Text>
         <View style={{ gap: 12 }}>
-          <Controller name="floor" control={control} render={({ field: { value } }) =>
-            <MUITextField label="Tầng" value={value} variant="outlined" startIcon="office-building" disabled />
-          }/>
-          <Controller name="roomName" control={control} render={({ field: { value } }) =>
-            <MUITextField label="Tên phòng" value={value} variant="outlined" startIcon="door" disabled />
-          }/>
+          <Text style={styles.fieldLabel}>Căn hộ *</Text>
+          <Pressable onPress={() => setOpenAptPicker(true)} style={styles.selectBox}>
+            {selectedApartment ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                {/* icon tầng */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="building.2" size={16} color="#6b7280" />
+                  <Text style={{ fontSize: 14, color: "#111827" }}>Tầng {selectedApartment.floor}</Text>
+                </View>
+                <View style={{ width: 1, height: 16, backgroundColor: '#E5E7EB' }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="door.left.hand.closed.fill" size={16} color="#6b7280" />
+                  <Text style={{ fontSize: 14, color: "#111827" }}>Phòng {selectedApartment.roomNumber}</Text>
+                </View>
+              </View>
+            ) :(
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Icon name="building.2" size={16} color="#6b7280" />
+                <Text style={{ fontSize: 14, color: "#6b7280" }}>Chọn căn hộ</Text>
+              </View>
+            )}
+            <Icon name="chevron.down" size={18} color="#6b7280" />
+          </Pressable>
         </View>
-
-        {/* Thông tin cư dân */}
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Thông tin cư dân</Text>
-        <View style={{ gap: 12 }}>
-          <Controller name="residentName" control={control} render={({ field: { value } }) =>
-            <MUITextField label="Họ và tên" value={value} variant="outlined" startIcon="account-outline" disabled />
-          }/>
-          <Controller name="residentPhone" control={control} render={({ field: { value } }) =>
-            <MUITextField label="Số điện thoại" value={value} variant="outlined" keyboardType="phone-pad" startIcon="phone-outline" disabled />
-          }/>
-        </View>
+        <Modal visible={openAptPicker} transparent animationType="fade" onRequestClose={() => setOpenAptPicker(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+                <Text style={{ fontSize: 16, fontWeight: "700" }}>Chọn căn hộ</Text>
+              </View>
+              <ScrollView style={{ paddingHorizontal: 6 }}>
+                {apartments.map((apt) => {
+                  const active =selectedApartmentId === apt.apartmentId;
+                  return (
+                    <Pressable
+                      key={apt.apartmentId}
+                      onPress={() => {
+                        setValue("apartmentId", apt.apartmentId, { shouldDirty: true });
+                        setOpenAptPicker(false);
+                      }}
+                      style={[styles.optionItem, active && styles.optionItemActive]}
+                    >
+                      <Text style={[styles.optionText,active && styles.optionTextActive]}>
+                        {`Tầng ${apt.floor} - Phòng ${apt.roomNumber}`}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         {/* Chi tiết yêu cầu */}
         <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Chi tiết yêu cầu</Text>
 
-        {/* Danh mục */}
-        <Text style={styles.fieldLabel}>Danh mục *</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8, marginBottom: 8 }}>
-          {CATEGORIES.map((c) => (
-            <Pressable
-              key={c}
-              onPress={() => setValue("category", c, { shouldDirty: true })}
-              style={[styles.chip, category === c && styles.chipSelected]}
-            >
-              <Text style={[styles.chipText, category === c && styles.chipTextSelected]}>{c}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.fieldLabel}>Vấn đề *</Text>
+        <Pressable
+          onPress={() => setOpenIssuePicker(true)}
+          style={styles.selectBox}
+        >
+          <Text style={styles.selectText}>
+            {currentIssueLabel}
+          </Text>
+          <Icon name="chevron.down" size={18} color="#6b7280" />
+        </Pressable>
 
-        {/* Mức độ ưu tiên */}
-        {/* <Text style={[styles.fieldLabel, { marginTop: 8 }]}>Mức độ ưu tiên</Text>
-        <View style={{ flexDirection: "row", gap: 8, marginTop: 8, marginBottom: 8 }}>
-          {PRIORITIES.map((p) => (
-            <Pressable
-              key={p}
-              onPress={() => setValue("priority", p, { shouldDirty: true })}
-              style={[styles.priorityBtn, watch("priority") === p && styles.priorityBtnSelected]}
-            >
-              <Text style={[styles.priorityText, watch("priority") === p && styles.priorityTextSelected]}>{p}</Text>
-            </Pressable>
-          ))}
-        </View> */}
+        <Modal visible={openIssuePicker} transparent animationType="fade" onRequestClose={() => setOpenIssuePicker(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+                <Text style={{ fontSize: 16, fontWeight: "700" }}>Chọn vấn đề</Text>
+                {issuesLoading ? (
+                  <Text style={{ color: "#6b7280", marginTop: 6 }}>Đang tải danh sách...</Text>
+                ) : null}
+              </View>
+
+              <ScrollView style={{ paddingHorizontal: 6 }}>
+                {issues.map((it) => (
+                  <Pressable
+                    key={it.issueId}
+                    onPress={() => {
+                      setValue("issueId", it.issueId, { shouldDirty: true });
+                      setOpenIssuePicker(false);
+                    }}
+                    style={[ styles.optionItem, issueId === it.issueId && styles.optionItemActive]}
+                  >
+                    <Text style={[styles.optionText, issueId === it.issueId && styles.optionTextActive]}>
+                      {it.name}
+                    </Text>
+                  </Pressable>
+                ))}
+
+                {/* KHÁC */}
+                <Pressable
+                  onPress={() => {
+                    setValue("issueId", null, { shouldDirty: true });
+                    setOpenIssuePicker(false);
+                  }}
+                  style={[styles.optionItem, issueId == null && styles.optionItemActive, { marginBottom: 8 }]}
+                >
+                  <Text style={[styles.optionText, issueId == null && styles.optionTextActive]}>
+                    Khác
+                  </Text>
+                </Pressable>
+              </ScrollView>
+
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 10, padding: 10 }}>
+                <Pressable
+                  onPress={() => setOpenIssuePicker(false)}
+                  style={styles.mGhost}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#6b7280" }}>Đóng</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        
 
         {/* Mô tả ngắn gọn */}
         <Controller
@@ -201,7 +310,12 @@ export default function RequestCreate() {
             />
           )}
         />
-
+        <ImagePickerStrip
+         value={images}
+         onChange={setImages}
+         maxCount={10}
+         title="Ảnh đính kèm"
+        />
         {/* Thời gian phù hợp – ẨN khi Urgent */}
         {priority !== "Urgent" ? (
         <View style={styles.card}>
@@ -249,11 +363,11 @@ export default function RequestCreate() {
       {/* Footer cố định */}
       <View style={[styles.footer, { height: FOOTER_HEIGHT + insets.bottom }]}>
         <Pressable
-          disabled={isSubmitting}
+          disabled={isSubmitting || creating}
           onPress={handleSubmit(onSubmit)}
-          style={[styles.submitBtn, isSubmitting && { backgroundColor: "#cfd8dc" }]}
+          style={[styles.submitBtn, (isSubmitting || creating) && { backgroundColor: "#cfd8dc" }]}
         >
-          <Text style={styles.submitText}>{isSubmitting ? "Đang gửi..." : "Gửi yêu cầu"}</Text>
+          <Text style={styles.submitText}>{(isSubmitting || creating) ? "Đang gửi..." : "Gửi yêu cầu"}</Text>
         </Pressable>
       </View>
     </View>
@@ -331,4 +445,33 @@ const styles = StyleSheet.create({
   },
   submitBtn: { backgroundColor: "#1e88e5", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
   submitText: { color: "white", fontWeight: "700", fontSize: 16 },
+  selectBox: {
+    marginTop: 8, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#e5e5e5",
+    backgroundColor: "white", flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  selectText: { fontSize: 16, color: "#111827", fontWeight: "600" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", padding: 18 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 14, paddingVertical: 10, maxHeight: "70%" },
+  optionItem: { paddingVertical: 12, paddingHorizontal: 10, marginHorizontal: 10, borderRadius: 10 },
+  optionItemActive: { backgroundColor: "#E7F0FF" },
+  optionText: { fontSize: 15, color: "#111827", fontWeight: "500" },
+  optionTextActive: { fontWeight: "700" },
+  mGhost: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: "#F4F6F8" },
+
+
+  selectBox: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingHorizontal: 12,
+  paddingVertical: 12,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  backgroundColor: '#fff',
+},
+selectText: {
+  fontSize: 15,
+  color: '#111827',
+},
 });

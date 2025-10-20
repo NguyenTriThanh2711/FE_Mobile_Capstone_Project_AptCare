@@ -7,15 +7,6 @@ import { router } from "expo-router";
 import callPhone from "@/src/utils/call-phone";
 
 export default function TechnicianDashboard() {
-  const [weather, setWeather] = useState({
-    location: "AptCare City",
-    tempC: 32,
-    feelsLikeC: 35,
-    condition: "Nắng nhẹ",
-    humidity: 58,
-    windKmh: 12,
-    icon: "cloud.sun.fill",
-  });
 
   // ===== Mock data hôm nay =====
   const [stats, setStats] = useState({
@@ -136,7 +127,28 @@ export default function TechnicianDashboard() {
           </View>
         </View>
       </View>
-
+      {/* Thao tác nhanh */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
+        <View style={styles.quickActions}>
+          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Bắt đầu ca")}>
+            <Icon name="play.circle.fill" size={26} color="#34C759" />
+            <Text style={styles.quickActionText}>Bắt đầu ca</Text>
+          </Pressable>
+          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Khẩn cấp")}>
+            <Icon name="exclamationmark.triangle.fill" size={26} color="#FF3B30" />
+            <Text style={styles.quickActionText}>Khẩn cấp</Text>
+          </Pressable>
+          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Nghỉ giải lao")}>
+            <Icon name="pause.circle.fill" size={26} color="#FF9500" />
+            <Text style={styles.quickActionText}>Nghỉ giải lao</Text>
+          </Pressable>
+          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction("Kết thúc ngày")}>
+            <Icon name="stop.circle.fill" size={26} color="#8E8E93" />
+            <Text style={styles.quickActionText}>Kết thúc ngày</Text>
+          </Pressable>
+        </View>
+      </View>
 
       {/* Công việc hôm nay (gần nhất) */}
       <View style={styles.section}>
