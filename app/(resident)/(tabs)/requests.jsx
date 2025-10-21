@@ -1,306 +1,235 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Modal,
-  TextInput,
-  Alert,
-} from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, ActivityIndicator } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
-import { router } from "expo-router";
+import { dotnetArr } from "@/src/helper/dotnetArr";
+import {
+  fetchRepairRequests,
+  
+  selectRequests,
+  
+  selectRequestsLoading,
+  selectRequestsPageData,
+} from "@/src/features/requests/requestsSlice";
+import { useAppDispatch, useAppSelector } from "@/src/store";
+import RequestListItem from "@/src/components/RequestListItem";
+import { pretty } from "@/src/helper/prettyLog";
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  header: {
-    backgroundColor: "white",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: "#666",
-  },
-  addButton: {
-    backgroundColor: "#007AFF",
-    margin: 20,
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  requestCard: {
-    backgroundColor: "white",
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  requestHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  requestTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginLeft: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  requestDescription: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  requestMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  requestDate: {
-    fontSize: 12,
-    color: "#999",
-  },
-  requestActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#f9f9f9",
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 16,
-  },
-});
+function useDebounce(value, delay = 400) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return v;
+}
 
 export default function ResidentRequests() {
-  const [requests, setRequests] = useState([
-    {
-      id: 1,
-      title: "Ro rỉ vòi nước trong bếp",
-      description: "Vòi nước trong bếp đã bị rò rỉ liên tục trong tuần qua. Nó đang lãng phí nước và gây ồn ào vào ban đêm.",
-      status: "pending",
-      date: "2024-01-15",
-      priority: "medium",
-    },
-    {
-      id: 2,
-      title: "Điều hòa không hoạt động",
-      description: "Điều hòa trong phòng khách đã ngừng hoạt động từ hôm qua. Nhiệt độ trong căn hộ đang tăng cao.",
-      status: "in_progress",
-      date: "2024-01-14",
-      priority: "high",
-    },
-    {
-      id: 3,
-      title: "Công tắc đèn bị hỏng",
-      description: "Công tắc đèn trong phòng ngủ bị lỏng và đôi khi không hoạt động đúng cách.",
-      status: "completed",
-      date: "2024-01-10",
-      priority: "low",
-    },
-  ]);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((s) => s.auth.user);
+  // console.log('requests user', dotnetArr(user?.apartments));
+  const apartments = useMemo(() => dotnetArr(user?.apartments ?? []), [user]);
+  // console.log('request apartment', apartments);
+  const list = useAppSelector(selectRequests);
+  // console.log('requests user list', pretty(list?.[0]));
+  const loading = useAppSelector(selectRequestsLoading);
+  const { page, totalPages } = useAppSelector(selectRequestsPageData);
 
-  const [showModal, setShowModal] = useState(false);
-  const [newRequest, setNewRequest] = useState({
-    title: "",
-    description: "",
-    priority: "medium",
+  const [openAptPicker, setOpenAptPicker] = useState(false);
+  const [apartmentId, setApartmentId] = useState(apartments?.[0]?.apartmentId);
+  const [search, setSearch] = useState("");
+  const [emergencyOnly, setEmergencyOnly] = useState(undefined);
+  const debounced = useDebounce(search, 400);
+
+  const load = useCallback(
+    (p = 1) => {
+      if (!apartmentId) return;
+      dispatch(
+        fetchRepairRequests({
+          page: p,
+          size: 10,
+          search: debounced || undefined,
+          isEmergency: typeof emergencyOnly === "boolean" ? emergencyOnly : undefined,
+          apartmentId,
+          sortBy: "createdAt:desc",
+        })
+      );
+    },
+    [dispatch, debounced, emergencyOnly, apartmentId]
+  );
+
+  useEffect(() => {
+    load(1);
+  }, [load]);
+
+  const loadMore = () => {
+    if (!loading && page < totalPages) load(page + 1);
+  };
+
+  const pill = (isEmergency) => ({
+    bg: isEmergency ? "#FEE2E2" : "#E5F6FF",
+    fg: isEmergency ? "#B91C1C" : "#0C4A6E",
+    text: isEmergency ? "Khẩn cấp" : "Bình thường",
   });
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "pending":
-        return { backgroundColor: "#FFF3CD", color: "#856404" };
-      case "in_progress":
-        return { backgroundColor: "#D1ECF1", color: "#0C5460" };
-      case "completed":
-        return { backgroundColor: "#D4EDDA", color: "#155724" };
-      default:
-        return { backgroundColor: "#F8F9FA", color: "#6C757D" };
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case "pending":
-        return "Pending";
-      case "in_progress":
-        return "In Progress";
-      case "completed":
-        return "Completed";
-      default:
-        return "Unknown";
-    }
-  };
-
-  const handleSubmitRequest = () => {
-    if (!newRequest.title.trim() || !newRequest.description.trim()) {
-      Alert.alert("Error", "Please fill in all required fields.");
-      return;
-    }
-
-    const request = {
-      id: Date.now(),
-      title: newRequest.title,
-      description: newRequest.description,
-      status: "pending",
-      date: new Date().toISOString().split("T")[0],
-      priority: newRequest.priority,
-    };
-
-    setRequests([request, ...requests]);
-    setNewRequest({ title: "", description: "", priority: "medium" });
-    setShowModal(false);
-    Alert.alert("Success", "Your request has been submitted successfully!");
-  };
-
-  const handleEditRequest = (requestId) => {
-    console.log("Chỉnh sửa yêu cầu:", requestId);
-    Alert.alert("Chỉnh sửa yêu cầu", "Chức năng chỉnh sửa sẽ được triển khai sớm.");
-  };
-
-  const handleCancelRequest = (requestId) => {
-    Alert.alert(
-      "Hủy yêu cầu",
-      "Bạn có chắc chắn muốn hủy yêu cầu này không?",
-      [
-        { text: "Không", style: "cancel" },
-        {
-          text: "Có",
-          style: "destructive",
-          onPress: () => {
-            setRequests(requests.filter((req) => req.id !== requestId));
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Yêu cầu của tôi</Text>
-        <Text style={styles.headerSubtitle}>
-          Theo dõi các yêu cầu bảo trì của bạn
-        </Text>
+        <Text style={styles.headerSubtitle}>Theo dõi yêu cầu bảo trì</Text>
       </View>
 
-      <Pressable
-        style={styles.addButton}
-        onPress={() => router.push({ pathname: "/(resident)/request-create" })}
-      >
-        <Icon name="plus" size={20} color="white" />
-        <Text style={styles.addButtonText}>Tạo yêu cầu</Text>
-      </Pressable>
+      {/* Toolbar */}
+      <View style={styles.toolbar}>
+        {/* Apartment Picker */}
+        <Pressable onPress={() => setOpenAptPicker(true)} style={styles.aptChip}>
+          <Icon name="building.2" size={14} color="#6b7280" />
+          <Text style={styles.aptChipText}>
+            {apartmentId ? `Căn hộ #${apartmentId}` : "Chọn căn hộ"}
+          </Text>
+          <Icon name="chevron.down" size={14} color="#6b7280" />
+        </Pressable>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {requests.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Icon name="list.bullet" size={64} color="#ccc" />
-            <Text style={styles.emptyStateText}>
-              Chưa có yêu cầu nào.{"\n"}Nhấn "Tạo yêu cầu" để bắt đầu.
-            </Text>
-          </View>
-        ) : (
-          requests.map((request) => (
-            <View key={request.id} style={styles.requestCard}>
-              <View style={styles.requestHeader}>
-                <Text style={styles.requestTitle}>{request.title}</Text>
-                <View
-                  style={[styles.statusBadge, getStatusColor(request.status)]}
-                >
-                  <Text
-                    style={[styles.statusText, { color: getStatusColor(request.status).color }]}
+        {/* Search */}
+        <View style={styles.searchBox}>
+          <Icon name="magnifyingglass" size={16} color="#9CA3AF" />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Tìm theo nội dung..."
+            style={{ flex: 1, paddingVertical: 6, fontSize: 14 }}
+            returnKeyType="search"
+          />
+          {search ? (
+            <Pressable onPress={() => setSearch("")}>
+              <Icon name="xmark.circle.fill" size={16} color="#9CA3AF" />
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* Emergency toggle: undefined -> true -> false -> undefined */}
+        <Pressable
+          onPress={() =>
+            setEmergencyOnly((prev) => (prev === undefined ? true : prev === true ? false : undefined))
+          }
+          style={styles.filterChip}
+        >
+          <Icon name="exclamationmark.triangle.fill" size={14} color="#B45309" />
+          <Text style={styles.filterChipText}>
+            {emergencyOnly === undefined ? "Tất cả" : emergencyOnly ? "Chỉ Khẩn cấp" : "Chỉ Thường"}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Apt picker modal */}
+      <Modal visible={openAptPicker} transparent animationType="fade" onRequestClose={() => setOpenAptPicker(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Chọn căn hộ</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {apartments?.map((apt) => {
+                const active = apartmentId === apt.apartmentId;
+                return (
+                  <Pressable
+                    key={apt.apartmentId}
+                    onPress={() => {
+                      setApartmentId(apt.apartmentId);
+                      setOpenAptPicker(false);
+                    }}
+                    style={[styles.optionItem, active && styles.optionItemActive]}
                   >
-                    {getStatusText(request.status)}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.requestDescription}>
-                {request.description}
-              </Text>
-              <View style={styles.requestMeta}>
-                <Text style={styles.requestDate}>
-                  Ngày tạo: {new Date(request.date).toLocaleDateString()}
-                </Text>
-                {request.status === "pending" && (
-                  <View style={styles.requestActions}>
-                    <Pressable
-                      style={styles.actionButton}
-                      onPress={() => handleEditRequest(request.id)}
-                    >
-                      <Icon name="pencil" size={16} color="#007AFF" />
-                    </Pressable>
-                    <Pressable
-                      style={styles.actionButton}
-                      onPress={() => handleCancelRequest(request.id)}
-                    >
-                      <Icon name="trash" size={16} color="#FF3B30" />
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            </View>
-          ))
-        )}
+                    <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                      {`Tầng ${apt.floor} - Phòng ${apt.roomNumber}`}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* List */}
+      <ScrollView contentContainerStyle={{ paddingTop: 16 }}>
+        {loading && page === 1 ? <ActivityIndicator style={{ marginTop: 8 }} /> : null}
+
+        {Array.isArray(list) && list.map((r) => {
+          return <RequestListItem key={r.repairRequestId} item={r} />;
+        })}
+
+        {/* Load more */}
+        {page < totalPages ? (
+          <Pressable style={styles.loadMore} onPress={loadMore} disabled={loading}>
+            <Text style={styles.loadMoreText}>{loading ? "Đang tải..." : "Tải thêm"}</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F8F9FA" },
+
+  header: { backgroundColor: "white", padding: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  headerTitle: { fontSize: 22, fontWeight: "700", color: "#111827" },
+  headerSubtitle: { fontSize: 13, color: "#6B7280", marginTop: 4 },
+
+  toolbar: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  aptChip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff",
+  },
+  aptChipText: { fontSize: 13, color: "#111827", fontWeight: "600" },
+
+  searchBox: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff",
+    borderRadius: 10, paddingHorizontal: 10,
+  },
+
+  filterChip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FDE68A",
+  },
+  filterChipText: { fontSize: 13, color: "#B45309", fontWeight: "700" },
+
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", padding: 18 },
+  modalCard: { backgroundColor: "#fff", borderRadius: 14, padding: 12 },
+  modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#111827" },
+  optionItem: { paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10 },
+  optionItemActive: { backgroundColor: "#E7F0FF" },
+  optionText: { fontSize: 15, color: "#111827", fontWeight: "500" },
+  optionTextActive: { fontWeight: "700" },
+
+  card: {
+    backgroundColor: "white", borderRadius: 12, padding: 14, marginBottom: 12,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  cardTitle: { fontSize: 15, fontWeight: "700", color: "#111827", flex: 1, marginRight: 10 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  badgeText: { fontSize: 11, fontWeight: "800" },
+  desc: { fontSize: 14, color: "#374151", marginBottom: 8 },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  metaLeft: { fontSize: 12, color: "#6B7280" },
+  metaRight: { fontSize: 12, color: "#007AFF", fontWeight: "600" },
+
+  loadMore: {
+    marginTop: 6, marginBottom: 24, alignSelf: "center",
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+  },
+  loadMoreText: { fontSize: 14, color: "#111827", fontWeight: "700" },
+});

@@ -25,6 +25,7 @@ export default function RequestCreate() {
   const priority = "Medium"; 
   const { emergency } = useLocalSearchParams(); 
   const isEmergency = emergency === "true" || emergency === true;
+  console.log('isEmergency', isEmergency)
   const theme = useTheme();
 
   const [openPicker, setOpenPicker] = useState(false);
@@ -95,7 +96,7 @@ export default function RequestCreate() {
         Toast.show({ type: 'error', text1: 'Thiếu thông tin', text2: 'Vui lòng chọn căn hộ.' });
         return;
       }
-      if (isEmergency !== true && !values.issueId) {
+      if (isEmergency === true && !values.issueId) {
         Toast.show({ type: 'error', text1: 'Thiếu thông tin', text2: 'Khẩn cấp yêu cầu chọn Vấn đề.' });
         return;
       }

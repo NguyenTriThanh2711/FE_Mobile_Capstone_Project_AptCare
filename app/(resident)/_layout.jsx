@@ -10,12 +10,12 @@ export default function ResidentStackLayout() {
         name="request-create"
         options={{
           title: "Tạo yêu cầu",
-          presentation: "modal", // hoặc "card"
+          // presentation: "modal", // hoặc "card"
           headerShown: false,     // vì bạn đã tự render header trong file
         }}
       />
       {/* <Stack.Screen name="device/[id]" options={{ headerShown: false }} /> */}
-      <Stack.Screen name="request" options={{ headerShown: false }} />
+      <Stack.Screen name="request/[id]" options={{ headerShown: false}} />
     </Stack>
   );
 }

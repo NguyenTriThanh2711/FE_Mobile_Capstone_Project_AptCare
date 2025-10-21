@@ -9,6 +9,7 @@ import '../global.css';
 import { MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 function AuthGate() {
   const user = useSelector((s) => s.auth.user);
@@ -64,15 +65,17 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <Provider store={store}>
-      <PersistGate persistor={persistor} loading={null}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+       <PersistGate persistor={persistor} loading={null}>
           <PaperProvider theme={MD3LightTheme}>
             <SafeAreaProvider>
               <AuthGate />
               <Toast />
             </SafeAreaProvider>
           </PaperProvider>
-      </PersistGate>
-    </Provider>
+        </PersistGate>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
