@@ -1,18 +1,11 @@
 import { createSlice, createAsyncThunk, isRejectedWithValue } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
 import { dotnetArr } from '@/src/helper/dotnetArr';
-import { set } from 'react-hook-form';
-
-const initialState = {
-  list: [],
-  current: null,
-  status: 'idle',
-  error: null,
-};
+import { bool } from 'yup';
 
 
 export const createNormalRepairRequest = createAsyncThunk('requests/createNormalRepairRequest', 
-  async (payload, { rejectWithValue }) => {
+  async (payload, { rejectWithValue, dispatch, getState }) => {
   try {
     const fd = new FormData();
     //requried
@@ -37,6 +30,12 @@ export const createNormalRepairRequest = createAsyncThunk('requests/createNormal
     const { data, status } = await http.post("/api/repairrequests/normal", fd, {
         headers: { "Content-Type": "multipart/form-data" },
     });
+    const state = getState();
+    const apartments = dotnetArr(state?.auth?.user?.apartments ?? []);
+    const apartmentIds = apartments.map((a) => a.apartmentId).filter(Boolean);
+    if (apartmentIds.length) {
+      dispatch(fetchRecentAccrossApartments({ apartmentIds, perAptSize: 5, take: 3 }));
+    }
     return { data, status };
   } catch (error) {
     console.log('create repair request nomal error', error)
@@ -47,7 +46,7 @@ export const createNormalRepairRequest = createAsyncThunk('requests/createNormal
   }
 });
 export const createEmergencyRepairRequest = createAsyncThunk('requests/createEmergencyRepairRequest',
-  async (payload, { rejectWithValue }) => {
+  async (payload, { rejectWithValue, dispatch, getState }) => {
   try {
     const fd = new FormData();
     //requried
@@ -68,6 +67,12 @@ export const createEmergencyRepairRequest = createAsyncThunk('requests/createEme
     const { data, status } = await http.post("/api/repairrequests/emergency", fd, {
         headers: { "Content-Type": "multipart/form-data" },
     });
+    const state = getState();
+    const apartments = dotnetArr(state?.auth?.user?.apartments ?? []);
+    const apartmentIds = apartments.map((a) => a.apartmentId).filter(Boolean);
+    if (apartmentIds.length) {
+      dispatch(fetchRecentAccrossApartments({ apartmentIds, perAptSize: 5, take: 3 }));
+    }
     return { data, status };
   } catch (error) {
     console.log('create repair request emergency error', error)
