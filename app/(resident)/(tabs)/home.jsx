@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -11,39 +11,41 @@ import {
 } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
 import { Button } from "@/src/components/common/Button";
-import { useSelector } from "react-redux";
 import { router } from "expo-router";
 import callPhone from "@/src/utils/call-phone";
 import { getRoomsLabel } from "@/src/helper/room-labels-profile";
+import { useAppDispatch, useAppSelector } from "@/src/store";
+import { dotnetArr } from "@/src/helper/dotnetArr";
+import { fetchRecentAccrossApartments, selectRecentRequests, selectRecentRequestsError, selectRecentRequestsLoading } from "@/src/features/requests/requestsSlice";
+import { pretty } from "@/src/helper/prettyLog";
 
 export default function ResidentHome() {
-  const user = useSelector((s) => s.auth.user);//mocked, có thể sau này xài fecthProfile để lấy thông tin đầy đủ hơn
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((s) => s.auth.user);
   console.log("ResidentHome: user =", user);
+
+  const apartments = useMemo(() => dotnetArr(user?.apartments), [user]);
+  const apartmentIds = useMemo(
+    () => apartments.map((a) => a.apartmentId).filter(Boolean),
+    [apartments]
+  );
+
+  const recent = useAppSelector(selectRecentRequests);
+  // console.log('resident home recent request', pretty(recent[0]));
+  const recentLoading = useAppSelector(selectRecentRequestsLoading);
+
+  useEffect(() => {
+    if (apartmentIds.length) {
+      dispatch(fetchRecentAccrossApartments({ apartmentIds, perAptSize: 5, take: 3 }));
+    }
+  }, [dispatch, apartmentIds]);
+
   const [requestForm, setRequestForm] = useState({
     category: "",
     priority: "",
     description: "",
     location: "",
   });
-
-  const [recentRequests, setRecentRequests] = useState([
-    {
-      id: 1,
-      category: "Plumbing",
-      issue: "Vòi nước rò rỉ trong bếp",
-      status: "Đang xử lý",
-      date: "2024-01-15",
-      technician: "John Smith",
-    },
-    {
-      id: 2,
-      category: "Electrical",
-      issue: "Outlet not working in bedroom",
-      status: "Scheduled",
-      date: "2024-01-14",
-      technician: "Mike Johnson",
-    },
-  ]);
 
   const quickActions = [
     { id: 1, title: "Yều cầu sửa chữa mới", icon: "plus.circle.fill", color: "#007AFF", action: () => router.push({ pathname: "/(resident)/request-create" }) },
@@ -52,23 +54,9 @@ export default function ResidentHome() {
     { id: 4, title: "Báo cáo sự cố tòa nhà",icon: "flag.fill", color: "#34C759", action: handleReportIssue },
   ];
 
-
   const handleEmergency = () => {
-    Alert.alert(
-      "Emergency Request",
-      "This will immediately notify building management. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Continue",
-          style: "destructive",
-          onPress: () => {
-            console.log("Emergency request submitted");
-            Alert.alert("Emergency Submitted", "Help is on the way!");
-          },
-        },
-      ]
-    );
+    console.log("Opening emergency request");
+    Alert.alert("Emergency", "Emergency request feature coming soon!");
   };
 
   const handleFeedback = () => {
@@ -81,40 +69,13 @@ export default function ResidentHome() {
     Alert.alert("Report Issue", "Issue reporting feature coming soon!");
   };
 
-  const handleSubmitRequest = () => {
-    if (!requestForm.category || !requestForm.description) {
-      Alert.alert("Error", "Please fill in all required fields");
-      return;
-    }
+  
 
-    console.log("Submitting request:", requestForm);
-    
-    const newRequest = {
-      id: Date.now(),
-      category: requestForm.category,
-      issue: requestForm.description,
-      status: "Submitted",
-      date: new Date().toISOString().split("T")[0],
-      technician: "Pending Assignment",
-    };
-
-    setRecentRequests(prev => [newRequest, ...prev]);
-    setRequestForm({ category: "", priority: "", description: "", location: "" });
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "In Progress":
-        return "#007AFF";
-      case "Scheduled":
-        return "#34C759";
-      case "Completed":
-        return "#8E8E93";
-      case "Submitted":
-        return "#FF9500";
-      default:
-        return "#8E8E93";
-    }
+  const getStatusPill = (r) => {
+    const bg = r.isEmergency ? "#FEE2E2" : "#E5F6FF";
+    const fg = r.isEmergency ? "#B91C1C" : "#0C4A6E";
+    const text = r.isEmergency ? "Khẩn cấp" : "Bình thường";
+    return { bg, fg, text };
   };
 
   return (
@@ -158,29 +119,50 @@ export default function ResidentHome() {
               <Text style={styles.viewAllText}>Xem tất cả</Text>
             </Pressable>
           </View>
-          
-          {recentRequests.slice(0, 3).map((request) => (
-            <View key={request.id} style={styles.requestCard}>
-              <View style={styles.requestHeader}>
-                <Text style={styles.requestCategory}>{request.category}</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(request.status) },
-                  ]}
-                >
-                  <Text style={styles.statusText}>{request.status}</Text>
+          {recentLoading ? (
+            <Text>Đang tải...</Text>
+          ) : false ? (
+            <Text>Không có yêu cầu nào gần đây.</Text>
+          ) : (
+          recent?.map((r) => {
+            const pill = getStatusPill(r);
+
+            return (
+              <View key={r.repairRequestId} style={styles.requestCard}>
+                <View style={styles.requestHeader}>
+                <Text style={styles.requestTitle} numberOfLines={1}>
+                      {r.object || "Không tiêu đề"}
+                </Text>
+                <View style={[styles.statusBadge, { backgroundColor: pill.bg }]}>
+                      <Text style={[styles.statusText, { color: pill.fg }]}>{pill.text}</Text>
                 </View>
               </View>
-              <Text style={styles.requestIssue}>{request.issue}</Text>
+              {/* {r.description ? (
+                    <Text style={styles.requestDescription} numberOfLines={2}>
+                      {r.description}
+                    </Text>
+              ) : null} */}
+              <View style={styles.requestMeta}>
+                    <Text style={styles.requestDate}>
+                      {'Vấn đề : '}{r.issue?.name || "Khác"}
+                    </Text>
+                    <Text style={styles.requestApt}>
+                      <Icon name="building.2" size={14} color="#666" />{" "}
+                      {r?.apartment
+                        ? `Tầng ${r.apartment?.floor ?? ""} - P.${r.apartment?.roomNumber ?? ""}`
+                        : ""}
+                    </Text>
+              </View>
+              {/* <Text style={styles.requestIssue}>{r.issue}</Text> */}
               <View style={styles.requestFooter}>
                 <Text style={styles.requestDate}>
-                  {new Date(request.date).toLocaleDateString()}
+                  Ngày tạo :{new Date(r.createdAt).toLocaleDateString()}
                 </Text>
-                <Text style={styles.technicianName}>{request.technician}</Text>
+                <Text style={styles.technicianName}>{r.technician}</Text>
               </View>
             </View>
-          ))}
+          );
+        }))}
         </View>
 
         {/* Building Info */}
@@ -307,6 +289,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
+  requestTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1a1a1a",
+    flex: 1,
+    marginRight: 12,
+  },
   requestCategory: {
     fontSize: 16,
     fontWeight: "600",
@@ -320,6 +309,26 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     color: "white",
+    fontWeight: "800",
+  },
+  requestDescription: {
+    fontSize: 14,
+    color: "#333",
+    marginBottom: 10,
+    lineHeight: 18,
+  },
+  requestMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  requestDate: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  requestApt: {
+    fontSize: 12,
+    color: "#007AFF",
     fontWeight: "500",
   },
   requestIssue: {

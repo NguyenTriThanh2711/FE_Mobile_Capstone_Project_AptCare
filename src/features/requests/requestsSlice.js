@@ -1,20 +1,11 @@
 import { createSlice, createAsyncThunk, isRejectedWithValue } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
+import { dotnetArr } from '@/src/helper/dotnetArr';
+import { bool } from 'yup';
 
-const initialState = {
-  list: [],
-  current: null,
-  status: 'idle',
-  error: null,
-};
-
-export const fetchMyRequests = createAsyncThunk('requests/fetchMy', async () => {
-  const { data } = await http.get('/requests/my');
-  return data; // []
-});
 
 export const createNormalRepairRequest = createAsyncThunk('requests/createNormalRepairRequest', 
-  async (payload, { rejectWithValue }) => {
+  async (payload, { rejectWithValue, dispatch, getState }) => {
   try {
     const fd = new FormData();
     //requried
@@ -39,6 +30,12 @@ export const createNormalRepairRequest = createAsyncThunk('requests/createNormal
     const { data, status } = await http.post("/api/repairrequests/normal", fd, {
         headers: { "Content-Type": "multipart/form-data" },
     });
+    const state = getState();
+    const apartments = dotnetArr(state?.auth?.user?.apartments ?? []);
+    const apartmentIds = apartments.map((a) => a.apartmentId).filter(Boolean);
+    if (apartmentIds.length) {
+      dispatch(fetchRecentAccrossApartments({ apartmentIds, perAptSize: 5, take: 3 }));
+    }
     return { data, status };
   } catch (error) {
     console.log('create repair request nomal error', error)
@@ -49,7 +46,7 @@ export const createNormalRepairRequest = createAsyncThunk('requests/createNormal
   }
 });
 export const createEmergencyRepairRequest = createAsyncThunk('requests/createEmergencyRepairRequest',
-  async (payload, { rejectWithValue }) => {
+  async (payload, { rejectWithValue, dispatch, getState }) => {
   try {
     const fd = new FormData();
     //requried
@@ -70,6 +67,12 @@ export const createEmergencyRepairRequest = createAsyncThunk('requests/createEme
     const { data, status } = await http.post("/api/repairrequests/emergency", fd, {
         headers: { "Content-Type": "multipart/form-data" },
     });
+    const state = getState();
+    const apartments = dotnetArr(state?.auth?.user?.apartments ?? []);
+    const apartmentIds = apartments.map((a) => a.apartmentId).filter(Boolean);
+    if (apartmentIds.length) {
+      dispatch(fetchRecentAccrossApartments({ apartmentIds, perAptSize: 5, take: 3 }));
+    }
     return { data, status };
   } catch (error) {
     console.log('create repair request emergency error', error)
@@ -79,11 +82,34 @@ export const createEmergencyRepairRequest = createAsyncThunk('requests/createEme
     return rejectWithValue({ status: res?.status, message });
   }
 });
-export const updateRequest = createAsyncThunk('requests/update', async ({ id, patch }) => {
-  const { data } = await http.patch(`/requests/${id}`, patch);
-  return data;
+export const fetchRepairRequests = createAsyncThunk('requests/fetchRepairRequests', async (params = {}) => {
+  const { data } = await http.get("/api/repairrequests/paginate", { params });
+  console.log('http.get("/api/repairrequests/paginate",', data);
+  return data || []; // []
 });
-
+// recent
+export const fetchRecentAccrossApartments = createAsyncThunk(
+  'requests/fetchRecentAccrossApartments'
+  , async ({apartmentIds, perAptSize = 5, take = 3}) => {
+    if (!Array.isArray(apartmentIds) || apartmentIds.length === 0) {
+      return [];
+    }
+    const calls = apartmentIds.map((apartmentId ) =>
+      http.get("/api/repairrequests/paginate", {
+        params: { page: 1, size: perAptSize, apartmentId },
+      })
+    );
+    const all = await Promise.all(calls);
+    const perAptItems = all.map((res) => dotnetArr(res?.data?.items));
+    const merged = perAptItems.flat();
+    merged.sort((a, b) => {
+      const aTime = (dotnetArr(a?.requestTrackings)[0]?.updatedAt ?? a?.createdAt) || '';
+      const bTime = (dotnetArr(b?.requestTrackings)[0]?.updatedAt ?? b?.createdAt) || '';
+      return new Date(bTime) - new Date(aTime);
+    });
+    return merged.slice(0, take);
+  }
+);
 export const cancelRequest = createAsyncThunk('requests/cancel', async (id) => {
   const { data } = await http.post(`/requests/${id}/cancel`);
   return { id, data };
@@ -97,16 +123,34 @@ export const getRequest = createAsyncThunk('requests/get', async (id) => {
 const slice = createSlice({
   name: 'requests',
   initialState: {
-    list: [],
+    items: [],
+    page: 1,
+    size: 10,
+    total: 0,
+    totalPages: 0,
+    loading: false,
+    error: null,
+    current: null,
+    //create stảte
     creating: false,
     createError: null,
     lastCreateResult: null,
+
+    //recent merged state
+    recent: [],
+    recentLoading: false,
+    recentError: null,
   },
-  reducers: {},
+  reducers: {
+    setCurrentRequest(state, action) {
+      state.current = action.payload || null;
+    },
+    resetCurrentRequest(state) {
+      state.current = null;
+    },
+  },
   extraReducers: (b) => {
-    b.addCase(fetchMyRequests.pending, (s) => { s.status = 'loading'; })
-     .addCase(fetchMyRequests.fulfilled, (s, a) => { s.status = 'succeeded'; s.list = a.payload; })
-     .addCase(fetchMyRequests.rejected, (s, a) => { s.status = 'failed'; s.error = a.error.message; })
+    b
      //normal
      .addCase(createNormalRepairRequest.pending, (s) => {
       s.creating = true;
@@ -136,18 +180,74 @@ const slice = createSlice({
         s.createError = a.payload || a.error;
       })
       
-     .addCase(updateRequest.fulfilled, (s, a) => {
-        s.list = s.list.map((r) => (r.id === a.payload.id ? a.payload : r));
-     })
-     .addCase(cancelRequest.fulfilled, (s, a) => {
-        s.list = s.list.map((r) => (r.id === a.payload.id ? { ...r, status: 'cancelled' } : r));
+      //fetch list paginate
+     .addCase(fetchRepairRequests.pending, (s,a) => {
+        s.loading = true;
+        s.error = null;
+        const reqPage = a.meta?.arg?.page || 1;
+        if (reqPage === 1) {
+          s.items = []; // reset nếu trang 1
+        }
+      })
+      .addCase(fetchRepairRequests.fulfilled, (s, a) => {
+        s.loading = false;
+        const { items, page, size, total, totalPages } = a.payload || {};
+        s.page = page ?? 1;
+        s.size = size ?? 10;
+        s.total = total ?? 0;
+        s.totalPages = totalPages ?? 0;
+        const arr = dotnetArr(items);
+        if ((page ?? 1) > 1) {
+          s.items = [...s.items, ...arr];
+        } else {
+          s.items = arr;
+        }
+      })
+      .addCase(fetchRepairRequests.rejected, (s, a) => {
+        s.loading = false;
+        s.error = a.error?.message || "Tải danh sách thất bại";
+      })
+      //recent
+      .addCase(fetchRecentAccrossApartments.pending, (s) => {
+        s.recentLoading = true;
+        s.recentError = null;
+        s.recent = [];
+      })
+      .addCase(fetchRecentAccrossApartments.fulfilled, (s, a) => {
+        s.recentLoading = false;
+        s.recent = a.payload || [];
+      })
+      .addCase(fetchRecentAccrossApartments.rejected, (s, a) => {
+        s.recentLoading = false;
+        s.recentError = a.error?.message || "Tải danh sách gần đây thất bại";
+      })
+     
+     .addCase(cancelRequest.fulfilled, (s, a) => {// để sau sửa
+        s.items = s.items.map((r) => (r.id === a.payload.id ? { ...r, status: 'cancelled' } : r));
      })
      .addCase(getRequest.fulfilled, (s, a) => { s.current = a.payload; });
   },
 });
 
 export default slice.reducer;
+export const { setCurrentRequest, clearCurrentRequest } = slice.actions;
 
 export const selectRequestCreating = (s) => s.requests.creating;
 export const selectRequestCreateError = (s) => s.requests.createError;
 export const selectRequestCreateResult = (s) => s.requests.lastCreateResult;
+//slelectors for list
+export const selectRequests = (s) => s.requests.items;
+export const selectRequestsLoading = (s) => s.requests.loading;
+export const selectRequestsError = (s) => s.requests.error;
+export const selectRequestsPageData = (s) => ({
+  page: s.requests.page,
+  size: s.requests.size,
+  total: s.requests.total,
+  totalPages: s.requests.totalPages,
+});
+//Selector for detail
+export const selectCurrentRequest = (s) => s.requests.current;
+//selectors for recent
+export const selectRecentRequests = (s) => s.requests.recent;
+export const selectRecentRequestsLoading = (s) => s.requests.recentLoading;
+export const selectRecentRequestsError = (s) => s.requests.recentError;
