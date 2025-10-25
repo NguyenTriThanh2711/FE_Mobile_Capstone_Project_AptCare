@@ -10,7 +10,6 @@ import {
   TextInput,
 } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
-import { Button } from "@/src/components/common/Button";
 import { router } from "expo-router";
 import callPhone from "@/src/utils/call-phone";
 import { getRoomsLabel } from "@/src/helper/room-labels-profile";

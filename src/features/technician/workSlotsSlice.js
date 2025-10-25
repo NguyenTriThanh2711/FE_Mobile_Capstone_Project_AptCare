@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import http from "@/src/services/http";
 import { toYMD } from "@/src/utils/date";
+import { mockMySchedule } from "@/src/utils/mockdata";
 
 /* --------------- Thunks ----------------- */
 /** GET /workslots/my-schedule?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD
@@ -11,7 +12,8 @@ export const fetchMySchedule = createAsyncThunk(
   async ({ fromDate, toDate }, { rejectWithValue }) => {
     try {
       console.log('fetchmychedule http//workslots/my-schedule', { fromDate, toDate });
-      const { data } = await http.get("/api/workslots/my-schedule", { params: { fromDate, toDate } });
+      // const { data } = await http.get("/api/workslots/my-schedule", { params: { fromDate, toDate } });
+      const  data  = mockMySchedule;
       console.log('res fetchmychedule data', data);
       return data; 
     } catch (err) {
@@ -21,7 +23,29 @@ export const fetchMySchedule = createAsyncThunk(
     }
   }
 );
+export const checkInSlot = createAsyncThunk(
+  'workSlots/checkInSlot',
+  async ({ slotId, lat, lng, method = 'manual' }, { rejectWithValue }) => {
+    try {
+      const res = await http.post(`/api/technicians/me/slots/${slotId}/check-in`, { lat, lng, method });
+      return { slotId, payload: res.data };
+    } catch (e) {
+      return rejectWithValue(e?.response?.data || e.message);
+    }
+  }
+);
 
+export const checkOutSlot = createAsyncThunk(
+  'workSlots/checkOutSlot',
+  async ({ slotId }, { rejectWithValue }) => {
+    try {
+      const res = await http.post(`/api/technicians/me/slots/${slotId}/check-out`);
+      return { slotId, payload: res.data };
+    } catch (e) {
+      return rejectWithValue(e?.response?.data || e.message);
+    }
+  }
+);
 const initialState = {
   raw: null,         
   loading: false,

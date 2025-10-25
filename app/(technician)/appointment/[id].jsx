@@ -1,4 +1,3 @@
-// app/inspection/[id].jsx
 import React, { useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
@@ -222,8 +221,8 @@ export default function InspectionDetailsScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Thông tin </Text>
               <View style={styles.infoBlock}>
-                <Item icon="doc.text" label="Inspection ID" value={inspection.id} />
-                <Item icon="person" label="User ID" value={inspection.residentId} />
+                <Item icon="doc.text" label="ID yêu cầu" value={inspection.id} />
+                <Item icon="person" label="ID người dùng" value={inspection.residentId} />
                 <Item icon="calendar" label="Appointment ID" value={inspection.appointmentId} />
                 <Item icon="flag" label="Fault Owner" value={inspection.faultOwner} />
                 <Item icon="wrench" label="Solution Type" value={inspection.solutionType} />

@@ -16,6 +16,7 @@ import Toast from "react-native-toast-message";
 import { dotnetArr } from "@/src/helper/dotnetArr";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "react-native-paper";
+import { compressMany } from "@/src/utils/imageCompression";
 
 const FOOTER_HEIGHT = 64;
 
@@ -44,7 +45,6 @@ export default function RequestCreate() {
   
   const issues = useSelector(selectIssues);
   const issuesLoading = useSelector(selectIssuesLoading);
-
 
   useEffect(() => {
     dispatch(fetchIssues());
@@ -80,12 +80,24 @@ export default function RequestCreate() {
   const [openIssuePicker, setOpenIssuePicker] = useState(false);
   const [openAptPicker, setOpenAptPicker] = useState(false);
 
+  const filteredIssues = useMemo(
+    () => (issues || []).filter((it) => it.isEmergency === !!isEmergency),
+    [issues, isEmergency]
+  );
+  console.log('filteredIssues', filteredIssues)
   const currentIssueLabel =
     issueId == null
       ? (issues?.length ? "Khác" : "Chọn vấn đề")
       : (issues.find((i) => i.issueId === issueId)?.name || "Chọn vấn đề");
 
+  useEffect(() => {
+    if (issueId != null && !filteredIssues.some((i) => i.issueId === issueId)) {
+      setValue("issueId", isEmergency ? undefined : null, { shouldDirty: true });
+    }
+  }, [filteredIssues, issueId, isEmergency, setValue]);
+
   const onSubmit = async (values) => {
+    
     try {
       
       if ( !values.shortSummary) {
@@ -100,13 +112,18 @@ export default function RequestCreate() {
         Toast.show({ type: 'error', text1: 'Thiếu thông tin', text2: 'Khẩn cấp yêu cầu chọn Vấn đề.' });
         return;
       }
+      const filesCompressed = await compressMany(images, {
+        maxWidth: 1280,
+        quality: 0.7,
+        format: 'jpeg',
+      });
     if (isEmergency) {
       const payload = {
         ApartmentId: values.apartmentId ?? firstAptId,
         IssueId: values.issueId,              
         Object: values.shortSummary?.trim(),
         Description: values.description?.trim() || "",
-        Files: images,
+        Files: filesCompressed,
       };
       console.log("Submitting emergency maintenance request:", payload);
       await dispatch(createEmergencyRepairRequest(payload)).unwrap();
@@ -117,7 +134,7 @@ export default function RequestCreate() {
         Object: values.shortSummary?.trim(),
         Description: values.description?.trim() || "",
         PreferredAppointment: values.preferredAt, //normal
-        Files: images,
+        Files: filesCompressed,
       };
       console.log("Submitting maintenance request:", payload);
       await dispatch(createNormalRepairRequest(payload)).unwrap();
@@ -126,7 +143,7 @@ export default function RequestCreate() {
     router.back();
   } catch (e) {
     Toast.show({ type: 'error', text1: 'Gửi thất bại', text2: e?.message || 'Vui lòng thử lại.' });
-    console.log('Error in onSubmit:', e);
+    console.error('Error in onSubmit:', e);
   }
   };
 
@@ -138,7 +155,7 @@ export default function RequestCreate() {
           colors={["#ef4444", "#f59e0b"]} // đỏ → vàng
           start={{ x : 0, y: 0}}
           end={{ x: 1, y: 0 } }
-          style={[styles.header, { paddingTop: insets.top + 6 }]}
+          style={[styles.headerBase, styles.headerGradient, { paddingTop: insets.top + 6 }]}
         >
          
           <Pressable onPress={() => router.back()} style={styles.headerLeft} hitSlop={8}>
@@ -188,7 +205,7 @@ export default function RequestCreate() {
                 {/* icon tầng */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Icon name="building.2" size={16} color="#6b7280" />
-                  <Text style={{ fontSize: 14, color: "#111827" }}>Tầng {selectedApartment.floor}</Text>
+                  <Text style={{ fontSize: 14, color: "#111827" }}>Tầng {selectedApartment?.floorId}</Text>
                 </View>
                 <View style={{ width: 1, height: 16, backgroundColor: '#E5E7EB' }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -259,7 +276,7 @@ export default function RequestCreate() {
               </View>
 
               <ScrollView style={{ paddingHorizontal: 6 }}>
-                {issues.map((it) => (
+                {filteredIssues.map((it) => (
                   <Pressable
                     key={it.issueId}
                     onPress={() => {
@@ -411,15 +428,20 @@ export default function RequestCreate() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
 
-  header: {
+  headerBase: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingBottom: 10,
-    backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#e5e5e5",
+  },
+  headerPlain: {
+    backgroundColor: "white", // chỉ dùng cho header thường
+  },
+  headerGradient: {
+    backgroundColor: "transparent", // rất quan trọng cho iOS
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 6, width: 92 },
   headerBack: { fontSize: 16, color: "#1a1a1a" },

@@ -19,6 +19,9 @@ const MAP = {
   "chat.fill": "chatbubbles",
   "chat": "chatbubbles-outline",
 
+  "user": "person-outline",
+  "user.fill": "person",
+
   "profile.fill": "person",
   "profile": "person-outline",
 

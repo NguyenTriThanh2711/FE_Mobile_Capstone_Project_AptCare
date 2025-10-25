@@ -1,19 +1,26 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
-  Modal,
-  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Icon } from "@/src/components/Icon.native";
-import { router } from "expo-router";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchMySchedule, selectWorkSlotsError, selectWorkSlotsLoading, selectWorkSlotsRaw } from "@/src/features/technician/workSlotsSlice";
 import { dotnetArr } from "@/src/helper/dotnetArr";
+import { useAppDispatch, useAppSelector } from "@/src/store";
+import { fetchSlots, selectSlotsLoading, selectSlotsMap } from "@/src/features/slots/slotsSlice";
+import {
+  fetchMySchedule,
+  selectWorkSlotsRaw,
+  selectWorkSlotsLoading,
+  selectWorkSlotsError,
+} from "@/src/features/technician/workSlotsSlice";
+import AppointmentCard from "@/src/components/AppointmentCard";
+import { router } from "expo-router";
+
+/* ========= utils ========= */
 const colors = {
   primary: "#007AFF",
   success: "#34C759",
@@ -26,7 +33,12 @@ const colors = {
   border: "#e5e5e5",
 };
 
-const ymd = (d) => new Date(d).toISOString().slice(0, 10);
+const pad2 = (n) => String(n).padStart(2, "0");
+
+// Local YYYY-MM-DD (theo local time, tránh lệch UTC)
+const ymd = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
 function formatViDate(d) {
   return d.toLocaleDateString("vi-VN", {
     weekday: "long",
@@ -36,314 +48,180 @@ function formatViDate(d) {
   });
 }
 
-function getPriorityColor(priority) {
-  switch (priority) {
-    case "urgent":
-      return colors.danger;
-    case "high":
-      return "#F57C00";
-    case "medium":
-      return colors.primary;
-    default:
-      return "#34C759";
-  }
+function dateAt(dateStr, hhmmss) {
+  const [h, m, s] = (hhmmss || "00:00:00").split(":").map((x) => parseInt(x, 10) || 0);
+  const dt = new Date(`${dateStr}T00:00:00`);
+  dt.setHours(h, m, s, 0);
+  return dt;
 }
 
-function getStatusChip(job) {
-  switch (job.status) {
-    case "scheduled":
-      return { label: "Đã xếp lịch", bg: "#8E8E93" };
-    case "in_progress":
-      return { label: "Đang thực hiện", bg: colors.primary };
-    case "awaiting_approval":
-      return { label: "Chờ duyệt", bg: colors.warning };
-    case "awaiting_contractor":
-      return { label: "Chờ nhà thầu", bg: colors.warning };
-    case "awaiting_payment":
-      return { label: "Chờ thanh toán", bg: "#FB8C00" };
-    case "completed":
-      return { label: "Hoàn tất", bg: colors.success };
-    case "cancelled":
-      return { label: "Đã huỷ", bg: "#9E9E9E" };
-    default:
-      return { label: job.status, bg: "#9E9E9E" };
-  }
+function minutesUntil(dtEnd) {
+  const diffMs = dtEnd - new Date();
+  return Math.floor(diffMs / 60000);
 }
 
-// Tính actions theo loại + trạng thái
-function getAvailableActions(job) {
-  const actions = [];
-  if (job.status === "scheduled") {
-    actions.push({ key: "start", label: "Bắt đầu", icon: "play.fill", kind: "primary" });
-  }
-  if (job.status === "in_progress") {
-    if (job.type === "inspection") {
-      actions.push({ key: "report", label: "Tạo báo cáo", icon: "doc.text", kind: "primary" });
-    } else {
-      actions.push({ key: "progress", label: "Tiến độ", icon: "pencil", kind: "secondary" });
-      actions.push({ key: "photos", label: "Ảnh", icon: "photo.on.rectangle", kind: "secondary" });
-      actions.push({ key: "finishRepair", label: "Kết thúc", icon: "checkmark", kind: "primary" });
-    }
-  }
-  if (job.status === "awaiting_payment") {
-    actions.push({ key: "markPaid", label: "Đã thanh toán", icon: "creditcard", kind: "primary" });
-  }
-  // Luôn có Xem chi tiết (nếu muốn)
-  actions.push({ key: "details", label: "Chi tiết", icon: "info.circle", kind: "link" });
-  return actions;
-}
+const atMidnight = (d) => {
+  // set time to 00:00:00 để tránh lệch múi giờ khi stringify
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
 
+/* ========= component ========= */
 export default function TechnicianSchedule() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const dispatch = useDispatch();
+  console.log("const selectedDate", selectedDate);
+
+  const dateStr = useMemo(() => ymd(selectedDate), [selectedDate]);
+  console.log("const dateStr", dateStr);
+
+  const dispatch = useAppDispatch();
+
+  // slots (khung ca)
+  const slotMap = useAppSelector(selectSlotsMap);
+  const slotsLoading = useAppSelector(selectSlotsLoading);
+
+  // my schedule (ca của tôi + appointments)
+  const scheduleRaw = useAppSelector(selectWorkSlotsRaw);
+  console.log("const scheduleRaw", scheduleRaw);
+  const schedLoading = useAppSelector(selectWorkSlotsLoading);
+  const schedError = useAppSelector(selectWorkSlotsError);
+
+  // checkin/checkout local tạm
+  const [checkState, setCheckState] = useState({});
+
+  // fetch danh mục slots 1 lần
+  useEffect(() => {
+    dispatch(fetchSlots());
+  }, [dispatch]);
+
+  // fetch lịch theo khung ±7 ngày quanh selectedDate
+  useEffect(() => {
+    const from = new Date(selectedDate);
+    const to = new Date(selectedDate);
+    from.setDate(from.getDate() - 7);
+    to.setDate(to.getDate() + 7);
+    dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
+  }, [dispatch, selectedDate]);
+
+  const canShowCheckout = (shift) => {
+    if (!shift.checkedInAt || shift.checkedOutAt) return false;
+    const end = dateAt(shift.date, shift.toTime);
+    return minutesUntil(end) <= 30;
+  };
+
+  const handleCheckIn = async (_shift) => {
+    // TODO: gọi API check-in sau
+  };
+
+  const handleCheckOut = async (_shift) => {
+    // TODO: gọi API check-out sau
+  };
+
+  // week selector
   const dateListRef = useRef(null);
-  const raw = useSelector(selectWorkSlotsRaw);
-  const loading = useSelector(selectWorkSlotsLoading);
-  const error = useSelector(selectWorkSlotsError);
-  // const [jobs, setJobs] = useState(() => {
-  //   const todayISO = new Date().toISOString();
-  //   return [
-  //     {
-  //       id: "J1",
-  //       type: "inspection", // inspection | repair
-  //       startTime: todayISO,
-  //       durationMins: 60,
-  //       apartmentId: "A-204",
-  //       floor: "2",
-  //       contact: { name: "Anh Huy", phone: "0901234567" },
-  //       title: "Khảo sát rò rỉ nước",
-  //       priority: "high", // low|medium|high|urgent
-  //       status: "scheduled",
-  //       inspection: {},
-  //       events: [{ id: "e1", type: "scheduled", at: todayISO, by: "system" }],
-  //     },
-  //     {
-  //       id: "J2",
-  //       type: "repair",
-  //       startTime: todayISO,
-  //       apartmentId: "B-105",
-  //       floor: "1",
-  //       contact: { name: "Chị Lan", phone: "0912345678" },
-  //       title: "Sửa điều hoà",
-  //       priority: "urgent",
-  //       status: "in_progress",
-  //       repair: { steps: [], progressNotes: [], photos: [] },
-  //       events: [{ id: "e1", type: "started", at: todayISO, by: "KT01" }],
-  //     },
-  //     {
-  //       id: "J3",
-  //       type: "repair",
-  //       startTime: todayISO,
-  //       apartmentId: "C-301",
-  //       floor: "3",
-  //       contact: { name: "Anh Minh", phone: "0987654321" },
-  //       title: "Sửa ổ cắm",
-  //       priority: "medium",
-  //       status: "scheduled",
-  //       repair: { steps: [], progressNotes: [], photos: [] },
-  //       events: [{ id: "e1", type: "scheduled", at: todayISO, by: "system" }],
-  //     },
-  //   ];
-  // });
-  const loadRange = useCallback(// load công việc trong khoảng 2 tuần
-      (baseDate) => {
-        const base = baseDate || selectedDate;
-        const from = new Date(base);
-        const to = new Date(base);
-        from.setDate(from.getDate() - 7);
-        to.setDate(to.getDate() + 7);
-        return dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
-      },
-      [dispatch, selectedDate]
-    );
-    useEffect(() => {
-      loadRange(selectedDate);
-    }, [selectedDate, loadRange]);
-  // ====== Modal states ======
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportPayload, setReportPayload] = useState({
-    jobId: null,
-    findings: "",
-    solution: "",
-    severity: "light", // light | heavy
-  });
-
-  const [showProgressModal, setShowProgressModal] = useState(false);
-  const [progressPayload, setProgressPayload] = useState({ jobId: null, note: "" });
-
-  const [showFinishModal, setShowFinishModal] = useState(false);
-  const [finishPayload, setFinishPayload] = useState({ jobId: null, actualCost: "" });
-
-  // ====== Helpers mutation ======
-  const patchJob = (jobId, updater) => {
-    setJobs((prev) => prev.map((j) => (j.id === jobId ? updater({ ...j }) : j)));
-  };
-  const pushEvent = (job, type, meta = {}) => {
-    const at = new Date().toISOString();
-    const e = { id: `ev-${Date.now()}`, type, at, by: "KT01", meta };
-    job.events = [...(job.events || []), e];
-  };
-
-  // ====== Action handlers ======
-  const handleAction = (job, actionKey) => {
-    switch (actionKey) {
-      case "start": {
-        patchJob(job.id, (j) => {
-          j.status = "in_progress";
-          pushEvent(j, "started");
-          return j;
-        });
-        return;
-      }
-      case "report": {
-        setReportPayload({
-          jobId: job.id,
-          findings: "",
-          solution: "",
-          severity: "light",
-        });
-        setShowReportModal(true);
-        return;
-      }
-      case "progress": {
-        setProgressPayload({ jobId: job.id, note: "" });
-        setShowProgressModal(true);
-        return;
-      }
-      case "photos": {
-        Alert.alert("Ảnh", "Tính năng tải ảnh sẽ tích hợp sau (MediaPicker).");
-        // Sau này: mở MediaPicker, nhận files -> patch repair.photos + pushEvent photo_uploaded
-        return;
-      }
-      case "finishRepair": {
-        setFinishPayload({ jobId: job.id, actualCost: "" });
-        setShowFinishModal(true);
-        return;
-      }
-      case "markPaid": {
-        patchJob(job.id, (j) => {
-          j.status = "completed";
-          j.payment = { ...(j.payment || {}), status: "paid" };
-          pushEvent(j, "completed");
-          return j;
-        });
-        return;
-      }
-      case "details": {
-          const path =
-            job.type === "inspection"
-              ? `/appointment /${job.id}`
-              : `/appointment /${job.id}`;
-          router.push(path);
-        return;
-      }
-    }
-  };
-
-  // ====== Submit modals ======
-  const submitReport = () => {
-    const { jobId, findings, solution, severity } = reportPayload;
-    if (!findings.trim()) return Alert.alert("Thiếu", "Nhập nhận định (findings).");
-
-    patchJob(jobId, (j) => {
-      if (!j.inspection) j.inspection = {};
-      j.inspection.findings = findings;
-      j.inspection.solutionProposal = solution;
-      j.inspection.severity = severity;
-
-      pushEvent(j, "inspection_report_created", { findings });
-      pushEvent(j, "solution_proposed", { solution });
-
-      if (severity === "heavy") {
-        j.inspection.escalateToContractor = true;
-        j.status = "awaiting_approval";
-        pushEvent(j, "escalated_to_contractor");
-      } else {
-        // Nhẹ: tuỳ chọn — ở đây giữ nguyên in_progress để có thể tiếp tục,
-        // hoặc bạn có thể cho “Hoàn tất inspection” luôn.
-        j.status = "completed";
-        pushEvent(j, "completed");
-      }
-      return j;
-    });
-
-    setShowReportModal(false);
-  };
-
-  const submitProgress = () => {
-    const { jobId, note } = progressPayload;
-    if (!note.trim()) return Alert.alert("Thiếu", "Nhập ghi chú tiến độ.");
-    patchJob(jobId, (j) => {
-      if (!j.repair) j.repair = { steps: [], progressNotes: [], photos: [] };
-      j.repair.progressNotes = [...(j.repair.progressNotes || []), note];
-      pushEvent(j, "repair_progress_updated", { note });
-      return j;
-    });
-    setShowProgressModal(false);
-  };
-
-  const submitFinish = () => {
-    const { jobId, actualCost } = finishPayload;
-    const n = Number(actualCost);
-    if (Number.isNaN(n)) return Alert.alert("Sai định dạng", "Chi phí phải là số.");
-    patchJob(jobId, (j) => {
-      j.status = "awaiting_payment";
-      j.payment = { ...(j.payment || {}), actual: n, status: "awaiting" };
-      pushEvent(j, "awaiting_payment", { actual: n });
-      return j;
-    });
-    setShowFinishModal(false);
-  };
-
-  // ====== Week dates ======
   const twoWeekDates = useMemo(() => {
     const base = new Date(selectedDate);
     const start = new Date(base);
-    // Bắt đầu từ Chủ nhật
     start.setDate(base.getDate() - 7);
     return Array.from({ length: 14 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       return d;
     });
-  }, []);
+  }, [selectedDate]);
+
   useEffect(() => {
-      const idx = twoWeekDates.findIndex((d => d.toDateString() === selectedDate.toDateString()));
-      if (idx < 0 || !dateListRef.current) return;
-      const x = 16 + idx * (50 + 10); // padding + itemWidth + gap - half screen
-      requestAnimationFrame(() => {
-        dateListRef.current.scrollTo({ x, animated: true });
-      });
-    }, [twoWeekDates, selectedDate]);
-  const slotsToday = useMemo(() => {
-      if (!raw) return [];
-      const dayObj = dotnetArr(raw).find((d) => d?.date === ymd(selectedDate));
-      if (!dayObj) return [];
-      return dotnetArr(dayObj.slots); // [{ slotId, technicianWorkSlots }]
-  }, [raw, selectedDate]);
-  const totalToday = useMemo(() => {
-      return slotsToday
-        .map((s) => dotnetArr(s.technicianWorkSlots).length)
-        .reduce((a, b) => a + b, 0);
-  }, [slotsToday]);
+    const idx = twoWeekDates.findIndex(
+      (d) => d.toDateString() === selectedDate.toDateString()
+    );
+    if (idx < 0 || !dateListRef.current) return;
+    const x = 16 + idx * (60 + 10); // ước lượng width 60 + gap 10
+    requestAnimationFrame(() => {
+      dateListRef.current.scrollTo({ x, animated: true });
+    });
+  }, [twoWeekDates, selectedDate]);
+
+  // data ngày đang chọn
+  const dayData = useMemo(() => {
+    const arr = dotnetArr(scheduleRaw);
+    console.log("const arr = dotnetArr", arr);
+    return arr.find((d) => d?.date === dateStr) || null;
+  }, [scheduleRaw, dateStr]);
+
+  console.log("const dayData", dayData);
+
+  const shifts = useMemo(() => {
+    if (!dayData) return [];
+    const slotsArr = dotnetArr(dayData.slots);
+    return slotsArr
+      .map((sl) => {
+        const info = slotMap[sl.slotId] || {};
+        const fromTime = info.fromTime || "00:00:00";
+        const toTime = info.toTime || "00:00:00";
+        const tws = dotnetArr(sl.technicianWorkSlots)?.[0] || null; // 1 kỹ thuật/slot (hiện tại)
+        const key = `${dayData.date}-${sl.slotId}`;
+        return {
+          id: key,
+          date: dayData.date,
+          slotId: sl.slotId,
+          fromTime,
+          toTime,
+          status: tws?.status || "NotStarted",
+          checkedInAt: checkState[key]?.checkedInAt || null,
+          checkedOutAt: checkState[key]?.checkedOutAt || null,
+          appointments: dotnetArr(tws?.appointments) || [],
+        };
+      })
+      .sort((a, b) => (a.fromTime || "").localeCompare(b.fromTime || ""));
+  }, [dayData, slotMap, checkState]);
+
+  const totalAppointments = useMemo(
+    () => shifts.reduce((sum, s) => sum + (s.appointments?.length || 0), 0),
+    [shifts]
+  );
+
+  console.log("const shifts", shifts);
+
   return (
     <View style={styles.container}>
       {/* Week selector */}
       <View style={styles.dateSelector}>
-        <ScrollView ref={dateListRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateScroll}>
+        <ScrollView
+          ref={dateListRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dateScroll}
+        >
           {twoWeekDates.map((d, idx) => {
             const isSelected = d.toDateString() === selectedDate.toDateString();
             const isToday = d.toDateString() === new Date().toDateString();
             return (
               <Pressable
                 key={idx}
-                style={[styles.dateItem, isSelected && styles.dateItemSelected, isToday && !isSelected && styles.dateItemToday]}
-                onPress={() => setSelectedDate(d)}
+                style={[
+                  styles.dateItem,
+                  isSelected && styles.dateItemSelected,
+                  isToday && !isSelected && styles.dateItemToday,
+                ]}
+                onPress={() => setSelectedDate(atMidnight(d))}
               >
-                <Text style={[styles.dayText, isSelected && styles.dayTextSel, isToday && !isSelected && styles.dayTextToday]}>
+                <Text
+                  style={[
+                    styles.dayText,
+                    isSelected && styles.dayTextSel,
+                    isToday && !isSelected && styles.dayTextToday,
+                  ]}
+                >
                   {d.toLocaleDateString("vi-VN", { weekday: "short" })}
                 </Text>
-                <Text style={[styles.dateNum, isSelected && styles.dayTextSel, isToday && !isSelected && styles.dayTextToday]}>
+                <Text
+                  style={[
+                    styles.dateNum,
+                    isSelected && styles.dayTextSel,
+                    isToday && !isSelected && styles.dayTextToday,
+                  ]}
+                >
                   {d.getDate()}
                 </Text>
               </Pressable>
@@ -355,197 +233,131 @@ export default function TechnicianSchedule() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Lịch ngày {formatViDate(selectedDate)}</Text>
-        <Text style={styles.subTitle}>{totalToday} công việc</Text>
+        <Text style={styles.subTitle}>
+          {shifts.length} ca • {totalAppointments} cuộc hẹn
+        </Text>
       </View>
 
-      {/* List */}
-      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-        {slotsToday.map((slot, idx) => {
-          const tws = dotnetArr(slot?.technicianWorkSlots);
+      {/* Loading / Error */}
+      {(slotsLoading || schedLoading) && (
+        <View style={{ paddingVertical: 16 }}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      )}
+      {!!schedError && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <Text style={{ color: colors.danger, fontWeight: "600" }}>
+            {String(schedError)}
+          </Text>
+        </View>
+      )}
+
+      {/* Shift cards */}
+      <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 24 }}>
+        {(!dayData || shifts.length === 0) && !schedLoading && (
+          <View style={styles.emptyWrap}>
+            <Icon name="list.bullet" size={24} color={colors.textSecondary} />
+            <Text style={styles.emptyText}>Không có ca nào trong ngày</Text>
+          </View>
+        )}
+
+        {shifts.map((shift) => {
+          const startLabel = (shift.fromTime || "").slice(0, 5);
+          const endLabel = (shift.toTime || "").slice(0, 5);
+          const endDate = dateAt(shift.date, shift.toTime);
+          const minsToEnd = minutesUntil(endDate);
+
           return (
-            <View key={`${slot.slotId}-${idx}`} style={styles.card}>
-              {/* Thời gian & trạng thái */}
+            <View key={shift.id} style={styles.card}>
+              {/* Time & status */}
               <View style={styles.rowTop}>
                 <View style={styles.timeCol}>
                   <Icon name="clock" size={16} color={colors.textSecondary} />
                   <Text style={styles.timeText}>
-                    {new Date(slot?.startTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} 
+                    {startLabel} - {endLabel}
                   </Text>
                 </View>
-                <View style={[styles.statusChip, { backgroundColor: "#8E8E93" }]}>
-                  <Text style={styles.statusText}>{slot.label}</Text>
-                </View>
-              </View>
-
-              {/* Info */}
-              <View style={styles.rowMid}>
-                <Text style={styles.apartment}>{slot.apartmentId}</Text>
-                <View style={[styles.priorityPill, { backgroundColor: getPriorityColor(slot.priority) }]}>
-                  <Text style={styles.pillText}>
-                    {slot.priority === "urgent" ? "Khẩn cấp" : slot.priority === "high" ? "Cao" : slot.priority === "medium" ? "Trung bình" : "Thấp"}
+                <View
+                  style={[
+                    styles.statusChip,
+                    {
+                      backgroundColor: shift.checkedOutAt
+                        ? colors.success
+                        : shift.checkedInAt
+                        ? colors.primary
+                        : "#8E8E93",
+                    },
+                  ]}
+                >
+                  <Text style={styles.statusText}>
+                    {shift.checkedOutAt
+                      ? "Đã check-out"
+                      : shift.checkedInAt
+                      ? "Đang trong ca"
+                      : "Chưa bắt đầu"}
                   </Text>
                 </View>
-                <View style={[styles.typePill, slot.type === "inspection" ? styles.inspect : styles.repair]}>
-                  <Text style={styles.typeText}>{slot.type === "inspection" ? "Khảo sát" : "Sửa chữa"}</Text>
-                </View>
               </View>
-
-              {/* Liên hệ & địa điểm */}
-              <View style={styles.rowMeta}>
-                <View style={styles.metaItem}>
-                  <Icon name="building.2" size={14} color={colors.textSecondary} />
-                  <Text style={styles.metaTxt}>Lầu: <Text style={styles.metaStrong}>{slot.floor}</Text></Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Icon name="door.left.hand.closed" size={14} color={colors.textSecondary} />
-                  <Text style={styles.metaTxt}>Phòng: <Text style={styles.metaStrong}>{slot.apartmentId}</Text></Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Icon name="phone" size={14} color={colors.primary} />
-                  <Text style={[styles.metaTxt, styles.metaStrong]}>{slot.contact?.phone}</Text>
-                </View>
-              </View>
-
-              {/* Mô tả ngắn */}
-              <Text style={styles.titleText}>{slot.title}</Text>
 
               {/* Actions */}
-              <View style={styles.actions}>
-                {getAvailableActions(slot).map((a) => {
-                  if (a.kind === "link") {
-                    return (
-                      <Pressable key={a.key} style={styles.linkBtn} onPress={() => handleAction(slot, a.key)}>
-                        <Text style={styles.linkText}>{a.label}</Text>
-                        <Icon name="chevron.right" size={16} color={colors.primary} />
-                      </Pressable>
-                    );
-                  }
-                  const btnStyle = a.kind === "primary" ? styles.btnPrimary : styles.btnSecondary;
-                  const txtStyle = a.kind === "primary" ? styles.btnPrimaryText : styles.btnSecondaryText;
-                  return (
-                    <Pressable key={a.key} style={[styles.btn, btnStyle]} onPress={() => handleAction(slot, a.key)}>
-                      <Icon name={a.icon} size={16} color={a.kind === "primary" ? "#fff" : colors.primary} />
-                      <Text style={[styles.btnText, txtStyle]}>{a.label}</Text>
-                    </Pressable>
-                  );
-                })}
+              {/* <View style={styles.actionsRow}>
+                {!shift.checkedInAt && (
+                  <Pressable
+                    style={[styles.btn, styles.btnPrimary]}
+                    onPress={() => handleCheckIn(shift)}
+                  >
+                    <Icon name="play.circle" size={16} color="#fff" />
+                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Check-in</Text>
+                  </Pressable>
+                )}
+
+                {canShowCheckout(shift) && (
+                  <Pressable
+                    style={[styles.btn, styles.btnDanger]}
+                    onPress={() => handleCheckOut(shift)}
+                  >
+                    <Icon name="stop.circle" size={16} color="#fff" />
+                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Check-out</Text>
+                  </Pressable>
+                )}
+
+                {shift.checkedInAt && !canShowCheckout(shift) && !shift.checkedOutAt && (
+                  <View style={styles.hint}>
+                    <Icon name="info.circle" size={14} color={colors.warning} />
+                    <Text style={styles.hintText}>
+                      Check-out khả dụng trong {Math.max(minsToEnd - 30, 0)} phút nữa
+                    </Text>
+                  </View>
+                )}
+              </View> */}
+
+              {/* Appointments */}
+              <View style={styles.apptHeader}>
+                <Text style={styles.apptTitle}>Cuộc hẹn trong ca</Text>
+                <Text style={styles.apptCount}>{shift.appointments.length} mục</Text>
               </View>
+
+              {shift.appointments.length === 0 ? (
+                <Text style={styles.empty}>Không có appointment</Text>
+              ) : (
+                shift.appointments.map((a) => (
+                  <View key={a.appointmentId} style={styles.apptBox}>
+                    <AppointmentCard
+                      appt={a}
+                      onPress={() => router.push(`/inspection/${a.appointmentId}`)}
+                    />
+                  </View>
+                ))
+              )}
             </View>
           );
         })}
-
-        <View style={{ height: 24 }} />
       </ScrollView>
-
-      {/* ===== Modals ===== */}
-
-      {/* Inspection Report */}
-      <Modal visible={showReportModal} transparent animationType="fade" onRequestClose={() => setShowReportModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Tạo báo cáo khảo sát</Text>
-
-            <Text style={styles.label}>Mức độ</Text>
-            <View style={styles.rowSeg}>
-              {[
-                { k: "light", label: "Nhẹ" },
-                { k: "heavy", label: "Nặng (Cần nhà thầu)" },
-              ].map((opt) => (
-                <Pressable
-                  key={opt.k}
-                  onPress={() => setReportPayload((p) => ({ ...p, severity: opt.k }))}
-                  style={[styles.segBtn, reportPayload.severity === opt.k && styles.segBtnActive]}
-                >
-                  <Text style={[styles.segTxt, reportPayload.severity === opt.k && styles.segTxtActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <Text style={styles.label}>Nhận định</Text>
-            <TextInput
-              placeholder="Mô tả kết quả khảo sát…"
-              value={reportPayload.findings}
-              onChangeText={(t) => setReportPayload((p) => ({ ...p, findings: t }))}
-              style={styles.inputMulti}
-              multiline
-            />
-
-            <Text style={styles.label}>Đề xuất phương án</Text>
-            <TextInput
-              placeholder="Giải pháp/đề xuất xử lý…"
-              value={reportPayload.solution}
-              onChangeText={(t) => setReportPayload((p) => ({ ...p, solution: t }))}
-              style={styles.inputMulti}
-              multiline
-            />
-
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.mBtn, styles.mGhost]} onPress={() => setShowReportModal(false)}>
-                <Text style={[styles.mBtnTxt, { color: colors.textSecondary }]}>Huỷ</Text>
-              </Pressable>
-              <Pressable style={[styles.mBtn, styles.mPrimary]} onPress={submitReport}>
-                <Text style={[styles.mBtnTxt, { color: "#fff" }]}>Lưu báo cáo</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Repair Progress */}
-      <Modal visible={showProgressModal} transparent animationType="fade" onRequestClose={() => setShowProgressModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Cập nhật tiến độ</Text>
-            <TextInput
-              placeholder="Nhập ghi chú tiến độ…"
-              value={progressPayload.note}
-              onChangeText={(t) => setProgressPayload((p) => ({ ...p, note: t }))}
-              style={styles.inputMulti}
-              multiline
-            />
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.mBtn, styles.mGhost]} onPress={() => setShowProgressModal(false)}>
-                <Text style={[styles.mBtnTxt, { color: colors.textSecondary }]}>Huỷ</Text>
-              </Pressable>
-              <Pressable style={[styles.mBtn, styles.mPrimary]} onPress={submitProgress}>
-                <Text style={[styles.mBtnTxt, { color: "#fff" }]}>Cập nhật</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Finish Repair (Cost) */}
-      <Modal visible={showFinishModal} transparent animationType="fade" onRequestClose={() => setShowFinishModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Kết thúc sửa chữa</Text>
-            <Text style={styles.label}>Chi phí thực tế (VND)</Text>
-            <TextInput
-              placeholder="VD: 350000"
-              keyboardType="numeric"
-              value={finishPayload.actualCost}
-              onChangeText={(t) => setFinishPayload((p) => ({ ...p, actualCost: t }))}
-              style={styles.input}
-            />
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.mBtn, styles.mGhost]} onPress={() => setShowFinishModal(false)}>
-                <Text style={[styles.mBtnTxt, { color: colors.textSecondary }]}>Huỷ</Text>
-              </Pressable>
-              <Pressable style={[styles.mBtn, styles.mPrimary]} onPress={submitFinish}>
-                <Text style={[styles.mBtnTxt, { color: "#fff" }]}>Xác nhận</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
 
-// ============== styles ==============
+/* ============== styles ============== */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
 
@@ -585,6 +397,9 @@ const styles = StyleSheet.create({
 
   list: { flex: 1, padding: 16 },
 
+  emptyWrap: { alignItems: "center", gap: 8, paddingVertical: 28 },
+  emptyText: { color: colors.textSecondary },
+
   card: {
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -604,71 +419,34 @@ const styles = StyleSheet.create({
   statusChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14 },
   statusText: { fontSize: 11, color: "#fff", fontWeight: "700" },
 
-  rowMid: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  apartment: { fontSize: 15, fontWeight: "700", color: colors.text },
-  priorityPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  pillText: { fontSize: 11, color: "#fff", fontWeight: "700" },
-  typePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  inspect: { backgroundColor: "#E3F2FD" },
-  repair: { backgroundColor: "#FFF3E0" },
-  typeText: { fontSize: 11, color: colors.text, fontWeight: "700" },
-
-  rowMeta: { flexDirection: "row", gap: 14, alignItems: "center", marginBottom: 8, flexWrap: "wrap" },
-  metaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  metaTxt: { fontSize: 12, color: colors.textSecondary },
-  metaStrong: { color: colors.text, fontWeight: "700" },
-
-  titleText: { fontSize: 14, color: "#333", marginBottom: 10, lineHeight: 18 },
-
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" },
+  actionsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
   btn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14 },
   btnPrimary: { backgroundColor: colors.primary },
-  btnSecondary: { backgroundColor: "#EAF3FF", borderWidth: 1, borderColor: "#CFE3FF" },
+  btnDanger: { backgroundColor: colors.danger },
   btnText: { fontSize: 13, fontWeight: "700" },
   btnPrimaryText: { color: "#fff" },
-  btnSecondaryText: { color: colors.primary },
-  linkBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 6, paddingVertical: 6 },
-  linkText: { fontSize: 14, color: colors.primary, fontWeight: "600" },
 
-  // ===== Modal =====
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 18,
-  },
-  modalCard: { width: "100%", maxWidth: 420, backgroundColor: "#fff", borderRadius: 14, padding: 14 },
-  modalTitle: { fontSize: 16, fontWeight: "700", textAlign: "center", marginBottom: 10, color: colors.text },
-  label: { fontSize: 13, fontWeight: "700", color: colors.text, marginTop: 8, marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: colors.text,
-  },
-  inputMulti: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: colors.text,
-    minHeight: 90,
-  },
-  rowSeg: { flexDirection: "row", gap: 8 },
-  segBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#F4F6F8", borderWidth: 1, borderColor: colors.border, alignItems: "center" },
-  segBtnActive: { backgroundColor: "#E7F0FF", borderColor: colors.primary },
-  segTxt: { fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
-  segTxtActive: { color: colors.primary },
+  hint: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#FFF7ED", borderRadius: 10 },
+  hintText: { color: colors.warning, fontSize: 12, fontWeight: "600" },
 
-  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 12 },
-  mBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
-  mGhost: { backgroundColor: "#F4F6F8" },
-  mPrimary: { backgroundColor: colors.primary },
-  mBtnTxt: { fontSize: 15, fontWeight: "700" },
+  apptHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6, marginBottom: 8 },
+  apptTitle: { fontSize: 14, fontWeight: "700", color: colors.text },
+  apptCount: { fontSize: 12, color: colors.textSecondary },
+
+  empty: { fontSize: 13, color: colors.textSecondary, fontStyle: "italic" },
+
+  // Box riêng cho mỗi appointment (tách bạch)
+  apptBox: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
 });

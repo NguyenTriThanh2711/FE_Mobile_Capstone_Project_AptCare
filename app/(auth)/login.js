@@ -123,7 +123,7 @@ export default function Login() {
                 name="usernameOrEmail"
                 label="Email hoặc tên đăng nhập"
                 placeholder="vd: thanh@gmail.com"
-                startIcon="account-outline"
+                startIcon="user.fill"
                 rules={{
                   required: "Vui lòng nhập email hoặc tên đăng nhập",
                 }}
@@ -135,7 +135,7 @@ export default function Login() {
                 label="Mật khẩu"
                 placeholder="••••••••"
                 secure
-                startIcon="lock-outline"
+                startIcon="lock"
                 rules={{ required: "Vui lòng nhập mật khẩu", minLength: { value: 6, message: "Tối thiểu 6 ký tự" } }}
                 style={{ marginBottom: 12 }}
               />

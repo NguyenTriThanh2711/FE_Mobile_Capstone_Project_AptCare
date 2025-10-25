@@ -7,6 +7,7 @@ import auth from '@/src/features/auth/authSlice';
 import requests from '@/src/features/requests/requestsSlice';
 import workslots from '@/src/features/technician/workSlotsSlice';
 import issues from '@/src/features/issues/issuesSlice'; 
+import slots from '@/src/features/slots/slotsSlice';
 
 // --- Chỉ persist "user" của auth (KHÔNG persist status/error/token)
 const authTransform = createTransform(
@@ -22,7 +23,7 @@ const requestsTransform = createTransform(
   { whitelist: ['requests'] }
 );
 
-const rootReducer = combineReducers({ auth, requests, workslots, issues });
+const rootReducer = combineReducers({ auth, requests, workslots, issues, slots });
 
 const persistConfig = {
   key: 'root',
