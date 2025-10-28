@@ -49,10 +49,10 @@ function AuthGate() {
         : "(resident)"
       : "(auth)";
     if (!user) {
-      if (top !== "(auth)") router.replace("/(auth)/login");
+      if (top !== "(auth)") router.replace("/(auth)/auth");
       return;
     } else if (!user.role ) {
-      if (top !== "(auth)") router.replace("/(auth)/login");
+      if (top !== "(auth)") router.replace("/(auth)/auth");
       return;
     }
     else if (top !== wantTop || top === "(auth)") {
