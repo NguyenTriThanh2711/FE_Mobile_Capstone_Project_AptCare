@@ -15,3 +15,17 @@ export const toYMD = (d) => {
   const day = String(dt.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 };
+
+export function fmtDateTime(s) {
+  try {
+    return new Date(s).toLocaleString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return s;
+  }
+}

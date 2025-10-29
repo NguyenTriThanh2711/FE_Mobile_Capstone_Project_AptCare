@@ -16,34 +16,16 @@ import { Icon } from "@/src/components/Icon.native";
 import { dotnetArr } from "@/src/helper/dotnetArr";
 import { selectCurrentRequest } from "@/src/features/requests/requestsSlice";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fmtDateTime } from "@/src/utils/date";
 
 const screen = Dimensions.get("window");
-
-function fmtDateTime(iso) {
-  if (!iso || iso.startsWith("0001-01-01")) return "";
-  try {
-    return new Date(iso).toLocaleString("vi-VN", {
-      weekday: "short",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function StatusPill({ isEmergency }) {
   const bg = isEmergency ? "#FEE2E2" : "#E5F6FF";
   const fg = isEmergency ? "#B91C1C" : "#0C4A6E";
   const text = isEmergency ? "Khẩn cấp" : "Bình thường";
-  const icon = isEmergency ? "exclamationmark.triangle.fill" : "clock";
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
-      <Icon name={icon} size={14} color={fg} />
       <Text style={[styles.badgeText, { color: fg }]}>{text}</Text>
     </View>
   );
@@ -108,7 +90,7 @@ export default function RequestDetail() {
             </Text>
             <View style={styles.metaRow}>
               <Icon name="calendar" size={14} color="#6B7280" />
-              <Text style={styles.metaText}>{createdAt || "—"}</Text>
+              <Text style={styles.metaText}>{'Ngày tạo: '+createdAt || "—"}</Text>
             </View>
           </View>
           <StatusPill isEmergency={!!data?.isEmergency} />

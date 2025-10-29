@@ -271,6 +271,11 @@ export default function AuthScreen() {
                                 to='blue'
                                 onPress={handleLoginSubmit(onLogin)}
                             />
+                            <View style={{ alignItems: "flex-end", marginBottom: 8, marginTop: 25 }}>
+                              <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password")}>
+                              <Text style={{ color: "#1D4ED8", fontWeight: "600" }}>Quên mật khẩu?</Text>
+                              </TouchableOpacity>
+                            </View>
                         </View>
                        )}
                        {tab === 'register' && (

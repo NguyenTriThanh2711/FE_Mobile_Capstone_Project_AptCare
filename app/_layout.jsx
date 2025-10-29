@@ -8,7 +8,7 @@ import { fetchProfile } from "@/src/features/auth/authSlice";
 import '../global.css';
 import { MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
+import Toast, { ErrorToast } from "react-native-toast-message";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 function AuthGate() {
@@ -62,7 +62,18 @@ function AuthGate() {
 
   return <Slot />;
 }
-
+const toastConfig = {
+  error: (props) => (
+    <ErrorToast
+      {...props}
+      // cho phép nhiều dòng hơn
+      text1NumberOfLines={2}
+      text2NumberOfLines={6}
+      text2Style={{ fontSize: 13, lineHeight: 18 }}
+      style={{ borderLeftColor: '#ef4444' }}
+    />
+  ),
+};
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -71,7 +82,7 @@ export default function RootLayout() {
           <PaperProvider theme={MD3LightTheme}>
             <SafeAreaProvider>
               <AuthGate />
-              <Toast />
+              <Toast config={toastConfig} />
             </SafeAreaProvider>
           </PaperProvider>
         </PersistGate>

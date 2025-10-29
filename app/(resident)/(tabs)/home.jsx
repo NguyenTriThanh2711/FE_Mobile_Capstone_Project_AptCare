@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from "@/src/store";
 import { dotnetArr } from "@/src/helper/dotnetArr";
 import { fetchRecentAccrossApartments, selectRecentRequests, selectRecentRequestsError, selectRecentRequestsLoading } from "@/src/features/requests/requestsSlice";
 import { pretty } from "@/src/helper/prettyLog";
+import RequestListItem from "@/src/components/RequestListItem";
 
 export default function ResidentHome() {
   const dispatch = useAppDispatch();
@@ -29,8 +30,8 @@ export default function ResidentHome() {
     [apartments]
   );
 
-  const recent = useAppSelector(selectRecentRequests);
-  // console.log('resident home recent request', pretty(recent[0]));
+  const recent = dotnetArr(useAppSelector(selectRecentRequests));
+   console.log('resident home recent request', pretty(recent[0]));
   const recentLoading = useAppSelector(selectRecentRequestsLoading);
 
   useEffect(() => {
@@ -120,48 +121,14 @@ export default function ResidentHome() {
           </View>
           {recentLoading ? (
             <Text>Đang tải...</Text>
-          ) : false ? (
-            <Text>Không có yêu cầu nào gần đây.</Text>
-          ) : (
-          recent?.map((r) => {
-            const pill = getStatusPill(r);
-
-            return (
-              <View key={r.repairRequestId} style={styles.requestCard}>
-                <View style={styles.requestHeader}>
-                <Text style={styles.requestTitle} numberOfLines={1}>
-                      {r.object || "Không tiêu đề"}
-                </Text>
-                <View style={[styles.statusBadge, { backgroundColor: pill.bg }]}>
-                      <Text style={[styles.statusText, { color: pill.fg }]}>{pill.text}</Text>
-                </View>
-              </View>
-              {/* {r.description ? (
-                    <Text style={styles.requestDescription} numberOfLines={2}>
-                      {r.description}
-                    </Text>
-              ) : null} */}
-              <View style={styles.requestMeta}>
-                    <Text style={styles.requestDate}>
-                      {'Vấn đề : '}{r.issue?.name || "Khác"}
-                    </Text>
-                    <Text style={styles.requestApt}>
-                      <Icon name="building.2" size={14} color="#666" />{" "}
-                      {r?.apartment
-                        ? `Tầng ${r.apartment?.floor ?? ""} - P.${r.apartment?.roomNumber ?? ""}`
-                        : ""}
-                    </Text>
-              </View>
-              {/* <Text style={styles.requestIssue}>{r.issue}</Text> */}
-              <View style={styles.requestFooter}>
-                <Text style={styles.requestDate}>
-                  Ngày tạo :{new Date(r.createdAt).toLocaleDateString()}
-                </Text>
-                <Text style={styles.technicianName}>{r.technician}</Text>
-              </View>
+          ) : recent?.length === 0 ? (
+            <View style={{ alignItems: "center", padding: 20,  }}>
+              <Text>Không có yêu cầu nào gần đây.</Text>
             </View>
-          );
-        }))}
+          ) : (
+          recent?.map((r) => (
+            <RequestListItem key={r.repairRequestId} item={r} />
+          )))}
         </View>
 
         {/* Building Info */}
@@ -220,7 +187,7 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   section: {
-    padding: 20,
+    padding: 10,
   },
   sectionHeader: {
     flexDirection: "row",

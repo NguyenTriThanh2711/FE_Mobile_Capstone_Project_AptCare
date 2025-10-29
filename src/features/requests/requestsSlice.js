@@ -91,9 +91,8 @@ export const fetchRepairRequests = createAsyncThunk('requests/fetchRepairRequest
 export const fetchRecentAccrossApartments = createAsyncThunk(
   'requests/fetchRecentAccrossApartments'
   , async ({apartmentIds, perAptSize = 5, take = 3}) => {
-    if (!Array.isArray(apartmentIds) || apartmentIds.length === 0) {
-      return [];
-    }
+    if (!Array.isArray(apartmentIds) || apartmentIds.length === 0) return [];
+    
     const calls = apartmentIds.map((apartmentId ) =>
       http.get("/api/repairrequests/paginate", {
         params: { page: 1, size: perAptSize, apartmentId },
@@ -101,6 +100,7 @@ export const fetchRecentAccrossApartments = createAsyncThunk(
     );
     const all = await Promise.all(calls);
     const perAptItems = all.map((res) => dotnetArr(res?.data?.items));
+    console.log('perAptItems', perAptItems);
     const merged = perAptItems.flat();
     merged.sort((a, b) => {
       const aTime = (dotnetArr(a?.requestTrackings)[0]?.updatedAt ?? a?.createdAt) || '';
