@@ -12,8 +12,8 @@ export const fetchMySchedule = createAsyncThunk(
   async ({ fromDate, toDate }, { rejectWithValue }) => {
     try {
       console.log('fetchmychedule http//workslots/my-schedule', { fromDate, toDate });
-      // const { data } = await http.get("/api/workslots/my-schedule", { params: { fromDate, toDate } });
-      const  data  = mockMySchedule;
+      const { data } = await http.get("/api/workslots/my-schedule", { params: { fromDate, toDate } });
+      
       console.log('res fetchmychedule data', data);
       return data; 
     } catch (err) {

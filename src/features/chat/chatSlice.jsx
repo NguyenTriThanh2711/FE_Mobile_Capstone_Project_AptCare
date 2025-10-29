@@ -1,0 +1,241 @@
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import http from '@/src/services/http';
+import { dotnetArr } from '@/src/helper/dotnetArr';
+import { pretty } from '@/src/helper/prettyLog';
+
+/* ======================= Thunks ======================= */
+// Conversations
+export const fetchMyConversations = createAsyncThunk(
+  'chat/fetchMyConversations',
+  async () => {
+    const { data } = await http.get('/api/conversations/my');
+    console.log('http.get(/api/conversations/my)', pretty(data));
+    return dotnetArr(data);
+  }
+);
+
+export const createConversation = createAsyncThunk(
+  'chat/createConversation',
+  async ({ title, userIds }, { rejectWithValue }) => {
+    try {
+      const { data, status } = await http.post('/api/conversations', { title, userIds });
+      return { data, status }; // data có thể là slug/id
+    } catch (err) {
+      const res = err?.response;
+      return rejectWithValue(res?.data?.detail || res?.data || err?.message || 'Tạo cuộc trò chuyện thất bại');
+    }
+  }
+);
+
+export const getConversation = createAsyncThunk(
+  'chat/getConversation',
+  async (id) => {
+    const { data } = await http.get(`/api/conversations/${id}`);
+    return data;
+  }
+);
+
+export const muteConversation = createAsyncThunk('chat/mute', async (id) => {
+  const { data } = await http.patch(`/api/conversations/${id}/mute`);
+  return { id, data };
+});
+export const unmuteConversation = createAsyncThunk('chat/unmute', async (id) => {
+  const { data } = await http.patch(`/api/conversations/${id}/unmute`);
+  return { id, data };
+});
+
+// Messages
+export const fetchMessages = createAsyncThunk(
+  'chat/fetchMessages',
+  async ({ conversationId, before, pageSize = 20 }) => {
+    const params = { conversationId, pageSize };
+    if (before) params.before = before;
+    const { data } = await http.get('/api/messages', { params });
+    // data.items newest-first; ta sẽ chuẩn hoá theo newest-last để hiển thị FlatList inverted=false
+    const items = dotnetArr(data?.items).slice().reverse();
+    return {
+      conversationId,
+      items,
+      raw: data,
+      beforeUsed: before || null,
+    };
+  }
+);
+
+export const sendTextMessage = createAsyncThunk(
+  'chat/sendTextMessage',
+  async ({ conversationId, content, replyMessageId }, { rejectWithValue }) => {
+    try {
+      const payload = { conversationId, content };
+      if (replyMessageId) payload.rellyMessageId = replyMessageId; // (BE đang đặt rellyMessageId) 
+      const { data } = await http.post('/api/messages/text', payload);
+      return data;
+    } catch (err) {
+      const res = err?.response;
+      return rejectWithValue(res?.data?.detail || res?.data || err?.message || 'Gửi tin nhắn thất bại');
+    }
+  }
+);
+
+export const sendFileMessage = createAsyncThunk(
+  'chat/sendFileMessage',
+  async ({ conversationId, file }, { rejectWithValue }) => {
+    try {
+      const fd = new FormData();
+      fd.append('file', {
+        uri: file?.uri,
+        name: file?.name || 'upload',
+        type: file?.type || 'application/octet-stream',
+      });
+      const { data } = await http.post('/api/messages/file', fd, {
+        params: { conversationId },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    } catch (err) {
+      const res = err?.response;
+      return rejectWithValue(res?.data?.detail || res?.data || err?.message || 'Gửi tệp thất bại');
+    }
+  }
+);
+
+export const markDelivered = createAsyncThunk(
+  'chat/markDelivered',
+  async (conversationId) => {
+    await http.patch(`/api/messages/${conversationId}/mark-as-delivered`);
+    return { conversationId };
+  }
+);
+export const markRead = createAsyncThunk(
+  'chat/markRead',
+  async (conversationId) => {
+    await http.patch(`/api/messages/${conversationId}/mark-as-read`);
+    return { conversationId };
+  }
+);
+
+/* ======================= Slice ======================= */
+const slice = createSlice({
+  name: 'chat',
+  initialState: {
+    // conversations list
+    list: [],
+    loading: false,
+    error: null,
+    // detail
+    byId: {}, // { [conversationId]: { info, messages: [], loading, canLoadMore, oldestCursor } }
+    sending: false,
+    sendError: null,
+    creating: false,
+    createError: null,
+  },
+  reducers: {
+    prependLocalMessage(state, action) {
+      const m = action.payload;
+      const box = state.byId[m.conversationId] || (state.byId[m.conversationId] = { info: null, messages: [] });
+      box.messages.push(m);
+    },
+    clearChat(state) {
+      state.list = [];
+      state.byId = {};
+    },
+  },
+  extraReducers: (b) => {
+    // fetch my conversations
+    b.addCase(fetchMyConversations.pending, (s) => { s.loading = true; s.error = null; });
+    b.addCase(fetchMyConversations.fulfilled, (s, a) => {
+      s.loading = false;
+      s.list = a.payload || [];
+    });
+    b.addCase(fetchMyConversations.rejected, (s, a) => {
+      s.loading = false; s.error = a.error?.message || 'Tải danh sách trò chuyện thất bại';
+    });
+
+    // create conv
+    b.addCase(createConversation.pending, (s) => { s.creating = true; s.createError = null; });
+    b.addCase(createConversation.fulfilled, (s) => { s.creating = false; });
+    b.addCase(createConversation.rejected, (s, a) => { s.creating = false; s.createError = a.payload || a.error; });
+
+    // get conv
+    b.addCase(getConversation.fulfilled, (s, a) => {
+      const info = a.payload;
+      const id = info?.conversationId;
+      if (!id) return;
+      if (!s.byId[id]) s.byId[id] = { info, messages: [], loading: false, canLoadMore: true, oldestCursor: null };
+      else s.byId[id].info = info;
+    });
+
+    // mute/unmute reflect flag
+    b.addCase(muteConversation.fulfilled, (s, a) => {
+      const id = a.payload?.id;
+      const i = s.list.findIndex(x => x.conversationId === id);
+      if (i >= 0) s.list[i] = { ...s.list[i], isMuted: true };
+      if (s.byId[id]?.info) s.byId[id].info.isMuted = true;
+    });
+    b.addCase(unmuteConversation.fulfilled, (s, a) => {
+      const id = a.payload?.id;
+      const i = s.list.findIndex(x => x.conversationId === id);
+      if (i >= 0) s.list[i] = { ...s.list[i], isMuted: false };
+      if (s.byId[id]?.info) s.byId[id].info.isMuted = false;
+    });
+
+    // fetch messages (prepend old ones to head)
+    b.addCase(fetchMessages.pending, (s, a) => {
+      const { conversationId } = a.meta.arg;
+      const box = s.byId[conversationId] || (s.byId[conversationId] = { info: null, messages: [] });
+      box.loading = true;
+    });
+    b.addCase(fetchMessages.fulfilled, (s, a) => {
+      const { conversationId, items } = a.payload;
+      const box = s.byId[conversationId] || (s.byId[conversationId] = { info: null, messages: [] });
+      box.loading = false;
+      // messages newest-last; loadMore (older) -> prepend
+      if (a.payload.beforeUsed) {
+        box.messages = [...items, ...box.messages];
+      } else {
+        box.messages = items; // first load
+      }
+      // compute oldestCursor (for before)
+      const oldest = box.messages[0];
+      box.oldestCursor = oldest ? oldest.createdAt : null;
+      // canLoadMore: nếu page < totalPages (BE trả) — tạm suy theo length
+      const total = a.payload?.raw?.total || 0;
+      const size = a.payload?.raw?.size || 20;
+      const page = a.payload?.raw?.page || 1;
+      const totalPages = a.payload?.raw?.totalPages || Math.ceil(total / (size || 20));
+      box.canLoadMore = page < totalPages;
+    });
+    b.addCase(fetchMessages.rejected, (s, a) => {
+      const { conversationId } = a.meta.arg || {};
+      const box = s.byId[conversationId];
+      if (box) box.loading = false;
+    });
+
+    // send text/file -> append
+    b.addCase(sendTextMessage.pending, (s) => { s.sending = true; s.sendError = null; });
+    b.addCase(sendFileMessage.pending, (s) => { s.sending = true; s.sendError = null; });
+    b.addCase(sendTextMessage.fulfilled, (s, a) => {
+      s.sending = false;
+      const m = a.payload;
+      const box = s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
+      box.messages = [...box.messages, m];
+    });
+    b.addCase(sendFileMessage.fulfilled, (s, a) => {
+      s.sending = false;
+      const m = a.payload;
+      const box = s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
+      box.messages = [...box.messages, m];
+    });
+    b.addCase(sendTextMessage.rejected, (s, a) => { s.sending = false; s.sendError = a.payload || a.error; });
+    b.addCase(sendFileMessage.rejected, (s, a) => { s.sending = false; s.sendError = a.payload || a.error; });
+  },
+});
+
+export default slice.reducer;
+export const { prependLocalMessage, clearChat } = slice.actions;
+
+/* ======================= Selectors ======================= */
+export const selectConversations = (s) => s.chat?.list || [];
+export const selectConversationsLoading = (s) => s.chat?.loading || false;
+export const selectConversationBox = (id) => (s) => s.chat?.byId[id] || { info: null, messages: [], loading: false };
+export const selectChatSending = (s) => s.chat?.sending || false;

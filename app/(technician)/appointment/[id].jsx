@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { use, useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 
@@ -12,8 +12,11 @@ import {
 } from "@/src/utils/colors";
 import { Icon } from "@/src/components/Icon.native";
 import { getOrderTypeLabel } from "@/src/helper/request-header";
+import { useAppDispatch, useAppSelector } from "@/src/store";
+import { fetchAppointmentById, selectAppointmentById, selectAppointmentLoading, selectAppointmentError } from "@/src/features/appointments/appointmentsSlice";
+import { pretty } from "@/src/helper/prettyLog";
+import { getConversation } from "@/src/features/chat/chatSlice";
 
-// ===== mock data gọn để chạy UI ngay (không import mockRepairRequests/currentUser) =====
 const CURRENT_USER = { id: "u-1", role: "technician", name: "Technician A" };
 const SAMPLE_INSPECTIONS = [
   {
@@ -80,17 +83,25 @@ const Badge = ({ text, tone = "muted" }) => {
 export default function InspectionDetailsScreen() {
   const { id } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState("details");
+  const dispatch = useAppDispatch();
 
-  const inspection = useMemo(
-    () => SAMPLE_INSPECTIONS.find((i) => String(i.id) === String(id)) || SAMPLE_INSPECTIONS[0],
-    [id]
-  );
+  const appointment = useAppSelector((state) => selectAppointmentById(state, id));
+  const loading = useAppSelector((state) => selectAppointmentLoading(state, id));
+  const error = useAppSelector((state) => selectAppointmentError(state, id));
+  
+  useEffect(() => {
+    if(id) {
+      dispatch(fetchAppointmentById(id));
+    }
+  }, [id, dispatch]);
+  // console.log('appointment = useAppSelector', pretty(appointment));
+  
   const isTechnician = CURRENT_USER.role === "technician";
 
   const statusTone =
-    inspection.status === "completed"
+    appointment?.status === "completed"
       ? "success"
-      : inspection.status === "in_progress"
+      : appointment?.status === "in_progress"
       ? "info"
       : "muted";
 
@@ -147,7 +158,9 @@ export default function InspectionDetailsScreen() {
     );
   };
 
-  const handleChat = () => router.push(`/chat/${inspection.id}`);
+  const handleCreateChatWithResident = () => {
+    dispatch(getConversation(appointment?.repairRequest?.apartment?.residentId))
+  }
 
   return (
     <View style={styles.container}>
@@ -165,32 +178,34 @@ export default function InspectionDetailsScreen() {
               <Icon name="chevron.left" size={22} color={appleBlue} />
             </Pressable>
             <Icon name="wrench.and.screwdriver" size={22} color={appleBlue} />
-            <Text style={styles.headerCategory}>{getOrderTypeLabel(inspection)}</Text>
+            <Text style={styles.headerCategory}>{getOrderTypeLabel(appointment?.repairRequest?.type) || 'loại appointment'}</Text>
           </View>
 
           <Badge
-            text={(inspection.priority || "").toUpperCase()}
+            text={((appointment?.repairRequest?.isEmergency) ? "KHẨN CẤP" : "BÌNH THƯỜNG" ).toUpperCase()}
             tone={
-              inspection.priority === "high"
+              appointment?.repairRequest?.isEmergency === true
                 ? "danger"
-                : inspection.priority === "low"
+                : appointment?.repairRequest?.isEmergency === false
                 ? "muted"
                 : "warning"
             }
           />
         </View>
         <Text style={styles.title} numberOfLines={2}>
-          {inspection.title}
+          {appointment?.repairRequest?.object || '-Tên cuộc hẹn-'}
         </Text>
 
         <View style={styles.metaRow}>
-          <Badge text={(inspection.status || "").toUpperCase()} tone={statusTone} />
-          {inspection.technicianName ? (
-            <View style={styles.metaItem}>
+          <Badge text={(
+            (appointment?.status == 'Assigned' ? 'Đã phân công' : appointment?.status == 'InProgress' ? 'Đang xử lý' : appointment?.status == 'Completed' ? 'Đã hoàn tất' : 'Status')
+            || "").toUpperCase()} tone={statusTone} />
+          {appointment?.technicians.map((tech) => (
+            <View style={styles.metaItem} key={tech.id}>
               <Icon name="person" size={16} color={zincColors[500]} />
-              <Text style={styles.metaText}>{inspection.technicianName}</Text>
+              <Text style={styles.metaText}>KTV. {tech.lastName}</Text>
             </View>
-          ) : null}
+          ))}
         </View>
       </View>
 
@@ -215,29 +230,30 @@ export default function InspectionDetailsScreen() {
           <View style={styles.sectionWrap}>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Mô tả</Text>
-              <Text style={styles.description}>{inspection.description}</Text>
+              <Text style={styles.description}>{appointment?.repairRequest?.description}</Text>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Thông tin </Text>
               <View style={styles.infoBlock}>
-                <Item icon="doc.text" label="ID yêu cầu" value={inspection.id} />
-                <Item icon="person" label="ID người dùng" value={inspection.residentId} />
-                <Item icon="calendar" label="Appointment ID" value={inspection.appointmentId} />
-                <Item icon="flag" label="Fault Owner" value={inspection.faultOwner} />
-                <Item icon="wrench" label="Solution Type" value={inspection.solutionType} />
-                <Item icon="clock" label="Created" value={formatDate(inspection.createdAt)} />
-                <Item icon="list.bullet" label="Solution" value={inspection.solution || "-"} />
+                <Item icon="doc.text" label="ID yêu cầu" value={appointment?.repairRequest?.repairRequestId || "-"} />
+                
+                <Item icon="calendar" label="ID cuộc hẹn" value={appointment?.appointmentId || "-"} />
+                <Item icon="flag" label="Lỗi của chủ nhà" value={appointment?.faultOwner || "-"} />
+                <Item icon="wrench" label="Loại giải pháp" value={appointment?.solutionType || "-"} />
+                <Item icon="clock" label="Ngày tạo" value={formatDate(appointment?.createdAt) || "-"} />
+                <Item icon="list.bullet" label="Giải pháp" value={appointment?.solution || "-"} />
               </View>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Cư dân / Căn hộ</Text>
               <View style={styles.infoBlock}>
-                <Item icon="person.fill" label="Cư dân" value={inspection.residentName} />
-                <Item icon="building.2" label="Căn hộ" value={inspection.apartment} />
-                {inspection.scheduledDate ? (
-                  <Item icon="clock.fill" label="Lịch hẹn" value={formatDate(inspection.scheduledDate)} />
+                <Item icon="person" label="ID người dùng" value={appointment?.repairRequest?.apartment?.residentId || "-"} />
+                <Item icon="person.fill" label="Cư dân" value={appointment?.repairRequest?.apartment?.residentName || "-"} />
+                <Item icon="building.2" label="Căn hộ" value={appointment?.repairRequest?.apartment?.room || "-"} />
+                {appointment?.startTime ? (
+                  <Item icon="clock.fill" label="Lịch hẹn" value={formatDate(appointment?.startTime)} />
                 ) : null}
               </View>
             </View>
@@ -251,22 +267,22 @@ export default function InspectionDetailsScreen() {
               <TimelineItem
                 icon="plus.circle"
                 title="Tạo yêu cầu / Inspection"
-                date={formatDate(inspection.createdAt)}
-                desc={`Tạo bởi ${inspection.residentName}`}
+                date={formatDate(appointment?.createdAt)}
+                desc={`Tạo bởi ${appointment?.repairRequest?.apartment?.users?.residentName || "Cư dân"}`}
               />
-              {(inspection.status === "in_progress" || inspection.status === "completed") && (
+              {(appointment?.status === "in_progress" || appointment?.status === "completed") && (
                 <TimelineItem
                   icon="play.circle"
                   title="Đã bắt đầu sửa"
-                  date={formatDate(inspection.updatedAt)}
+                  date={formatDate(appointment?.updatedAt)}
                   desc="Kỹ thuật viên bắt đầu xử lý"
                 />
               )}
-              {inspection.status === "completed" && (
+              {appointment?.status === "completed" && (
                 <TimelineItem
                   icon="checkmark.circle"
                   title="Hoàn tất"
-                  date={formatDate(inspection.updatedAt)}
+                  date={formatDate(appointment?.updatedAt)}
                   desc="Đã đánh dấu hoàn tất"
                 />
               )}
@@ -279,7 +295,7 @@ export default function InspectionDetailsScreen() {
             <View style={styles.chatPlaceholder}>
               <Icon name="chat" size={44} color={zincColors[500]} />
               <Text style={styles.chatText}>Tin nhắn sẽ hiển thị tại đây</Text>
-              <Pressable style={styles.ghostBtn} onPress={handleChat}>
+              <Pressable style={styles.ghostBtn} onPress={handleCreateChatWithResident}>
                 <Text style={styles.ghostBtnText}>Mở hội thoại</Text>
               </Pressable>
             </View>
@@ -289,21 +305,35 @@ export default function InspectionDetailsScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
+        {(
+          appointment?.status === "Confirmed"
+          || appointment?.status === "InProgress"
+        ) ? 
+        <>
         <Pressable style={styles.primaryBtn} onPress={handleCreateReport}>
           <Icon name="doc.text" size={20} color={THEME.background} />
           <Text style={styles.primaryBtnText}>Báo cáo khảo sát</Text>
         </Pressable>
-
-        {isTechnician ? (
-          <>
-            <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
-              <Icon name="play.circle" size={20} color={appleBlue} />
-              <Text style={styles.secondaryBtnText}>Bắt đầu sửa</Text>
-            </Pressable>
-            <Pressable style={styles.secondaryBtn} onPress={handleUpdateProgress}>
+        </>
+        : null}
+        {(
+          appointment?.status === "Assigned"
+        ) ? 
+        <>
+        <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
+          <Icon name="play.circle" size={20} color={appleBlue} />
+          <Text style={styles.secondaryBtnText}>Bắt đầu gặp</Text>
+        </Pressable>
+        </>: null}
+        {(appointment?.status === "InProgress") ? (
+          <Pressable style={styles.secondaryBtn} onPress={handleUpdateProgress}>
               <Icon name="pencil" size={20} color={appleBlue} />
               <Text style={styles.secondaryBtnText}>Cập nhật</Text>
             </Pressable>
+        ) : null}
+        {isTechnician ? (
+          <>
+            
             <Pressable style={styles.secondaryBtn} onPress={handleMarkCompleted}>
               <Icon name="checkmark.circle" size={20} color={appleGreen} />
               <Text style={styles.secondaryBtnText}>Hoàn tất</Text>

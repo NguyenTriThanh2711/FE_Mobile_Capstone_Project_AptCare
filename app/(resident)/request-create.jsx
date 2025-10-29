@@ -210,7 +210,7 @@ export default function RequestCreate() {
                 <View style={{ width: 1, height: 16, backgroundColor: '#E5E7EB' }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Icon name="door.left.hand.closed.fill" size={16} color="#6b7280" />
-                  <Text style={{ fontSize: 14, color: "#111827" }}>Phòng {selectedApartment.roomNumber}</Text>
+                  <Text style={{ fontSize: 14, color: "#111827" }}>Phòng {selectedApartment.room}</Text>
                 </View>
               </View>
             ) :(
@@ -322,10 +322,10 @@ export default function RequestCreate() {
         <Controller
           control={control}
           name="shortSummary"
-          rules={{ required: "Vui lòng nhập mô tả ngắn gọn" }}
+          rules={{ required: "Vui lòng nhập tên thiết bị muốn sửa" }}
           render={({ field: { onChange, onBlur, value } }) => (
             <MUITextField
-              label="Mô tả ngắn gọn vấn đề *"
+              label="Nhập tên thiết bị muốn sửa *"
               placeholder="VD: Rò rỉ vòi nước bếp, ổ cắm phòng ngủ chập..."
               value={value}
               onChangeText={onChange}
@@ -346,7 +346,7 @@ export default function RequestCreate() {
           rules={{ required: "Vui lòng nhập mô tả chi tiết" }}
           render={({ field: { onChange, onBlur, value } }) => (
             <MUITextField
-              label="Mô tả chi tiết"
+              label="Mô tả tình trạng chi tiết"
               placeholder="Mô tả rõ triệu chứng, thời điểm xuất hiện, đã thử khắc phục gì..."
               value={value}
               onChangeText={onChange}

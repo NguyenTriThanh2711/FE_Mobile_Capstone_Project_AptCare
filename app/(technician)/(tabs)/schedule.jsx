@@ -19,6 +19,7 @@ import {
 } from "@/src/features/technician/workSlotsSlice";
 import AppointmentCard from "@/src/components/AppointmentCard";
 import { router } from "expo-router";
+import { pretty } from "@/src/helper/prettyLog";
 
 /* ========= utils ========= */
 const colors = {
@@ -61,29 +62,26 @@ function minutesUntil(dtEnd) {
 }
 
 const atMidnight = (d) => {
-  // set time to 00:00:00 để tránh lệch múi giờ khi stringify
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
 };
 
-/* ========= component ========= */
+
 export default function TechnicianSchedule() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  console.log("const selectedDate", selectedDate);
+  // console.log("const selectedDate", selectedDate);
 
   const dateStr = useMemo(() => ymd(selectedDate), [selectedDate]);
-  console.log("const dateStr", dateStr);
+  // console.log("const dateStr", dateStr);
 
   const dispatch = useAppDispatch();
 
-  // slots (khung ca)
   const slotMap = useAppSelector(selectSlotsMap);
   const slotsLoading = useAppSelector(selectSlotsLoading);
 
-  // my schedule (ca của tôi + appointments)
   const scheduleRaw = useAppSelector(selectWorkSlotsRaw);
-  console.log("const scheduleRaw", scheduleRaw);
+  // console.log("const scheduleRaw", scheduleRaw);
   const schedLoading = useAppSelector(selectWorkSlotsLoading);
   const schedError = useAppSelector(selectWorkSlotsError);
 
@@ -145,15 +143,16 @@ export default function TechnicianSchedule() {
   // data ngày đang chọn
   const dayData = useMemo(() => {
     const arr = dotnetArr(scheduleRaw);
-    console.log("const arr = dotnetArr", arr);
+    // console.log("const arr = dotnetArr", pretty(arr));
     return arr.find((d) => d?.date === dateStr) || null;
   }, [scheduleRaw, dateStr]);
 
-  console.log("const dayData", dayData);
+  // console.log("const dayData", pretty(dayData));
 
   const shifts = useMemo(() => {
     if (!dayData) return [];
     const slotsArr = dotnetArr(dayData.slots);
+    // console.log('slot arr',slotsArr)
     return slotsArr
       .map((sl) => {
         const info = slotMap[sl.slotId] || {};
@@ -344,7 +343,7 @@ export default function TechnicianSchedule() {
                   <View key={a.appointmentId} style={styles.apptBox}>
                     <AppointmentCard
                       appt={a}
-                      onPress={() => router.push(`/inspection/${a.appointmentId}`)}
+                      onPress={() => router.push(`/appointment/${a.appointmentId}`)}
                     />
                   </View>
                 ))

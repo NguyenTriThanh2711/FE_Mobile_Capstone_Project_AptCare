@@ -10,6 +10,7 @@ import { MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast, { ErrorToast } from "react-native-toast-message";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { startRealtime, stopRealtime } from "@/src/services/realtime";
 
 function AuthGate() {
   const user = useSelector((s) => s.auth.user);
@@ -20,9 +21,15 @@ function AuthGate() {
 
   const triedBootstrap = useRef(false);
   const [bootstrapped, setBootstrapped] = useState(false);
+  const token = '';//
   console.log("AuthGate: user =", user);//mocked
   console.log("AuthGate: segments =", segments);
   // nếu chưa có user, thử gọi /me (sử dụng token trong SecureStore)
+  useEffect(() => {
+    if (token) startRealtime();
+    else stopRealtime();
+    return () => {};
+  }, [token]);
   useEffect(() => {
     (async () => {
       if (triedBootstrap.current) return;

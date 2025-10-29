@@ -16,6 +16,7 @@ export default function ResidentStackLayout() {
       />
       {/* <Stack.Screen name="device/[id]" options={{ headerShown: false }} /> */}
       <Stack.Screen name="request/[id]" options={{ headerShown: false}} />
+      <Stack.Screen name="chat/[id]" options={{ headerShown: false}} />
     </Stack>
   );
 }

@@ -4,5 +4,6 @@ export function getOrderTypeLabel(order) {
 
   if (raw === "repair") return "Sửa chữa";
   if (raw === "inspection") return "Khảo sát";
-  return "Bảo trì"; 
+  if (raw === "maintenance") return "Bảo trì";
+  return "Cuộc hẹn";
 }

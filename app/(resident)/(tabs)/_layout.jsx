@@ -6,6 +6,7 @@ import ResidentHome from "./home";
 import ResidentRequests from "./requests";
 import ResidentProfile from "./profile";
 import ResidentDevices from "./devices";
+import ResidentChat from "./chat";
 // import ResidentPayments from "./payments";
 // import ResidentChat from "./chat";
 
@@ -70,8 +71,8 @@ export default function ResidentTabsLayout() {
       <Tab.Screen name="home" component={ResidentHome} options={{ title: "Trang chủ", headerTitle: "AptCare" }} />
       <Tab.Screen name="requests" component={ResidentRequests} options={{ title: "Yêu cầu", headerTitle: "AptCare - Tower" }} />
       {/*<Tab.Screen name="devices" component={ResidentDevices} options={{ title: "Thiết bị", headerTitle: "AptCare - Thiết bị" }} />
-       <Tab.Screen name="payments" component={ResidentPayments} options={{ title: "Payments", headerTitle: "Payments" }} />
-      <Tab.Screen name="chat" component={ResidentChat} options={{ title: "Chat", headerTitle: "Messages" }} />*/}
+       <Tab.Screen name="payments" component={ResidentPayments} options={{ title: "Payments", headerTitle: "Payments" }} />*/}
+      <Tab.Screen name="chat" component={ResidentChat} options={{ title: "Tin nhắn", headerTitle: "Messages" }} />
       <Tab.Screen name="profile" component={ResidentProfile} options={{ title: "Hồ sơ", headerTitle: "Hồ sơ của tôi" }} />
     </Tab.Navigator>
   );

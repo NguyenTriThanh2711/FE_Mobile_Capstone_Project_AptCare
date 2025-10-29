@@ -2,7 +2,7 @@ export function extractRooms(user) {
   const out = new Set();
 
   const pushRoom = (x) => {
-    const rn = x?.roomNumber;
+    const rn = x?.room;
     if (typeof rn === 'string' && rn.trim()) out.add(rn.trim());
   };
 
