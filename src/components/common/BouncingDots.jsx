@@ -1,5 +1,5 @@
-import React from "react";
-import { View } from "react-native";
+import React from 'react';
+import { View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -8,10 +8,10 @@ import Animated, {
   withDelay,
   withRepeat,
   withTiming,
-} from "react-native-reanimated";
+} from 'react-native-reanimated';
 
 /** Chấm nhảy đơn lẻ */
-function Dot({ delay = 0, size = 12, jump = 10, duration = 600, color = "white" }) {
+function Dot({ delay = 0, size = 12, jump = 10, duration = 600, color = 'white' }) {
   const t = useSharedValue(0);
 
   React.useEffect(() => {
@@ -50,16 +50,15 @@ function Dot({ delay = 0, size = 12, jump = 10, duration = 600, color = "white" 
 export default function BouncingDots({
   size = 14,
   jump = 12,
-  color = "white",
-  accessibilityLabel = "Đang tải",
+  color = 'white',
+  accessibilityLabel = 'Đang tải',
 }) {
   return (
     <View
-      style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}
+      style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' }}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={accessibilityLabel}
-    >
+      accessibilityLabel={accessibilityLabel}>
       <Dot size={size} jump={jump} color={color} delay={0} />
       <Dot size={size} jump={jump} color={color} delay={120} />
       <Dot size={size} jump={jump} color={color} delay={240} />

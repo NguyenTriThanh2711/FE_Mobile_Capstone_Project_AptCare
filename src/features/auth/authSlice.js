@@ -4,16 +4,16 @@ import { saveTokens, clearTokens } from '@/src/services/secure-store';
 import { getDeviceId } from '@/src/services/device-id';
 
 const initialState = {
-  user: null,      
-  status: 'idle',  
+  user: null,
+  status: 'idle',
   error: null,
 
-  needsPasswordChange: false,       
-  pendingAccountId: null,           
+  needsPasswordChange: false,
+  pendingAccountId: null,
 
-  registerAccountId: null,          
-  otpStatus: 'idle',                // 'idle' | 'loading' | 'succeeded' | 'failed'  
-  otpError: null,   
+  registerAccountId: null,
+  otpStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  otpError: null,
 };
 
 /**
@@ -23,28 +23,31 @@ export const login = createAsyncThunk(
   'auth/login',
   async ({ usernameOrEmail, password }, { dispatch, rejectWithValue, getState }) => {
     try {
-      const deviceInfo = await getDeviceId(); 
+      const deviceInfo = await getDeviceId();
       const body = {
         usernameOrEmail,
         password,
         deviceInfo,
       };
       const { data } = await http.post('/auth/login', body);
+      console.log('res http.post(/auth/login, body);', data);
       const acessTK = data?.accessToken;
       const refreshTK = data?.refreshToken;
       if (acessTK && refreshTK) {
         await saveTokens({ access: acessTK, refresh: refreshTK });
       }
-      const me = await dispatch(fetchProfile()).unwrap().catch(() => null);
+      const me = await dispatch(fetchProfile())
+        .unwrap()
+        .catch(() => null);
       return me || true;
     } catch (err) {
       const res = err?.response;
-      if (res?.status === 403 && (res?.data?.message === 'PASSWORD_CHANGE_REQUIRED')) {
+      if (res?.status === 403 && res?.data?.message === 'PASSWORD_CHANGE_REQUIRED') {
         return rejectWithValue({
-            type: 'PASSWORD_CHANGE_REQUIRED',
-            accountId: res?.data?.accountId,
-            message: res?.data?.message|| 'Bạn cần đổi mật khẩu lần đầu!',
-       });
+          type: 'PASSWORD_CHANGE_REQUIRED',
+          accountId: res?.data?.accountId,
+          message: res?.data?.message || 'Bạn cần đổi mật khẩu lần đầu!',
+        });
       }
       console.log('login error =', {
         message: err?.message,
@@ -53,7 +56,7 @@ export const login = createAsyncThunk(
         data: err?.response?.data,
       }); //clg
       const message = res?.data?.detail || res?.data?.message || 'Đăng nhập thất bại';
-      return rejectWithValue({type: 'GENERAL', message});
+      return rejectWithValue({ type: 'GENERAL', message });
     }
   }
 );
@@ -83,34 +86,36 @@ export const firstChangePassword = createAsyncThunk(
  */
 export const register = createAsyncThunk(
   'auth/register',
-  async ({email,password}, { rejectWithValue }) => {
+  async ({ email, password }, { rejectWithValue }) => {
     try {
       const { data } = await http.post('/auth/register', { email, password });
-      console.log('authenslice res regis : ',data)
+      console.log('authenslice res regis : ', data);
       return data; // { accountId, otpSent, message }
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || 'Đăng ký thất bại';
+      const message =
+        err?.response?.data?.detail || err?.response?.data?.message || 'Đăng ký thất bại';
       return rejectWithValue(message);
     }
   }
 );
- /**  POST /auth/verify-otp  -> xác thực mã OTP
+/**  POST /auth/verify-otp  -> xác thực mã OTP
  * payload gợi ý: { accountId, otp } hoặc { email, otp } tuỳ BE
  */
 export const verifyOtp = createAsyncThunk(
   'register/verifyOtp',
   async ({ accountId, otp }, { rejectWithValue }) => {
     try {
-      console.log('call verify otp')
-      console.log('data verify otp ', accountId, otp)
+      console.log('call verify otp');
+      console.log('data verify otp ', accountId, otp);
       const { data } = await http.post('/auth/register/verify', { accountId, otp });
-      console.log('data res verify' , data)
+      console.log('data res verify', data);
       // Nếu BE trả tokens + user sau khi verify, có thể lưu tại đây:
       if (data?.tokens) await saveTokens(data.tokens);
       // nếu có user thì return user để set vào store, còn không thì return true
-     return data?.user ?? true;
+      return data?.user ?? true;
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || 'OTP không hợp lệ';
+      const message =
+        err?.response?.data?.detail || err?.response?.data?.message || 'OTP không hợp lệ';
       return rejectWithValue(message);
     }
   }
@@ -125,13 +130,14 @@ export const resendOtp = createAsyncThunk(
   async ({ accountId }, { rejectWithValue }) => {
     try {
       const { data } = await http.post('/auth/register/resend-otp', { accountId });
-      console.log('data resend-OPT',data)
+      console.log('data resend-OPT', data);
       return data ?? true;
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || 'Không gửi lại được OTP';
+      const message =
+        err?.response?.data?.detail || err?.response?.data?.message || 'Không gửi lại được OTP';
       return rejectWithValue(message);
     }
- }
+  }
 );
 /**
  * GET /me -> user
@@ -142,7 +148,6 @@ export const fetchProfile = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const { data } = await http.get('/auth/me'); //mocked
-      console.log('User in authslice', data)
       return data;
     } catch (err) {
       const message = err?.response?.data?.message || 'Không lấy được hồ sơ';
@@ -189,9 +194,9 @@ export const forgotPassword = createAsyncThunk(
 export const logout = createAsyncThunk('auth/logout', async () => {
   await clearTokens();
   try {
-   const mod = await import("@/src/services/http");
-   delete mod.default.defaults.headers.common["Authorization"];
-  } catch {} // dọn axios header + persist khi logout 
+    const mod = await import('@/src/services/http');
+    delete mod.default.defaults.headers.common['Authorization'];
+  } catch {} // dọn axios header + persist khi logout
   return true;
 });
 
@@ -251,7 +256,7 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (s, a) => {
         s.status = 'succeeded';
-        s.registerAccountId = a.payload?.accountId ?? null
+        s.registerAccountId = a.payload?.accountId ?? null;
       })
       .addCase(register.rejected, (s, a) => {
         s.status = 'failed';
@@ -306,9 +311,9 @@ const authSlice = createSlice({
       s.user = null;
       s.status = 'idle';
       s.error = null;
-      s.needsPasswordChange = false;   // << reset
-      s.pendingAccountId = null;       // << reset
-      s.registerAccountId = null;      // << reset
+      s.needsPasswordChange = false; // << reset
+      s.pendingAccountId = null; // << reset
+      s.registerAccountId = null; // << reset
       s.otpStatus = 'idle';
       s.otpError = null;
     });
@@ -322,8 +327,11 @@ export const selectUser = (state) => state.auth.user;
 export const selectRole = (state) => state.auth.user?.role ?? null;
 export const selectAuthStatus = (state) => state.auth.status;
 export const selectAuthError = (state) => state.auth.error;
-export const selectNeedsPasswordChange = (state) => state.auth.needsPasswordChange;   // <<
-export const selectPendingAccountId = (state) => state.auth.pendingAccountId;         // <<
-export const selectRegisterAccountId = (state) => state.auth.registerAccountId;       // <<
-export const selectOtpState = (state) => ({ status: state.auth.otpStatus, error: state.auth.otpError }); // <<
+export const selectNeedsPasswordChange = (state) => state.auth.needsPasswordChange; // <<
+export const selectPendingAccountId = (state) => state.auth.pendingAccountId; // <<
+export const selectRegisterAccountId = (state) => state.auth.registerAccountId; // <<
+export const selectOtpState = (state) => ({
+  status: state.auth.otpStatus,
+  error: state.auth.otpError,
+}); // <<
 export default authSlice.reducer;

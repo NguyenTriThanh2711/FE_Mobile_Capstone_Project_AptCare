@@ -1,24 +1,29 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import http from "@/src/services/http";
-import { toYMD } from "@/src/utils/date";
-import { mockMySchedule } from "@/src/utils/mockdata";
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import http from '@/src/services/http';
+import { toYMD } from '@/src/utils/date';
+import { mockMySchedule } from '@/src/utils/mockdata';
 
 /* --------------- Thunks ----------------- */
 /** GET /workslots/my-schedule?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD
  *  Response: { $id, $values: [ { date, slots:{ $values:[ { slotId, technicianWorkSlots:{ $values:[{ workSlotId, status, technician:{} }]} } ] } } ] }
  */
 export const fetchMySchedule = createAsyncThunk(
-  "workslots/fetchMySchedule",
+  'workslots/fetchMySchedule',
   async ({ fromDate, toDate }, { rejectWithValue }) => {
     try {
       console.log('fetchmychedule http//workslots/my-schedule', { fromDate, toDate });
-      const { data } = await http.get("/api/workslots/my-schedule", { params: { fromDate, toDate } });
-      
+      const { data } = await http.get('/api/workslots/my-schedule', {
+        params: { fromDate, toDate },
+      });
+
       console.log('res fetchmychedule data', data);
-      return data; 
+      return data;
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.response?.data?.message || "Không tải được lịch làm việc";
-      console.log(err)
+      const message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        'Không tải được lịch làm việc';
+      console.log(err);
       return rejectWithValue(message);
     }
   }
@@ -27,7 +32,11 @@ export const checkInSlot = createAsyncThunk(
   'workSlots/checkInSlot',
   async ({ slotId, lat, lng, method = 'manual' }, { rejectWithValue }) => {
     try {
-      const res = await http.post(`/api/technicians/me/slots/${slotId}/check-in`, { lat, lng, method });
+      const res = await http.post(`/api/technicians/me/slots/${slotId}/check-in`, {
+        lat,
+        lng,
+        method,
+      });
       return { slotId, payload: res.data };
     } catch (e) {
       return rejectWithValue(e?.response?.data || e.message);
@@ -47,14 +56,14 @@ export const checkOutSlot = createAsyncThunk(
   }
 );
 const initialState = {
-  raw: null,         
+  raw: null,
   loading: false,
   error: null,
   lastRange: { fromDate: null, toDate: null },
 };
 
 const slice = createSlice({
-  name: "workslots",
+  name: 'workslots',
   initialState,
   reducers: {
     clearWorkSlots(s) {

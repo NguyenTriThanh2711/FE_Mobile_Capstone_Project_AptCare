@@ -10,8 +10,8 @@ const map = {
 export default function StatusBadge({ status }) {
   const klass = map[status] || 'bg-gray-100 text-gray-800';
   return (
-    <View className={`px-3 py-1 rounded-full ${klass}`}>
-      <Text className="text-xs font-semibold capitalize">{status?.replace('_',' ')}</Text>
+    <View className={`rounded-full px-3 py-1 ${klass}`}>
+      <Text className="text-xs font-semibold capitalize">{status?.replace('_', ' ')}</Text>
     </View>
   );
 }

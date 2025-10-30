@@ -1,6 +1,6 @@
-import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   withTiming,
@@ -9,10 +9,10 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Easing,
-} from "react-native-reanimated";
+} from 'react-native-reanimated';
 
 /* ---------- Loader 3 chấm ---------- */
-function Dot({ delay = 0, size = 12, jump = 10, duration = 600, color = "white" }) {
+function Dot({ delay = 0, size = 12, jump = 10, duration = 600, color = 'white' }) {
   const t = useSharedValue(0);
   React.useEffect(() => {
     t.value = withDelay(
@@ -42,9 +42,9 @@ function Dot({ delay = 0, size = 12, jump = 10, duration = 600, color = "white" 
   );
 }
 
-function BouncingDots({ size = 14, jump = 12, color = "white" }) {
+function BouncingDots({ size = 14, jump = 12, color = 'white' }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' }}>
       <Dot size={size} jump={jump} color={color} delay={0} />
       <Dot size={size} jump={jump} color={color} delay={120} />
       <Dot size={size} jump={jump} color={color} delay={240} />
@@ -54,20 +54,20 @@ function BouncingDots({ size = 14, jump = 12, color = "white" }) {
 
 /* ---------- Bảng màu tiện dụng (TW-like) ---------- */
 const PALETTE = {
-  red: "#ef4444",
-  orange: "#f59e0b",
-  amber: "#f59e0b",
-  yellow: "#eab308",
-  green: "#22c55e",
-  teal: "#14b8a6",
-  cyan: "#06b6d4",
-  blue: "#3b82f6",
-  indigo: "#6366f1",
-  violet: "#7c3aed",
-  purple: "#8b5cf6",
-  fuchsia: "#d946ef",
-  pink: "#ec4899",
-  rose: "#f43f5e",
+  red: '#ef4444',
+  orange: '#f59e0b',
+  amber: '#f59e0b',
+  yellow: '#eab308',
+  green: '#22c55e',
+  teal: '#14b8a6',
+  cyan: '#06b6d4',
+  blue: '#3b82f6',
+  indigo: '#6366f1',
+  violet: '#7c3aed',
+  purple: '#8b5cf6',
+  fuchsia: '#d946ef',
+  pink: '#ec4899',
+  rose: '#f43f5e',
 };
 
 function resolveColor(c) {
@@ -82,18 +82,18 @@ export default function GradientButton({
   onPress,
   disabled,
   loading,
-  colors,          // VD: ['#FF0000', '#0000FF'] — ƯU TIÊN nếu có
-  from,            // VD: 'red'
-  to,              // VD: 'blue'
-  disabledColors = ["#cfd8e3", "#cbd5e1"],
-  textColor = "#fff",
-  className,       // nếu bạn đang dùng tailwind-rn/NativeWind
-  style,           // style thường
+  colors, // VD: ['#FF0000', '#0000FF'] — ƯU TIÊN nếu có
+  from, // VD: 'red'
+  to, // VD: 'blue'
+  disabledColors = ['#cfd8e3', '#cbd5e1'],
+  textColor = '#fff',
+  className, // nếu bạn đang dùng tailwind-rn/NativeWind
+  style, // style thường
 }) {
   const gradientColors =
     colors && colors.length === 2
       ? colors
-      : [resolveColor(from) || "#7C3AED", resolveColor(to) || "#3B82F6"];
+      : [resolveColor(from) || '#7C3AED', resolveColor(to) || '#3B82F6'];
 
   const finalColors = disabled ? disabledColors : gradientColors;
 
@@ -102,19 +102,17 @@ export default function GradientButton({
       activeOpacity={0.85}
       disabled={disabled}
       onPress={onPress}
-      className={`rounded-2xl mt-2 ${className ?? ""}`}
-      style={[{ overflow: "hidden" }, style]}
-    >
+      className={`mt-2 rounded-2xl ${className ?? ''}`}
+      style={[{ overflow: 'hidden' }, style]}>
       <LinearGradient
         colors={finalColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{ paddingVertical: 16, paddingHorizontal: 18, alignItems: "center" }}
-      >
+        style={{ paddingVertical: 16, paddingHorizontal: 18, alignItems: 'center' }}>
         {loading ? (
           <BouncingDots size={14} jump={12} color={textColor} />
         ) : (
-          <Text style={{ color: textColor, fontWeight: "700", fontSize: 16 }}>{title}</Text>
+          <Text style={{ color: textColor, fontWeight: '700', fontSize: 16 }}>{title}</Text>
         )}
       </LinearGradient>
     </TouchableOpacity>

@@ -6,37 +6,46 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useForm, Controller, set } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useForm, Controller, set } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import Animated, {
   useSharedValue,
   withTiming,
   useAnimatedStyle,
   interpolateColor,
-} from "react-native-reanimated";
-import { useLocalSearchParams, router } from "expo-router";
-import AuthTabsHeader from "@/src/components/AuthTabsHeader";
-import MUITextField from "@/src/components/common/MUITextField";
-import GradientButton from "@/src/components/common/GradientButton";
-import { login as authLogin, register as authRegister, verifyOtp, resendOtp } from "@/src/features/auth/authSlice";
-import { useAppDispatch } from "@/src/store";
-import { use, useEffect, useState } from "react";
-import Toast from "react-native-toast-message";
+} from 'react-native-reanimated';
+import { useLocalSearchParams, router } from 'expo-router';
+import AuthTabsHeader from '@/src/components/AuthTabsHeader';
+import MUITextField from '@/src/components/common/MUITextField';
+import GradientButton from '@/src/components/common/GradientButton';
+import {
+  login as authLogin,
+  register as authRegister,
+  verifyOtp,
+  resendOtp,
+} from '@/src/features/auth/authSlice';
+import { useAppDispatch } from '@/src/store';
+import { use, useEffect, useState } from 'react';
+import Toast from 'react-native-toast-message';
 
 const registerSchema = yup.object({
-  email: yup.string().trim().email("Email không hợp lệ").required("Vui lòng nhập email"),
-  password: yup.string().min(6, "Tối thiểu 6 ký tự").required("Vui lòng nhập mật khẩu"),
+  email: yup.string().trim().email('Email không hợp lệ').required('Vui lòng nhập email'),
+  password: yup.string().min(6, 'Tối thiểu 6 ký tự').required('Vui lòng nhập mật khẩu'),
   confirmPassword: yup
     .string()
-    .oneOf([yup.ref("password")], "Mật khẩu nhập lại chưa khớp")
-    .required("Vui lòng xác nhận mật khẩu"),
+    .oneOf([yup.ref('password')], 'Mật khẩu nhập lại chưa khớp')
+    .required('Vui lòng xác nhận mật khẩu'),
 });
 
 const otpSchema = yup.object({
-  otp: yup.string().trim().matches(/^\d{6}$/, "OTP gồm 6 chữ số").required("Vui lòng nhập OTP"),
+  otp: yup
+    .string()
+    .trim()
+    .matches(/^\d{6}$/, 'OTP gồm 6 chữ số')
+    .required('Vui lòng nhập OTP'),
 });
 
 function Field({
@@ -48,12 +57,12 @@ function Field({
   secure = false,
   keyboardType,
   startIcon,
-  variant = "outlined",
-  size = "medium",
+  variant = 'outlined',
+  size = 'medium',
   style,
   maxLength,
   onChangeTransform,
-  autoCapitalize = "none",
+  autoCapitalize = 'none',
 }) {
   return (
     <View style={{ marginBottom: 12 }}>
@@ -84,36 +93,37 @@ function Field({
   );
 }
 function maskEmail(email) {
-    if (!email) return "";
-    const [name, domain] = email.split("@");
-    if (!domain) return email;
-    const head = name.slice(0, 2);
-    return `${head}${"*".repeat(Math.max(0, name.length - 2))}@${domain}`;
+  if (!email) return '';
+  const [name, domain] = email.split('@');
+  if (!domain) return email;
+  const head = name.slice(0, 2);
+  return `${head}${'*'.repeat(Math.max(0, name.length - 2))}@${domain}`;
 }
 export default function AuthScreen() {
   const dispatch = useAppDispatch();
   const params = useLocalSearchParams();
   const initialTab =
-    typeof params.tab === "string" && ["login", "register", "verify"].includes(params.tab)
+    typeof params.tab === 'string' && ['login', 'register', 'verify'].includes(params.tab)
       ? params.tab
-      : "login";
+      : 'login';
   const [tab, setTab] = useState(initialTab);
-  
-  const initialEmail = typeof params.email === "string" ? decodeURIComponent(params.email) : "";
-  const initialAccountId = typeof params.accountId === "string" ? decodeURIComponent(params.accountId) : "";
+
+  const initialEmail = typeof params.email === 'string' ? decodeURIComponent(params.email) : '';
+  const initialAccountId =
+    typeof params.accountId === 'string' ? decodeURIComponent(params.accountId) : '';
   const [verifyEmail, setVerifyEmail] = useState(initialEmail);
   const [verifyAccountId, setVerifyAccountId] = useState(initialAccountId);
 
   //shared bg
-  const progress = useSharedValue(tab === "login" ? 0 : 1);
+  const progress = useSharedValue(tab === 'login' ? 0 : 1);
   useEffect(() => {
-    progress.value = withTiming(tab === "login" ? 0 : 1, { duration: 280 });
+    progress.value = withTiming(tab === 'login' ? 0 : 1, { duration: 280 });
   }, [tab]);
   const cardStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
-        progress.value,
-        [0, 1],
-        ["rgba(240,249,255,0.95)", "rgba(230,249,255,0.95)"],
+      progress.value,
+      [0, 1],
+      ['rgba(240,249,255,0.95)', 'rgba(230,249,255,0.95)']
     ),
   }));
 
@@ -123,22 +133,22 @@ export default function AuthScreen() {
     handleSubmit: handleLoginSubmit,
     formState: { errors: loginErrors, isSubmitting: isLoginSubmitting },
   } = useForm({
-    defaultValues: { usernameOrEmail: "", password: "" },
-    mode: "onTouched",
+    defaultValues: { usernameOrEmail: '', password: '' },
+    mode: 'onTouched',
   });
   const onLogin = async (values) => {
     try {
-        await dispatch(
-          authLogin({ usernameOrEmail: values.usernameOrEmail.trim(), password: values.password })
-        ).unwrap();
-        router.replace("/role-gateway");
+      await dispatch(
+        authLogin({ usernameOrEmail: values.usernameOrEmail.trim(), password: values.password })
+      ).unwrap();
+      router.replace('/role-gateway');
     } catch (e) {
-        Toast.show({
-        type: "error",
-        text1: "Đăng nhập thất bại",
-        text2: e?.message || "Vui lòng kiểm tra lại thông tin.",
-        });
-        console.error(e);
+      Toast.show({
+        type: 'error',
+        text1: 'Đăng nhập thất bại',
+        text2: e?.message || 'Vui lòng kiểm tra lại thông tin.',
+      });
+      console.error(e);
     }
   };
 
@@ -148,220 +158,240 @@ export default function AuthScreen() {
     handleSubmit: handleRegisterSubmit,
     formState: { errors: registerErrors, isSubmitting: isRegisterSubmitting },
     getValues: getRegisterValues,
-    } = useForm({
-    defaultValues: { email: "", password: "", confirmPassword: "" },
+  } = useForm({
+    defaultValues: { email: '', password: '', confirmPassword: '' },
     resolver: yupResolver(registerSchema),
-    mode: "onTouched",
+    mode: 'onTouched',
   });
 
   const onRegister = async (values) => {
     try {
-        const res = await dispatch(
-            authRegister({ email: values.email.trim(), password: values.password })
-        ).unwrap();
-        if (res?.otpSent) {
-            setVerifyEmail(values.email.trim());
-            setVerifyAccountId(String(res.accountId ?? ""));
-            setTab("verify");
-        } else {
-            setTab("login");
-        }
+      const res = await dispatch(
+        authRegister({ email: values.email.trim(), password: values.password })
+      ).unwrap();
+      if (res?.otpSent) {
+        setVerifyEmail(values.email.trim());
+        setVerifyAccountId(String(res.accountId ?? ''));
+        setTab('verify');
+      } else {
+        setTab('login');
+      }
     } catch (e) {
-        Toast.show({
-        type: "error",
-        text1: "Đăng ký thất bại",
-        text2: e || "Vui lòng kiểm tra lại thông tin.",
-        });
-        console.error(e);
-    }};
-    //verify otp
+      Toast.show({
+        type: 'error',
+        text1: 'Đăng ký thất bại',
+        text2: e || 'Vui lòng kiểm tra lại thông tin.',
+      });
+      console.error(e);
+    }
+  };
+  //verify otp
   const {
     control: otpControl,
     handleSubmit: handleOtpSubmit,
     formState: { errors: otpErrors, isSubmitting: isOtpSubmitting },
     setError: setOtpError,
   } = useForm({
-    defaultValues: { otp: "" },
+    defaultValues: { otp: '' },
     resolver: yupResolver(otpSchema),
-    mode: "onTouched",
+    mode: 'onTouched',
   });
   const [sec, setSec] = useState(60);
   useEffect(() => {
-    if (tab !== "verify") return;
+    if (tab !== 'verify') return;
     if (sec <= 0) return;
     const t = setInterval(() => setSec((s) => s - 1), 1000);
     return () => clearInterval(t);
   }, [tab, sec]);
   const onVerifyOtp = async ({ otp }) => {
     try {
-        await dispatch(verifyOtp({ accountId: verifyAccountId, otp })).unwrap();
-        Toast.show({
-            type: "success",
-            text1: "Xác thực OTP thành công",
-            text2: "Vui lòng đăng nhập để tiếp tục.",
-        });
-        setTab("login");
+      await dispatch(verifyOtp({ accountId: verifyAccountId, otp })).unwrap();
+      Toast.show({
+        type: 'success',
+        text1: 'Xác thực OTP thành công',
+        text2: 'Vui lòng đăng nhập để tiếp tục.',
+      });
+      setTab('login');
     } catch (e) {
-        setOtpError("otp", { message: "OTP không hợp lệ hoặc đã hết hạn" });
+      setOtpError('otp', { message: 'OTP không hợp lệ hoặc đã hết hạn' });
     }
   };
   const onResend = async () => {
     if (sec > 0) return;
     try {
-        await dispatch(resendOtp({ accountId: verifyAccountId, email: verifyEmail })).unwrap();
-        setSec(60);
+      await dispatch(resendOtp({ accountId: verifyAccountId, email: verifyEmail })).unwrap();
+      setSec(60);
     } catch (e) {
-        Toast.show({
-        type: "error",
-        text1: "Gửi lại OTP thất bại",
-        text2: e?.message || "Vui lòng thử lại sau.",
-        });
-        console.error(e);
+      Toast.show({
+        type: 'error',
+        text1: 'Gửi lại OTP thất bại',
+        text2: e?.message || 'Vui lòng thử lại sau.',
+      });
+      console.error(e);
     }
   };
   return (
-    <ImageBackground source={require('@/assets/building.jpg')} resizeMode='cover' style={{ flex: 1 }}>
-        <View style={{position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)'}} />
-        <SafeAreaView style={{ flex: 1 }}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'undefined'}
-                style={{ flex: 1, paddingHorizontal: 24, paddingTop: 40 }}
-            >
-                {/* headerbrand */}
-                <View style={{marginTop: 8}}>
-                    <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 22, fontWeight: '600' }}>AptCare</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 15 }}>
-                        Sửa chữa, bảo trì thông minh cho cuộc sống căn hộ
-                    </Text>
+    <ImageBackground
+      source={require('@/assets/building.jpg')}
+      resizeMode="cover"
+      style={{ flex: 1 }}>
+      <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'undefined'}
+          style={{ flex: 1, paddingHorizontal: 24, paddingTop: 40 }}>
+          {/* headerbrand */}
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 22, fontWeight: '600' }}>
+              AptCare
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 15 }}>
+              Sửa chữa, bảo trì thông minh cho cuộc sống căn hộ
+            </Text>
+          </View>
+          {/* tabHeader */}
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <AuthTabsHeader
+              active={tab}
+              onLogin={() => setTab('login')}
+              onRegister={() => setTab('register')}
+            />
+            {/* card */}
+            <Animated.View
+              style={[
+                {
+                  borderBottomEndRadius: 24,
+                  borderBottomStartRadius: 24,
+                  padding: 16,
+                  shadowOpacity: 0.2,
+                },
+                cardStyle,
+              ]}>
+              {tab === 'login' && (
+                <View>
+                  <Field
+                    control={loginControl}
+                    errors={loginErrors}
+                    name="usernameOrEmail"
+                    label="Email hoặc tên đăng nhập"
+                    placeholder="vd: thanh@gmail.com"
+                    startIcon="user.fill"
+                  />
+                  <Field
+                    control={loginControl}
+                    errors={loginErrors}
+                    name="password"
+                    label="Mật khẩu"
+                    placeholder="••••••••"
+                    secure
+                    startIcon="lock"
+                    style={{ marginBottom: 12 }}
+                  />
+                  <GradientButton
+                    title={isLoginSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
+                    loading={isLoginSubmitting}
+                    disabled={isLoginSubmitting}
+                    from="indigo"
+                    to="blue"
+                    onPress={handleLoginSubmit(onLogin)}
+                  />
+                  <View style={{ alignItems: 'flex-end', marginBottom: 8, marginTop: 25 }}>
+                    <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+                      <Text style={{ color: '#1D4ED8', fontWeight: '600' }}>Quên mật khẩu?</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                {/* tabHeader */}
-                <View style={{ flex: 1, justifyContent: "center" }}>
-                    <AuthTabsHeader
-                        active={tab}
-                        onLogin={() => setTab('login')}
-                        onRegister={() => setTab('register')}
-                    />
-                    {/* card */}
-                    <Animated.View style={[{ borderBottomEndRadius: 24, borderBottomStartRadius: 24, padding: 16, shadowOpacity: 0.2 }, cardStyle]}>
-                       {tab === 'login' && (
-                        <View>
-                            <Field
-                                control={loginControl}
-                                errors={loginErrors}
-                                name='usernameOrEmail'
-                                label='Email hoặc tên đăng nhập'
-                                placeholder='vd: thanh@gmail.com'
-                                startIcon='user.fill'
-                            />
-                            <Field
-                                control={loginControl}
-                                errors={loginErrors}
-                                name='password'
-                                label='Mật khẩu'
-                                placeholder='••••••••'
-                                secure
-                                startIcon='lock'
-                                style={{ marginBottom: 12 }}
-                            />
-                            <GradientButton
-                                title={isLoginSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
-                                loading={isLoginSubmitting}
-                                disabled={isLoginSubmitting}
-                                from='indigo'
-                                to='blue'
-                                onPress={handleLoginSubmit(onLogin)}
-                            />
-                            <View style={{ alignItems: "flex-end", marginBottom: 8, marginTop: 25 }}>
-                              <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password")}>
-                              <Text style={{ color: "#1D4ED8", fontWeight: "600" }}>Quên mật khẩu?</Text>
-                              </TouchableOpacity>
-                            </View>
-                        </View>
-                       )}
-                       {tab === 'register' && (
-                        <View>
-                            <Field
-                                control={registerControl}
-                                errors={registerErrors}
-                                name='email'
-                                label='Email'
-                                placeholder='vd: thanh@gmail.com'
-                                keyboardType='email-address'
-                                startIcon='user.fill'
-                            />
-                            <Field
-                                control={registerControl}
-                                errors={registerErrors}
-                                name='password'
-                                label='Mật khẩu'
-                                placeholder='••••••••'
-                                secure
-                                startIcon='lock'
-                            />
-                            <Field
-                                control={registerControl}
-                                errors={registerErrors}
-                                name='confirmPassword'
-                                label='Xác nhận mật khẩu'
-                                placeholder='••••••••'
-                                secure
-                                startIcon='lock'
-                            />
-                            <GradientButton
-                                title={isRegisterSubmitting ? 'Đang đăng ký...' : 'Đăng ký'}
-                                loading={isRegisterSubmitting}
-                                disabled={isRegisterSubmitting}
-                                from='pink'
-                                to='blue'
-                                onPress={handleRegisterSubmit(onRegister)}
-                            />
-                        </View>
-                       )}
-                       {tab === 'verify' && (
-                        <View>
-                            <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 13, marginBottom: 8 }}>
-                                Vui lòng nhập mã OTP đã gửi tới{" "}
-                                <Text style={{ fontWeight: '600' }}>{maskEmail(verifyEmail)}</Text>
-                            </Text>
-                            <Field
-                                control={otpControl}
-                                errors={otpErrors}
-                                name='otp'
-                                label='Mã OTP (6 số)'
-                                placeholder='______'
-                                keyboardType='number-pad'
-                                startIcon='shield-key-outline'
-                                maxLength={6}
-                                onChangeTransform={(t) => t.replace(/[^0-9]/g, "")}
-                            />  
-                            <GradientButton
-                                title={isOtpSubmitting ? 'Đang xác thực....' : 'Xác thực OTP'}
-                                loading={isOtpSubmitting}
-                                disabled={isOtpSubmitting}
-                                from='orange'
-                                to='blue'
-                                onPress={handleOtpSubmit(onVerifyOtp)}
-                            />
-                            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 12 }}>
-                                <Text style={{ color: 'rgba(0,0,0,0.6)', marginRight: 8 }}>Không nhận được mã?</Text>
-                                <TouchableOpacity disabled={sec > 0} onPress={onResend}>
-                                    <Text style={{ fontWeight: '600', color:'blue'}}>
-                                        {'Gửi lại OTP'}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                       )}
-                    </Animated.View>
+              )}
+              {tab === 'register' && (
+                <View>
+                  <Field
+                    control={registerControl}
+                    errors={registerErrors}
+                    name="email"
+                    label="Email"
+                    placeholder="vd: thanh@gmail.com"
+                    keyboardType="email-address"
+                    startIcon="user.fill"
+                  />
+                  <Field
+                    control={registerControl}
+                    errors={registerErrors}
+                    name="password"
+                    label="Mật khẩu"
+                    placeholder="••••••••"
+                    secure
+                    startIcon="lock"
+                  />
+                  <Field
+                    control={registerControl}
+                    errors={registerErrors}
+                    name="confirmPassword"
+                    label="Xác nhận mật khẩu"
+                    placeholder="••••••••"
+                    secure
+                    startIcon="lock"
+                  />
+                  <GradientButton
+                    title={isRegisterSubmitting ? 'Đang đăng ký...' : 'Đăng ký'}
+                    loading={isRegisterSubmitting}
+                    disabled={isRegisterSubmitting}
+                    from="pink"
+                    to="blue"
+                    onPress={handleRegisterSubmit(onRegister)}
+                  />
                 </View>
-                {/* footer */}
-                <View style={{ alignItems: "center", marginBottom: 16 }}>
-                    <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>
-                    © {new Date().getFullYear()} AptCare
+              )}
+              {tab === 'verify' && (
+                <View>
+                  <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 13, marginBottom: 8 }}>
+                    Vui lòng nhập mã OTP đã gửi tới{' '}
+                    <Text style={{ fontWeight: '600' }}>{maskEmail(verifyEmail)}</Text>
+                  </Text>
+                  <Field
+                    control={otpControl}
+                    errors={otpErrors}
+                    name="otp"
+                    label="Mã OTP (6 số)"
+                    placeholder="______"
+                    keyboardType="number-pad"
+                    startIcon="shield-key-outline"
+                    maxLength={6}
+                    onChangeTransform={(t) => t.replace(/[^0-9]/g, '')}
+                  />
+                  <GradientButton
+                    title={isOtpSubmitting ? 'Đang xác thực....' : 'Xác thực OTP'}
+                    loading={isOtpSubmitting}
+                    disabled={isOtpSubmitting}
+                    from="orange"
+                    to="blue"
+                    onPress={handleOtpSubmit(onVerifyOtp)}
+                  />
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 12,
+                    }}>
+                    <Text style={{ color: 'rgba(0,0,0,0.6)', marginRight: 8 }}>
+                      Không nhận được mã?
                     </Text>
-                </View>    
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                    <TouchableOpacity disabled={sec > 0} onPress={onResend}>
+                      <Text style={{ fontWeight: '600', color: 'blue' }}>{'Gửi lại OTP'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </Animated.View>
+          </View>
+          {/* footer */}
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
+              © {new Date().getFullYear()} AptCare
+            </Text>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </ImageBackground>
   );
 }

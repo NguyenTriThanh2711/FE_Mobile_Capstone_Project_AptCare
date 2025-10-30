@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@/src/features/auth/authSlice';
 import requests from '@/src/features/requests/requestsSlice';
 import workslots from '@/src/features/technician/workSlotsSlice';
-import issues from '@/src/features/issues/issuesSlice'; 
+import issues from '@/src/features/issues/issuesSlice';
 import slots from '@/src/features/slots/slotsSlice';
 import appointmentsReducer from '@/src/features/appointments/appointmentsSlice';
 import chatReducer from '@/src/features/chat/chatSlice';
@@ -25,7 +25,15 @@ const requestsTransform = createTransform(
   { whitelist: ['requests'] }
 );
 
-const rootReducer = combineReducers({ auth, requests, workslots, issues, slots, appointments: appointmentsReducer, chat: chatReducer });
+const rootReducer = combineReducers({
+  auth,
+  requests,
+  workslots,
+  issues,
+  slots,
+  appointments: appointmentsReducer,
+  chat: chatReducer,
+});
 
 const persistConfig = {
   key: 'root',

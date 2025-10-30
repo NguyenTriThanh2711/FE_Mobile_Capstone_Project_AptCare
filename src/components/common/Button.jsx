@@ -1,18 +1,12 @@
-import React from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  useColorScheme,
-} from "react-native";
-import PropTypes from "prop-types";
-import { appleBlue, zincColors } from "@/src/utils/colors";
+import React from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, useColorScheme } from 'react-native';
+import PropTypes from 'prop-types';
+import { appleBlue, zincColors } from '@/src/utils/colors';
 
 function Button({
   onPress,
-  variant = "filled",
-  size = "md",
+  variant = 'filled',
+  size = 'md',
   disabled = false,
   loading = false,
   children,
@@ -20,7 +14,7 @@ function Button({
   textStyle,
 }) {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = colorScheme === 'dark';
 
   const sizeStyles = {
     sm: { height: 36, fontSize: 14, padding: 12 },
@@ -31,29 +25,29 @@ function Button({
   const getVariantStyle = () => {
     const baseStyle = {
       borderRadius: 12,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
     };
 
     switch (variant) {
-      case "filled":
+      case 'filled':
         return {
           ...baseStyle,
           backgroundColor: isDark ? zincColors[50] : zincColors[900],
         };
-      case "outline":
+      case 'outline':
         return {
           ...baseStyle,
-          backgroundColor: "transparent",
+          backgroundColor: 'transparent',
           borderWidth: 1,
           borderColor: isDark ? zincColors[700] : zincColors[300],
         };
-      case "ghost":
+      case 'ghost':
       default:
         return {
           ...baseStyle,
-          backgroundColor: "transparent",
+          backgroundColor: 'transparent',
         };
     }
   };
@@ -62,10 +56,10 @@ function Button({
     if (disabled) return isDark ? zincColors[500] : zincColors[400];
 
     switch (variant) {
-      case "filled":
+      case 'filled':
         return isDark ? zincColors[900] : zincColors[50];
-      case "outline":
-      case "ghost":
+      case 'outline':
+      case 'ghost':
       default:
         return appleBlue;
     }
@@ -83,8 +77,7 @@ function Button({
           opacity: disabled ? 0.5 : 1,
         },
         style,
-      ]}
-    >
+      ]}>
       {loading ? (
         <ActivityIndicator color={getTextColor()} />
       ) : (
@@ -93,13 +86,12 @@ function Button({
             {
               fontSize: sizeStyles[size].fontSize,
               color: getTextColor(),
-              textAlign: "center",
+              textAlign: 'center',
               marginBottom: 0,
-              fontWeight: "700",
+              fontWeight: '700',
             },
             textStyle,
-          ])}
-        >
+          ])}>
           {children}
         </Text>
       )}
@@ -109,8 +101,8 @@ function Button({
 
 Button.propTypes = {
   onPress: PropTypes.func,
-  variant: PropTypes.oneOf(["filled", "outline", "ghost"]),
-  size: PropTypes.oneOf(["sm", "md", "lg"]),
+  variant: PropTypes.oneOf(['filled', 'outline', 'ghost']),
+  size: PropTypes.oneOf(['sm', 'md', 'lg']),
   disabled: PropTypes.bool,
   loading: PropTypes.bool,
   children: PropTypes.node.isRequired,

@@ -177,7 +177,7 @@
 //   return (
 //     <View style={styles.container}>
 //       {/* App bar */}
-//       <View style={[styles.appbar, 
+//       <View style={[styles.appbar,
 //         { paddingTop: insets.top,
 //           height: 56 +  insets.top
 //         }

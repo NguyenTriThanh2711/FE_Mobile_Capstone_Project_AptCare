@@ -8,25 +8,22 @@ import * as ImageManipulator from 'expo-image-manipulator';
  * @returns {Promise<{ uri: string, width: number, height: number }>}
  */
 export async function compressAndResizeImage(uri, opts = {}) {
-  const {
-    maxWidth = 1280,
-    maxHeight = 1280,
-    quality = 0.7,
-    format = 'jpeg',
-  } = opts;
+  const { maxWidth = 1280, maxHeight = 1280, quality = 0.7, format = 'jpeg' } = opts;
 
   // Resize theo cạnh dài tối đa (giữ tỉ lệ) — dùng width hoặc height đều được,
   // ở đây dùng width để đơn giản.
   const actions = [{ resize: { width: maxWidth } }];
 
   const saveFormat =
-    format === 'png' ? ImageManipulator.SaveFormat.PNG
-  : format === 'webp' ? ImageManipulator.SaveFormat.WEBP
-  : ImageManipulator.SaveFormat.JPEG;
+    format === 'png'
+      ? ImageManipulator.SaveFormat.PNG
+      : format === 'webp'
+        ? ImageManipulator.SaveFormat.WEBP
+        : ImageManipulator.SaveFormat.JPEG;
 
   // API cũ, nhưng chạy ổn trên SDK hiện tại của bạn
   const result = await ImageManipulator.manipulateAsync(uri, actions, {
-    compress: quality,  // 0..1
+    compress: quality, // 0..1
     format: saveFormat,
   });
 
@@ -51,7 +48,7 @@ export async function compressMany(assets = [], opts = {}) {
 
     out.push({
       uri: r.uri,
-      name: a.name || (r.uri.split('/').pop() || `image_${Date.now()}.jpg`),
+      name: a.name || r.uri.split('/').pop() || `image_${Date.now()}.jpg`,
       type,
     });
   }

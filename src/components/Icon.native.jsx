@@ -44,7 +44,6 @@ const MAP = {
   "clock.fill": "time",
   "clock": "time-outline",
   "envelope.fill": "mail",
-  "envelope": "mail-outline",
 
   // Profile
   "person.fill": "person",

@@ -1,18 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, ActivityIndicator } from "react-native";
-import { Icon } from "@/src/components/Icon.native";
-import { dotnetArr } from "@/src/helper/dotnetArr";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Modal,
+  ActivityIndicator,
+} from 'react-native';
+import { Icon } from '@/src/components/Icon.native';
+import { dotnetArr } from '@/src/helper/dotnetArr';
 import {
   fetchRepairRequests,
-  
   selectRequests,
-  
   selectRequestsLoading,
   selectRequestsPageData,
-} from "@/src/features/requests/requestsSlice";
-import { useAppDispatch, useAppSelector } from "@/src/store";
-import RequestListItem from "@/src/components/RequestListItem";
-import { pretty } from "@/src/helper/prettyLog";
+} from '@/src/features/requests/requestsSlice';
+import { useAppDispatch, useAppSelector } from '@/src/store';
+import RequestListItem from '@/src/components/RequestListItem';
+import { pretty } from '@/src/helper/prettyLog';
 
 function useDebounce(value, delay = 400) {
   const [v, setV] = useState(value);
@@ -36,7 +43,7 @@ export default function ResidentRequests() {
 
   const [openAptPicker, setOpenAptPicker] = useState(false);
   const [apartmentId, setApartmentId] = useState(apartments?.[0]?.apartmentId);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [emergencyOnly, setEmergencyOnly] = useState(undefined);
   const debounced = useDebounce(search, 400);
 
@@ -48,9 +55,9 @@ export default function ResidentRequests() {
           page: p,
           size: 10,
           search: debounced || undefined,
-          isEmergency: typeof emergencyOnly === "boolean" ? emergencyOnly : undefined,
+          isEmergency: typeof emergencyOnly === 'boolean' ? emergencyOnly : undefined,
           apartmentId,
-          sortBy: "createdAt:desc",
+          sortBy: 'createdAt:desc',
         })
       );
     },
@@ -66,9 +73,9 @@ export default function ResidentRequests() {
   };
 
   const pill = (isEmergency) => ({
-    bg: isEmergency ? "#FEE2E2" : "#E5F6FF",
-    fg: isEmergency ? "#B91C1C" : "#0C4A6E",
-    text: isEmergency ? "Khẩn cấp" : "Bình thường",
+    bg: isEmergency ? '#FEE2E2' : '#E5F6FF',
+    fg: isEmergency ? '#B91C1C' : '#0C4A6E',
+    text: isEmergency ? 'Khẩn cấp' : 'Bình thường',
   });
 
   return (
@@ -85,7 +92,7 @@ export default function ResidentRequests() {
         <Pressable onPress={() => setOpenAptPicker(true)} style={styles.aptChip}>
           <Icon name="building.2" size={14} color="#6b7280" />
           <Text style={styles.aptChipText}>
-            {apartmentId ? `Căn hộ #${apartmentId}` : "Chọn căn hộ"}
+            {apartmentId ? `Căn hộ #${apartmentId}` : 'Chọn căn hộ'}
           </Text>
           <Icon name="chevron.down" size={14} color="#6b7280" />
         </Pressable>
@@ -101,7 +108,7 @@ export default function ResidentRequests() {
             returnKeyType="search"
           />
           {search ? (
-            <Pressable onPress={() => setSearch("")}>
+            <Pressable onPress={() => setSearch('')}>
               <Icon name="xmark.circle.fill" size={16} color="#9CA3AF" />
             </Pressable>
           ) : null}
@@ -110,19 +117,24 @@ export default function ResidentRequests() {
         {/* Emergency toggle: undefined -> true -> false -> undefined */}
         <Pressable
           onPress={() =>
-            setEmergencyOnly((prev) => (prev === undefined ? true : prev === true ? false : undefined))
+            setEmergencyOnly((prev) =>
+              prev === undefined ? true : prev === true ? false : undefined
+            )
           }
-          style={styles.filterChip}
-        >
+          style={styles.filterChip}>
           <Icon name="exclamationmark.triangle.fill" size={14} color="#B45309" />
           <Text style={styles.filterChipText}>
-            {emergencyOnly === undefined ? "Tất cả" : emergencyOnly ? "Chỉ Khẩn cấp" : "Chỉ Thường"}
+            {emergencyOnly === undefined ? 'Tất cả' : emergencyOnly ? 'Chỉ Khẩn cấp' : 'Chỉ Thường'}
           </Text>
         </Pressable>
       </View>
 
       {/* Apt picker modal */}
-      <Modal visible={openAptPicker} transparent animationType="fade" onRequestClose={() => setOpenAptPicker(false)}>
+      <Modal
+        visible={openAptPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpenAptPicker(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Chọn căn hộ</Text>
@@ -136,8 +148,7 @@ export default function ResidentRequests() {
                       setApartmentId(apt.apartmentId);
                       setOpenAptPicker(false);
                     }}
-                    style={[styles.optionItem, active && styles.optionItemActive]}
-                  >
+                    style={[styles.optionItem, active && styles.optionItemActive]}>
                     <Text style={[styles.optionText, active && styles.optionTextActive]}>
                       {`Tầng ${apt.floor} - Phòng ${apt.roomNumber}`}
                     </Text>
@@ -153,14 +164,15 @@ export default function ResidentRequests() {
       <ScrollView contentContainerStyle={{ paddingTop: 16 }}>
         {loading && page === 1 ? <ActivityIndicator style={{ marginTop: 8 }} /> : null}
 
-        {Array.isArray(list) && list.map((r) => {
-          return <RequestListItem key={r.repairRequestId} item={r} />;
-        })}
+        {Array.isArray(list) &&
+          list.map((r) => {
+            return <RequestListItem key={r.repairRequestId} item={r} />;
+          })}
 
         {/* Load more */}
         {page < totalPages ? (
           <Pressable style={styles.loadMore} onPress={loadMore} disabled={loading}>
-            <Text style={styles.loadMoreText}>{loading ? "Đang tải..." : "Tải thêm"}</Text>
+            <Text style={styles.loadMoreText}>{loading ? 'Đang tải...' : 'Tải thêm'}</Text>
           </Pressable>
         ) : null}
       </ScrollView>
@@ -169,67 +181,110 @@ export default function ResidentRequests() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
 
-  header: { backgroundColor: "white", padding: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
-  headerTitle: { fontSize: 22, fontWeight: "700", color: "#111827" },
-  headerSubtitle: { fontSize: 13, color: "#6B7280", marginTop: 4 },
+  header: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
+  headerSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 4 },
 
   toolbar: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: '#E5E7EB',
   },
   aptChip: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10,
-    borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
   },
-  aptChipText: { fontSize: 13, color: "#111827", fontWeight: "600" },
+  aptChipText: { fontSize: 13, color: '#111827', fontWeight: '600' },
 
   searchBox: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff",
-    borderRadius: 10, paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 10,
   },
 
   filterChip: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10,
-    backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FDE68A",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
-  filterChipText: { fontSize: 13, color: "#B45309", fontWeight: "700" },
+  filterChipText: { fontSize: 13, color: '#B45309', fontWeight: '700' },
 
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", padding: 18 },
-  modalCard: { backgroundColor: "#fff", borderRadius: 14, padding: 12 },
-  modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#111827" },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  modalCard: { backgroundColor: '#fff', borderRadius: 14, padding: 12 },
+  modalTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8, color: '#111827' },
   optionItem: { paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10 },
-  optionItemActive: { backgroundColor: "#E7F0FF" },
-  optionText: { fontSize: 15, color: "#111827", fontWeight: "500" },
-  optionTextActive: { fontWeight: "700" },
+  optionItemActive: { backgroundColor: '#E7F0FF' },
+  optionText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  optionTextActive: { fontWeight: '700' },
 
   card: {
-    backgroundColor: "white", borderRadius: 12, padding: 14, marginBottom: 12,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: "#111827", flex: 1, marginRight: 10 },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: '#111827', flex: 1, marginRight: 10 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { fontSize: 11, fontWeight: "800" },
-  desc: { fontSize: 14, color: "#374151", marginBottom: 8 },
-  metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  metaLeft: { fontSize: 12, color: "#6B7280" },
-  metaRight: { fontSize: 12, color: "#007AFF", fontWeight: "600" },
+  badgeText: { fontSize: 11, fontWeight: '800' },
+  desc: { fontSize: 14, color: '#374151', marginBottom: 8 },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  metaLeft: { fontSize: 12, color: '#6B7280' },
+  metaRight: { fontSize: 12, color: '#007AFF', fontWeight: '600' },
 
   loadMore: {
-    marginTop: 6, marginBottom: 24, alignSelf: "center",
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
-    backgroundColor: "#F3F4F6",
+    marginTop: 6,
+    marginBottom: 24,
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
   },
-  loadMoreText: { fontSize: 14, color: "#111827", fontWeight: "700" },
+  loadMoreText: { fontSize: 14, color: '#111827', fontWeight: '700' },
 });

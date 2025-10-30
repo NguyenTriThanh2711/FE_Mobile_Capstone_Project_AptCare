@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack } from 'expo-router';
 
 export default function TechnicianStackLayout() {
   return (
@@ -7,13 +7,22 @@ export default function TechnicianStackLayout() {
       <Stack.Screen
         name="appointment/[id]"
         options={{
-          presentation: "modal",          
+          presentation: 'modal',
           gestureEnabled: true,
           fullScreenGestureEnabled: false, // có thể bật true nếu muốn swipe toàn màn
-          animation: "slide_from_bottom",  // Android: mượt hơn
+          animation: 'slide_from_bottom', // Android: mượt hơn
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="inspectReport-create"
+        options={{
+          title: 'Tạo báo cáo khảo sát',
+          // presentation: "modal", // hoặc "card"
+          headerShown: false, // vì bạn đã tự render header trong file
+        }}
+      />
+      <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }

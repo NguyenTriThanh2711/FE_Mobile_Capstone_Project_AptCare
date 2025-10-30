@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, View, Text, Pressable, FlatList, StyleSheet } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 
 // ---- UI constants
 const ITEM_HEIGHT = 36;
@@ -7,7 +7,7 @@ const VISIBLE_COUNT = 5; // lẻ để có item giữa
 const CENTER_OFFSET = Math.floor(VISIBLE_COUNT / 2) * ITEM_HEIGHT;
 
 // ---- util
-const pad2 = (n) => String(n).padStart(2, "0");
+const pad2 = (n) => String(n).padStart(2, '0');
 
 // ================= Finite column (Date, AM/PM) =================
 function FiniteWheelColumn({
@@ -60,7 +60,7 @@ function FiniteWheelColumn({
   };
 
   return (
-    <View style={{ width, height: ITEM_HEIGHT * VISIBLE_COUNT, overflow: "hidden" }}>
+    <View style={{ width, height: ITEM_HEIGHT * VISIBLE_COUNT, overflow: 'hidden' }}>
       <FlatList
         ref={ref}
         data={data}
@@ -94,9 +94,9 @@ function FiniteWheelColumn({
 
 // ================= Infinite column (Hour, Minute) =================
 function InfiniteWheelColumn({
-  baseLength,                  // 12 (giờ) | 60 (phút)
-  getInitialBaseIndex,         // () -> 0..base-1
-  onValueChange,               // (0..base-1) -> void
+  baseLength, // 12 (giờ) | 60 (phút)
+  getInitialBaseIndex, // () -> 0..base-1
+  onValueChange, // (0..base-1) -> void
   renderValue = (i) => String(i),
   width = 70,
 }) {
@@ -151,7 +151,7 @@ function InfiniteWheelColumn({
   };
 
   return (
-    <View style={{ width, height: ITEM_HEIGHT * VISIBLE_COUNT, overflow: "hidden" }}>
+    <View style={{ width, height: ITEM_HEIGHT * VISIBLE_COUNT, overflow: 'hidden' }}>
       <FlatList
         ref={ref}
         data={data}
@@ -192,10 +192,10 @@ export default function WheelDateTimePicker({
   onConfirm,
   initialDate = new Date(),
   daysAhead = 30,
-  locale = "vi-VN",
-  title = "Chọn ngày & giờ",
-  cancelText = "Huỷ",
-  confirmText = "Xong",
+  locale = 'vi-VN',
+  title = 'Chọn ngày & giờ',
+  cancelText = 'Huỷ',
+  confirmText = 'Xong',
 }) {
   // ---- list ngày (hữu hạn)
   const dates = useMemo(() => {
@@ -218,31 +218,34 @@ export default function WheelDateTimePicker({
     const y = initialDate.getFullYear();
     const m = initialDate.getMonth();
     const d = initialDate.getDate();
-    const idx = dates.findIndex((x) => x.getFullYear() === y && x.getMonth() === m && x.getDate() === d);
+    const idx = dates.findIndex(
+      (x) => x.getFullYear() === y && x.getMonth() === m && x.getDate() === d
+    );
     return Math.max(0, idx === -1 ? 0 : idx);
   };
 
-  const [dateIdx, setDateIdx]   = useState(findDateIdx());
-  const [hourBaseIdx, setHourBaseIdx] = useState(((initialDate.getHours() % 12) || 12) - 1); // 0..11
-  const [minuteBaseIdx, setMinuteBaseIdx] = useState(initialDate.getMinutes() === 0 ? 59 : initialDate.getMinutes() - 1);
+  const [dateIdx, setDateIdx] = useState(findDateIdx());
+  const [hourBaseIdx, setHourBaseIdx] = useState((initialDate.getHours() % 12 || 12) - 1); // 0..11
+  const [minuteBaseIdx, setMinuteBaseIdx] = useState(
+    initialDate.getMinutes() === 0 ? 59 : initialDate.getMinutes() - 1
+  );
   const [ampmIdx, setAmPmIdx] = useState(initialDate.getHours() >= 12 ? 1 : 0);
 
   useEffect(() => {
     if (!visible) return;
     setDateIdx(findDateIdx());
-    setHourBaseIdx(((initialDate.getHours() % 12) || 12) - 1);
+    setHourBaseIdx((initialDate.getHours() % 12 || 12) - 1);
     setMinuteBaseIdx(initialDate.getMinutes() === 0 ? 59 : initialDate.getMinutes() - 1);
     setAmPmIdx(initialDate.getHours() >= 12 ? 1 : 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   // ---- render text
   const fmtDate = (d) =>
     d.toLocaleDateString(locale, {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
     });
 
   // ---- columns
@@ -269,27 +272,19 @@ export default function WheelDateTimePicker({
     />
   );
 
-  const ampmData = ["AM", "PM"];
+  const ampmData = ['AM', 'PM'];
 
   const handleConfirm = () => {
     const day = dates[dateIdx];
 
     const hour12 = hourBaseIdx + 1; // 1..12
-    let h24 = hour12 % 12;          // 12 -> 0 (AM)
-    if (ampmIdx === 1) h24 += 12;   // PM
+    let h24 = hour12 % 12; // 12 -> 0 (AM)
+    if (ampmIdx === 1) h24 += 12; // PM
 
-    const dispMin = minuteBaseIdx + 1;   // 1..60
+    const dispMin = minuteBaseIdx + 1; // 1..60
     const minute = dispMin === 60 ? 0 : dispMin;
 
-    const result = new Date(
-      day.getFullYear(),
-      day.getMonth(),
-      day.getDate(),
-      h24,
-      minute,
-      0,
-      0
-    );
+    const result = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h24, minute, 0, 0);
 
     onConfirm?.(result);
     onClose?.();
@@ -322,10 +317,10 @@ export default function WheelDateTimePicker({
 
           <View style={styles.actions}>
             <Pressable onPress={onClose} style={[styles.btn, styles.btnGhost]}>
-              <Text style={[styles.btnText, { color: "#6b7280" }]}>{cancelText}</Text>
+              <Text style={[styles.btnText, { color: '#6b7280' }]}>{cancelText}</Text>
             </Pressable>
             <Pressable onPress={handleConfirm} style={[styles.btn, styles.btnPrimary]}>
-              <Text style={[styles.btnText, { color: "white" }]}>{confirmText}</Text>
+              <Text style={[styles.btnText, { color: 'white' }]}>{confirmText}</Text>
             </Pressable>
           </View>
         </View>
@@ -336,46 +331,46 @@ export default function WheelDateTimePicker({
 
 // ================= styles =================
 const styles = StyleSheet.create({
-  row: { height: ITEM_HEIGHT, alignItems: "center", justifyContent: "center" },
-  itemText: { fontSize: 16, color: "#6b7280" },
-  itemTextSel: { color: "#111827", fontWeight: "700" },
+  row: { height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' },
+  itemText: { fontSize: 16, color: '#6b7280' },
+  itemTextSel: { color: '#111827', fontWeight: '700' },
 
   centerLine: {
-    position: "absolute",
+    position: 'absolute',
     left: 0,
     right: 0,
     top: ITEM_HEIGHT * Math.floor(VISIBLE_COUNT / 2),
     height: ITEM_HEIGHT,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#cbd5e1",
+    borderColor: '#cbd5e1',
   },
 
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 18,
   },
   modal: {
-    width: "100%",
+    width: '100%',
     maxWidth: 420,
     borderRadius: 14,
-    backgroundColor: "white",
+    backgroundColor: 'white',
     padding: 14,
   },
-  title: { textAlign: "center", fontSize: 16, fontWeight: "700", marginBottom: 8 },
+  title: { textAlign: 'center', fontSize: 16, fontWeight: '700', marginBottom: 8 },
   columns: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     columnGap: 10,
     paddingVertical: 6,
   },
-  actions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 10 },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
   btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
-  btnGhost: { backgroundColor: "#f3f4f6" },
-  btnPrimary: { backgroundColor: "#1e88e5" },
-  btnText: { fontSize: 15, fontWeight: "700" },
+  btnGhost: { backgroundColor: '#f3f4f6' },
+  btnPrimary: { backgroundColor: '#1e88e5' },
+  btnText: { fontSize: 15, fontWeight: '700' },
 });

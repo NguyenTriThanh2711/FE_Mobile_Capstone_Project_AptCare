@@ -1,8 +1,7 @@
-import { Stack } from 'expo-router'
-import { Text, View, Image } from 'react-native'
+import { Stack } from 'expo-router';
+import { Text, View, Image } from 'react-native';
 
 export default function NotFoundPage() {
-  //? Render(s)
   return (
     <>
       <Stack.Screen
@@ -11,8 +10,8 @@ export default function NotFoundPage() {
           headerBackTitleVisible: false,
         }}
       />
-      <View className="flex h-full flex-col items-center justify-center py-8 gap-y-6 bg-blue-50 px-4">
-        <Text className="text-base font-semibold text-pink">404 không tìm thấy!</Text>
+      <View className="flex h-full flex-col items-center justify-center gap-y-6 bg-blue-50 px-4 py-8">
+        <Text className="text-pink text-base font-semibold">404 không tìm thấy!</Text>
         <Image
           style={{
             width: '100%',
@@ -23,5 +22,5 @@ export default function NotFoundPage() {
         />
       </View>
     </>
-  )
+  );
 }

@@ -1,37 +1,43 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import http from "@/src/services/http";
-import { dotnetArr } from "@/src/helper/dotnetArr";
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import http from '@/src/services/http';
+import { dotnetArr } from '@/src/helper/dotnetArr';
 
 export const fetchIssues = createAsyncThunk(
-  "issues/fetchIssues",
+  'issues/fetchIssues',
   async ({ page = 1, size = 100 } = {}, { rejectWithValue }) => {
     try {
-      const { data } = await http.get("/api/issues", { params: { page, size } });
+      const { data } = await http.get('/api/issues', { params: { page, size } });
       return data;
     } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || "Không lấy được danh sách sự cố";
+      const msg = err?.response?.data?.detail || err?.message || 'Không lấy được danh sách sự cố';
       return rejectWithValue(msg);
     }
   }
 );
 
 const slice = createSlice({
-  name: "issues",
+  name: 'issues',
   initialState: {
     raw: null,
-    items: [],      // [{issueId, name, isEmergency, techniqueId, ...}]
+    items: [], // [{issueId, name, isEmergency, techniqueId, ...}]
     loading: false,
     error: null,
     pageInfo: { page: 1, size: 0, total: 0, totalPages: 0 },
   },
   reducers: {
     clearIssues(s) {
-      s.raw = null; s.items = []; s.loading = false; s.error = null;
+      s.raw = null;
+      s.items = [];
+      s.loading = false;
+      s.error = null;
       s.pageInfo = { page: 1, size: 0, total: 0, totalPages: 0 };
     },
   },
   extraReducers: (b) => {
-    b.addCase(fetchIssues.pending, (s) => { s.loading = true; s.error = null; });
+    b.addCase(fetchIssues.pending, (s) => {
+      s.loading = true;
+      s.error = null;
+    });
     b.addCase(fetchIssues.fulfilled, (s, a) => {
       s.loading = false;
       s.raw = a.payload;
@@ -53,7 +59,8 @@ const slice = createSlice({
       };
     });
     b.addCase(fetchIssues.rejected, (s, a) => {
-      s.loading = false; s.error = a.payload || a.error?.message;
+      s.loading = false;
+      s.error = a.payload || a.error?.message;
     });
   },
 });
@@ -61,8 +68,8 @@ const slice = createSlice({
 export const { clearIssues } = slice.actions;
 
 export const selectIssuesLoading = (s) => s.issues.loading;
-export const selectIssuesError   = (s) => s.issues.error;
-export const selectIssues        = (s) => s.issues.items;      // mảng gọn gàng
-export const selectIssuesRaw     = (s) => s.issues.raw;        // nếu muốn xem raw
+export const selectIssuesError = (s) => s.issues.error;
+export const selectIssues = (s) => s.issues.items; // mảng gọn gàng
+export const selectIssuesRaw = (s) => s.issues.raw; // nếu muốn xem raw
 
 export default slice.reducer;

@@ -1,11 +1,7 @@
-import * as React from "react";
-import { View } from "react-native";
-import {
-  TextInput as PaperInput,
-  HelperText,
-  useTheme,
-} from "react-native-paper";
-import { Icon } from "../Icon.native";
+import * as React from 'react';
+import { View } from 'react-native';
+import { TextInput as PaperInput, HelperText, useTheme } from 'react-native-paper';
+import { Icon } from '../Icon.native';
 
 export default function MUITextField({
   label,
@@ -13,8 +9,8 @@ export default function MUITextField({
   onChangeText,
   onBlur,
   placeholder,
-  variant = "outlined",   // "outlined" | "filled"
-  size = "medium",        // "small" | "medium"
+  variant = 'outlined', // "outlined" | "filled"
+  size = 'medium', // "small" | "medium"
   error,
   helperText,
   disabled,
@@ -32,31 +28,30 @@ export default function MUITextField({
   const [showPwd, setShowPwd] = React.useState(false);
   const isPassword = !!secureTextEntry;
 
-  const height = size === "small" ? 44 : 52;
+  const height = size === 'small' ? 44 : 52;
   const contentStyle = { minHeight: height, height };
 
   const left = startIcon ? (
     <PaperInput.Icon
-      icon = {props => <Icon name={startIcon} size={props.size ?? 20} color={props.color} />}
+      icon={(props) => <Icon name={startIcon} size={props.size ?? 20} color={props.color} />}
     />
   ) : undefined;
   const right = isPassword ? (
-     <PaperInput.Icon
-       icon={showPwd ? "eye-off-outline" : "eye-outline"}
-       onPress={() => setShowPwd(!showPwd)
-       }
-     />
-    ) : endIcon ? (
-        <PaperInput.Icon
-          icon={props => <Icon name={endIcon} size={props.size ?? 20} color={props.color} />}
-          onPress={rightOnPress}
-        />
-      ) : undefined;
+    <PaperInput.Icon
+      icon={showPwd ? 'eye-off-outline' : 'eye-outline'}
+      onPress={() => setShowPwd(!showPwd)}
+    />
+  ) : endIcon ? (
+    <PaperInput.Icon
+      icon={(props) => <Icon name={endIcon} size={props.size ?? 20} color={props.color} />}
+      onPress={rightOnPress}
+    />
+  ) : undefined;
 
   return (
     <View style={style}>
       <PaperInput
-        mode={variant === "filled" ? "flat" : "outlined"}
+        mode={variant === 'filled' ? 'flat' : 'outlined'}
         label={label}
         value={value}
         onChangeText={onChangeText}
@@ -72,16 +67,14 @@ export default function MUITextField({
         multiline={multiline}
         numberOfLines={numberOfLines}
         contentStyle={contentStyle}
-        outlineStyle={variant === "outlined" ? { borderRadius: 8 } : undefined}
+        outlineStyle={variant === 'outlined' ? { borderRadius: 8 } : undefined}
         style={{
           backgroundColor:
-            variant === "filled"
-              ? (theme.colors?.backdrop || "#000") + "11"
-              : undefined,
+            variant === 'filled' ? (theme.colors?.backdrop || '#000') + '11' : undefined,
         }}
       />
       {!!helperText && (
-        <HelperText type={error ? "error" : "info"} visible>
+        <HelperText type={error ? 'error' : 'info'} visible>
           {helperText}
         </HelperText>
       )}

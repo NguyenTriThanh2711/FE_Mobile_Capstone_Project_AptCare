@@ -3,16 +3,12 @@ import http from '@/src/services/http';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { pretty } from '@/src/helper/prettyLog';
 
-/* ======================= Thunks ======================= */
-// Conversations
-export const fetchMyConversations = createAsyncThunk(
-  'chat/fetchMyConversations',
-  async () => {
-    const { data } = await http.get('/api/conversations/my');
-    console.log('http.get(/api/conversations/my)', pretty(data));
-    return dotnetArr(data);
-  }
-);
+
+export const fetchMyConversations = createAsyncThunk('chat/fetchMyConversations', async () => {
+  const { data } = await http.get('/api/conversations/my');
+  // console.log('http.get(/api/conversations/my)', pretty(data));
+  return dotnetArr(data);
+});
 
 export const createConversation = createAsyncThunk(
   'chat/createConversation',
@@ -22,18 +18,17 @@ export const createConversation = createAsyncThunk(
       return { data, status }; // data có thể là slug/id
     } catch (err) {
       const res = err?.response;
-      return rejectWithValue(res?.data?.detail || res?.data || err?.message || 'Tạo cuộc trò chuyện thất bại');
+      return rejectWithValue(
+        res?.data?.detail || res?.data || err?.message || 'Tạo cuộc trò chuyện thất bại'
+      );
     }
   }
 );
 
-export const getConversation = createAsyncThunk(
-  'chat/getConversation',
-  async (id) => {
-    const { data } = await http.get(`/api/conversations/${id}`);
-    return data;
-  }
-);
+export const getConversation = createAsyncThunk('chat/getConversation', async (id) => {
+  const { data } = await http.get(`/api/conversations/${id}`);
+  return data;
+});
 
 export const muteConversation = createAsyncThunk('chat/mute', async (id) => {
   const { data } = await http.patch(`/api/conversations/${id}/mute`);
@@ -67,12 +62,14 @@ export const sendTextMessage = createAsyncThunk(
   async ({ conversationId, content, replyMessageId }, { rejectWithValue }) => {
     try {
       const payload = { conversationId, content };
-      if (replyMessageId) payload.rellyMessageId = replyMessageId; // (BE đang đặt rellyMessageId) 
+      if (replyMessageId) payload.replyMessageId = replyMessageId;
       const { data } = await http.post('/api/messages/text', payload);
       return data;
     } catch (err) {
       const res = err?.response;
-      return rejectWithValue(res?.data?.detail || res?.data || err?.message || 'Gửi tin nhắn thất bại');
+      return rejectWithValue(
+        res?.data?.detail || res?.data || err?.message || 'Gửi tin nhắn thất bại'
+      );
     }
   }
 );
@@ -99,20 +96,14 @@ export const sendFileMessage = createAsyncThunk(
   }
 );
 
-export const markDelivered = createAsyncThunk(
-  'chat/markDelivered',
-  async (conversationId) => {
-    await http.patch(`/api/messages/${conversationId}/mark-as-delivered`);
-    return { conversationId };
-  }
-);
-export const markRead = createAsyncThunk(
-  'chat/markRead',
-  async (conversationId) => {
-    await http.patch(`/api/messages/${conversationId}/mark-as-read`);
-    return { conversationId };
-  }
-);
+export const markDelivered = createAsyncThunk('chat/markDelivered', async (conversationId) => {
+  await http.patch(`/api/messages/${conversationId}/mark-as-delivered`);
+  return { conversationId };
+});
+export const markRead = createAsyncThunk('chat/markRead', async (conversationId) => {
+  await http.patch(`/api/messages/${conversationId}/mark-as-read`);
+  return { conversationId };
+});
 
 /* ======================= Slice ======================= */
 const slice = createSlice({
@@ -120,61 +111,108 @@ const slice = createSlice({
   initialState: {
     // conversations list
     list: [],
-    loading: false,
-    error: null,
+    loadingChat: false,
+    errorChat: null,                        //bug  dưới extraReducers đang gán 's.error'
     // detail
-    byId: {}, // { [conversationId]: { info, messages: [], loading, canLoadMore, oldestCursor } }
+    byId: {},
     sending: false,
     sendError: null,
     creating: false,
     createError: null,
+
+    unreadByConv: {}, // { [conversationId]: number-of-unread
   },
   reducers: {
     prependLocalMessage(state, action) {
       const m = action.payload;
-      const box = state.byId[m.conversationId] || (state.byId[m.conversationId] = { info: null, messages: [] });
+      const box =
+        state.byId[m.conversationId] ||
+        (state.byId[m.conversationId] = { info: null, messages: [] });
       box.messages.push(m);
     },
     clearChat(state) {
       state.list = [];
       state.byId = {};
+      state.unreadByConv = {};
+    },
+    incomingMessage(state, action) {
+      const m = action.payload;
+      const cid = m.conversationId;
+      const box = state.byId[cid] || (state.byId[cid] = { info: null, messages: [] });
+      if (!box.messages.find((x) => x.messageId === m.messageId)) {
+        box.messages = [...box.messages, m];
+      }
+      const idx = state.list.findIndex((x) => x.conversationId === cid);
+      if (idx >= 0) {
+        state.list[idx] = { ...state.list[idx], lastMessage: m.content, updatedAt: m.createdAt };
+      }
+      if (!m.isRead) {
+        state.unreadByConv[cid] = (state.unreadByConv[cid] || 0) + 1;
+      }
+    },
+    clearUnreadLocal(state, action) {
+      const cid = action.payload;
+      state.unreadByConv[cid] = 0;
     },
   },
   extraReducers: (b) => {
     // fetch my conversations
-    b.addCase(fetchMyConversations.pending, (s) => { s.loading = true; s.error = null; });
+    b.addCase(fetchMyConversations.pending, (s) => {
+      s.loadingChat = true;
+      s.errorChat = null;
+    });
     b.addCase(fetchMyConversations.fulfilled, (s, a) => {
-      s.loading = false;
+      s.loadingChat = false;
       s.list = a.payload || [];
+      // giữ hoặc khởi tạo 0 cho các phòng mới
+      s.list.forEach((c) => {
+        if (!(c.conversationId in s.unreadByConv)) s.unreadByConv[c.conversationId] = 0;
+      });
     });
     b.addCase(fetchMyConversations.rejected, (s, a) => {
-      s.loading = false; s.error = a.error?.message || 'Tải danh sách trò chuyện thất bại';
+      s.loadingChat = false;
+      s.errorChat = a.error?.message || 'Tải danh sách trò chuyện thất bại';
     });
 
     // create conv
-    b.addCase(createConversation.pending, (s) => { s.creating = true; s.createError = null; });
-    b.addCase(createConversation.fulfilled, (s) => { s.creating = false; });
-    b.addCase(createConversation.rejected, (s, a) => { s.creating = false; s.createError = a.payload || a.error; });
+    b.addCase(createConversation.pending, (s) => {
+      s.creating = true;
+      s.createError = null;
+    });
+    b.addCase(createConversation.fulfilled, (s) => {
+      s.creating = false;
+    });
+    b.addCase(createConversation.rejected, (s, a) => {
+      s.creating = false;
+      s.createError = a.payload || a.error;
+    });
 
     // get conv
     b.addCase(getConversation.fulfilled, (s, a) => {
       const info = a.payload;
       const id = info?.conversationId;
       if (!id) return;
-      if (!s.byId[id]) s.byId[id] = { info, messages: [], loading: false, canLoadMore: true, oldestCursor: null };
+      if (!s.byId[id])
+        s.byId[id] = {
+          info,
+          messages: [],
+          loadingChat: false,
+          canLoadMore: true,
+          oldestCursor: null,
+        };
       else s.byId[id].info = info;
     });
 
     // mute/unmute reflect flag
     b.addCase(muteConversation.fulfilled, (s, a) => {
       const id = a.payload?.id;
-      const i = s.list.findIndex(x => x.conversationId === id);
+      const i = s.list.findIndex((x) => x.conversationId === id);
       if (i >= 0) s.list[i] = { ...s.list[i], isMuted: true };
       if (s.byId[id]?.info) s.byId[id].info.isMuted = true;
     });
     b.addCase(unmuteConversation.fulfilled, (s, a) => {
       const id = a.payload?.id;
-      const i = s.list.findIndex(x => x.conversationId === id);
+      const i = s.list.findIndex((x) => x.conversationId === id);
       if (i >= 0) s.list[i] = { ...s.list[i], isMuted: false };
       if (s.byId[id]?.info) s.byId[id].info.isMuted = false;
     });
@@ -183,17 +221,18 @@ const slice = createSlice({
     b.addCase(fetchMessages.pending, (s, a) => {
       const { conversationId } = a.meta.arg;
       const box = s.byId[conversationId] || (s.byId[conversationId] = { info: null, messages: [] });
-      box.loading = true;
+      box.loadingChat = true;
     });
     b.addCase(fetchMessages.fulfilled, (s, a) => {
       const { conversationId, items } = a.payload;
       const box = s.byId[conversationId] || (s.byId[conversationId] = { info: null, messages: [] });
-      box.loading = false;
+      box.loadingChat = false;
       // messages newest-last; loadMore (older) -> prepend
       if (a.payload.beforeUsed) {
         box.messages = [...items, ...box.messages];
       } else {
         box.messages = items; // first load
+        s.unreadByConv[conversationId] = 0;
       }
       // compute oldestCursor (for before)
       const oldest = box.messages[0];
@@ -208,34 +247,61 @@ const slice = createSlice({
     b.addCase(fetchMessages.rejected, (s, a) => {
       const { conversationId } = a.meta.arg || {};
       const box = s.byId[conversationId];
-      if (box) box.loading = false;
+      if (box) box.loadingChat = false;
     });
 
     // send text/file -> append
-    b.addCase(sendTextMessage.pending, (s) => { s.sending = true; s.sendError = null; });
-    b.addCase(sendFileMessage.pending, (s) => { s.sending = true; s.sendError = null; });
+    b.addCase(sendTextMessage.pending, (s) => {
+      s.sending = true;
+      s.sendError = null;
+    });
+    b.addCase(sendFileMessage.pending, (s) => {
+      s.sending = true;
+      s.sendError = null;
+    });
     b.addCase(sendTextMessage.fulfilled, (s, a) => {
       s.sending = false;
       const m = a.payload;
-      const box = s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
+      const box =
+        s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
       box.messages = [...box.messages, m];
     });
     b.addCase(sendFileMessage.fulfilled, (s, a) => {
       s.sending = false;
       const m = a.payload;
-      const box = s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
+      const box =
+        s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
       box.messages = [...box.messages, m];
     });
-    b.addCase(sendTextMessage.rejected, (s, a) => { s.sending = false; s.sendError = a.payload || a.error; });
-    b.addCase(sendFileMessage.rejected, (s, a) => { s.sending = false; s.sendError = a.payload || a.error; });
+    b.addCase(sendTextMessage.rejected, (s, a) => {
+      s.sending = false;
+      s.sendError = a.payload || a.errorChat;
+    });
+    b.addCase(sendFileMessage.rejected, (s, a) => {
+      s.sending = false;
+      s.sendError = a.payload || a.errorChat;
+    });
+    b.addCase(markDelivered.fulfilled, (s, a) => {
+      const cid = a.payload?.conversationId;
+      if (cid != null) s.unreadByConv[cid] = 0;
+    });
+    b.addCase(markRead.fulfilled, (s, a) => {
+      const cid = a.payload?.conversationId;
+      if (cid != null) s.unreadByConv[cid] = 0;
+    });
   },
 });
 
 export default slice.reducer;
-export const { prependLocalMessage, clearChat } = slice.actions;
+export const { prependLocalMessage, clearChat, clearUnreadLocal, incomingMessage } = slice.actions;
 
 /* ======================= Selectors ======================= */
 export const selectConversations = (s) => s.chat?.list || [];
-export const selectConversationsLoading = (s) => s.chat?.loading || false;
-export const selectConversationBox = (id) => (s) => s.chat?.byId[id] || { info: null, messages: [], loading: false };
+export const selectConversationsLoading = (s) => s.chat?.loadingChat || false;
+export const selectConversationBox = (id) => (s) =>
+  s.chat?.byId[id] || { info: null, messages: [], loadingChat: false, canLoadMore: true, oldestCursor: null };
 export const selectChatSending = (s) => s.chat?.sending || false;
+
+export const selectUnreadByConv = (s) => s.chat?.unreadByConv || {};
+export const selectHasAnyUnread = (s) =>
+  Object.values(s.chat?.unreadByConv || {}).some((n) => n > 0);

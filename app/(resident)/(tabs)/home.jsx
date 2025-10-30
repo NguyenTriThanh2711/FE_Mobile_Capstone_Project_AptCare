@@ -22,7 +22,7 @@ import RequestListItem from "@/src/components/RequestListItem";
 export default function ResidentHome() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
-  console.log("ResidentHome: user =", user);
+  // console.log("ResidentHome: user =", user);
 
   const apartments = useMemo(() => dotnetArr(user?.apartments), [user]);
   const apartmentIds = useMemo(
@@ -31,7 +31,7 @@ export default function ResidentHome() {
   );
 
   const recent = dotnetArr(useAppSelector(selectRecentRequests));
-   console.log('resident home recent request', pretty(recent[0]));
+  //  console.log('resident home recent request', pretty(recent[0]));
   const recentLoading = useAppSelector(selectRecentRequestsLoading);
 
   useEffect(() => {

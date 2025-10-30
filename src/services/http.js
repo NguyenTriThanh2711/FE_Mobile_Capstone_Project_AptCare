@@ -1,14 +1,24 @@
 import axios from 'axios';
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './secure-store';
-const APT_URL = process.env.EXPO_PUBLIC_API_URL || 'http://36.50.135.244';
-
+import { Platform } from 'react-native';
+const BASE_URL = Platform.select({
+  android: process.env.EXPO_PUBLIC_API_URL_ANDROID_EMU || process.env.EXPO_PUBLIC_API_URL,
+  ios:     process.env.EXPO_PUBLIC_API_URL_IOS_SIM   || process.env.EXPO_PUBLIC_API_URL,
+  default: process.env.EXPO_PUBLIC_API_URL,
+});
+console.log("[HTTP] BASE_URL =", BASE_URL);
 const http = axios.create({
-  baseURL: APT_URL,
+  baseURL: BASE_URL,
   timeout: 15000,
 });
 
 // ---- Gắn access token vào mọi request
 http.interceptors.request.use(async (config) => {
+  const { method, url, baseURL } = config;
+  // endpoint chính là `url` trong axios config
+  console.log(`[HTTP ->] ${method?.toUpperCase()} ${baseURL}${url}`);
+  if (config.params) console.log("[HTTP ->] params:", JSON.stringify(config.params));
+  if (config.data)   console.log("[HTTP ->] body:",   JSON.stringify(config.data));
   const access = await getAccessToken();
   if (access) config.headers.Authorization = `Bearer ${access}`;
   return config;
@@ -19,7 +29,7 @@ let isRefreshing = false;
 let queue = []; // mỗi item: {resolve, reject, config}
 
 const processQueue = (error, token = null) => {
-  queue.forEach(p => {
+  queue.forEach((p) => {
     if (error) p.reject(error);
     else {
       if (token) p.config.headers.Authorization = `Bearer ${token}`;
@@ -55,9 +65,9 @@ http.interceptors.response.use(
         const refresh = await getRefreshToken();
         if (!refresh) throw new Error('Không có refresh token');
 
-        // gọi API refresh token 
+        // gọi API refresh token
         const { data } = await axios.post(
-          `${APT_URL}/auth/refresh`,
+          `${BASE_URL}/auth/refresh`,
           { refresh },
           { timeout: 10000 }
         );

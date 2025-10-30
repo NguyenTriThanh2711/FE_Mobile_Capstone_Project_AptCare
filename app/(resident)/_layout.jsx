@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack } from 'expo-router';
 
 export default function ResidentStackLayout() {
   return (
@@ -9,14 +9,14 @@ export default function ResidentStackLayout() {
       <Stack.Screen
         name="request-create"
         options={{
-          title: "Tạo yêu cầu",
+          title: 'Tạo yêu cầu',
           // presentation: "modal", // hoặc "card"
-          headerShown: false,     // vì bạn đã tự render header trong file
+          headerShown: false, // vì bạn đã tự render header trong file
         }}
       />
       {/* <Stack.Screen name="device/[id]" options={{ headerShown: false }} /> */}
-      <Stack.Screen name="request/[id]" options={{ headerShown: false}} />
-      <Stack.Screen name="chat/[id]" options={{ headerShown: false}} />
+      <Stack.Screen name="request/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }

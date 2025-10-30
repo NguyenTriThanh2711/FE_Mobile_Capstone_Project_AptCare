@@ -1,6 +1,6 @@
-import React, { use, useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import React, { use, useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
 
 import {
   Colors,
@@ -9,68 +9,72 @@ import {
   appleGreen,
   appleRed,
   borderColor,
-} from "@/src/utils/colors";
-import { Icon } from "@/src/components/Icon.native";
-import { getOrderTypeLabel } from "@/src/helper/request-header";
-import { useAppDispatch, useAppSelector } from "@/src/store";
-import { fetchAppointmentById, selectAppointmentById, selectAppointmentLoading, selectAppointmentError } from "@/src/features/appointments/appointmentsSlice";
-import { pretty } from "@/src/helper/prettyLog";
-import { getConversation } from "@/src/features/chat/chatSlice";
+} from '@/src/utils/colors';
+import { Icon } from '@/src/components/Icon.native';
+import { getOrderTypeLabel } from '@/src/helper/request-header';
+import { useAppDispatch, useAppSelector } from '@/src/store';
+import {
+  fetchAppointmentById,
+  selectAppointmentById,
+  selectAppointmentLoading,
+  selectAppointmentError,
+} from '@/src/features/appointments/appointmentsSlice';
+import { pretty } from '@/src/helper/prettyLog';
+import { getConversation } from '@/src/features/chat/chatSlice';
 
-const CURRENT_USER = { id: "u-1", role: "technician", name: "Technician A" };
+const CURRENT_USER = { id: 'u-1', role: 'technician', name: 'Technician A' };
 const SAMPLE_INSPECTIONS = [
   {
-    id: "insp-1001",
-    title: "Rò rỉ nước phòng tắm",
-    category: "plumbing",
-    description:
-      "Nước rò rỉ quanh chân bồn cầu, cần kiểm tra van và ống dẫn. Có mùi ẩm mốc nhẹ.",
-    residentName: "Nguyễn Văn B",
-    residentId: "res-12",
-    apartment: "B2-12.05",
-    priority: "high",
-    status: "pending", 
-    type : "inspection", 
-    technicianName: "Trần Kỹ Thuật",
-    createdAt: "2025-01-10T09:45:00Z",
-    updatedAt: "2025-01-10T10:00:00Z",
-    scheduledDate: "2025-01-11T14:00:00Z",
-    appointmentId: "appt-7788",
-    faultOwner: "", // BuildingFault | ResidentFault
-    solutionType: "",
-    solution: "-",
+    id: 'insp-1001',
+    title: 'Rò rỉ nước phòng tắm',
+    category: 'plumbing',
+    description: 'Nước rò rỉ quanh chân bồn cầu, cần kiểm tra van và ống dẫn. Có mùi ẩm mốc nhẹ.',
+    residentName: 'Nguyễn Văn B',
+    residentId: 'res-12',
+    apartment: 'B2-12.05',
+    priority: 'high',
+    status: 'pending',
+    type: 'inspection',
+    technicianName: 'Trần Kỹ Thuật',
+    createdAt: '2025-01-10T09:45:00Z',
+    updatedAt: '2025-01-10T10:00:00Z',
+    scheduledDate: '2025-01-11T14:00:00Z',
+    appointmentId: 'appt-7788',
+    faultOwner: '', // BuildingFault | ResidentFault
+    solutionType: '',
+    solution: '-',
   },
   {
-    id: "insp-1002",
-    title: "Điện chập chờn phòng khách",
-    category: "electric",
-    description: "Đèn chớp và ổ cắm nóng. Kiểm tra aptomat và dây nối.",
-    residentName: "Lê Thị C",
-    residentId: "res-33",
-    apartment: "C1-08.02",
-    priority: "medium",
-    status: "in_progress",
-    type : "inspection", 
-    technicianName: "Trần Kỹ Thuật",
-    createdAt: "2025-01-09T07:20:00Z",
-    updatedAt: "2025-01-10T03:30:00Z",
-    scheduledDate: "2025-01-10T09:00:00Z",
-    appointmentId: "appt-8899",
-    faultOwner: "ResidentFault",
-    solutionType: "Replace",
-    solution: "Thay công tắc + ổ cắm chịu tải",
+    id: 'insp-1002',
+    title: 'Điện chập chờn phòng khách',
+    category: 'electric',
+    description: 'Đèn chớp và ổ cắm nóng. Kiểm tra aptomat và dây nối.',
+    residentName: 'Lê Thị C',
+    residentId: 'res-33',
+    apartment: 'C1-08.02',
+    priority: 'medium',
+    status: 'in_progress',
+    type: 'inspection',
+    technicianName: 'Trần Kỹ Thuật',
+    createdAt: '2025-01-09T07:20:00Z',
+    updatedAt: '2025-01-10T03:30:00Z',
+    scheduledDate: '2025-01-10T09:00:00Z',
+    appointmentId: 'appt-8899',
+    faultOwner: 'ResidentFault',
+    solutionType: 'Replace',
+    solution: 'Thay công tắc + ổ cắm chịu tải',
   },
 ];
 
 const THEME = Colors.light;
 
-const Badge = ({ text, tone = "muted" }) => {
+const Badge = ({ text, tone = 'muted' }) => {
   const map = {
     muted: { bg: zincColors[100], color: zincColors[700] },
-    info: { bg: "#F0F9FF", color: appleBlue },
-    success: { bg: "#EAFBE7", color: appleGreen },
-    warning: { bg: "#FFF7ED", color: "#F59E0B" },
-    danger: { bg: "#FEF2F2", color: appleRed },
+    info: { bg: '#F0F9FF', color: appleBlue },
+    success: { bg: '#EAFBE7', color: appleGreen },
+    warning: { bg: '#FFF7ED', color: '#F59E0B' },
+    danger: { bg: '#FEF2F2', color: appleRed },
   };
   const t = map[tone] || map.muted;
   return (
@@ -82,38 +86,38 @@ const Badge = ({ text, tone = "muted" }) => {
 
 export default function InspectionDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState('details');
   const dispatch = useAppDispatch();
 
   const appointment = useAppSelector((state) => selectAppointmentById(state, id));
   const loading = useAppSelector((state) => selectAppointmentLoading(state, id));
   const error = useAppSelector((state) => selectAppointmentError(state, id));
-  
+
   useEffect(() => {
-    if(id) {
+    if (id) {
       dispatch(fetchAppointmentById(id));
     }
   }, [id, dispatch]);
   // console.log('appointment = useAppSelector', pretty(appointment));
-  
-  const isTechnician = CURRENT_USER.role === "technician";
+
+  const isTechnician = CURRENT_USER.role === 'technician';
 
   const statusTone =
-    appointment?.status === "completed"
-      ? "success"
-      : appointment?.status === "in_progress"
-      ? "info"
-      : "muted";
+    appointment?.status === 'completed'
+      ? 'success'
+      : appointment?.status === 'in_progress'
+        ? 'info'
+        : 'muted';
 
   const formatDate = (s) => {
     try {
-      return new Date(s).toLocaleString("vi-VN", {
-        weekday: "short",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
+      return new Date(s).toLocaleString('vi-VN', {
+        weekday: 'short',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
       });
     } catch {
       return s;
@@ -122,28 +126,31 @@ export default function InspectionDetailsScreen() {
 
   // ===== hành động bám swimlane =====
   const handleStartRepair = () => {
-    Alert.alert("Bắt đầu sửa", "Đánh dấu bắt đầu xử lý?", [
-      { text: "Để sau", style: "cancel" },
-      { text: "Bắt đầu", onPress: () => console.log("Start repair -> status=in_progress") },
+    Alert.alert('Bắt đầu sửa', 'Đánh dấu bắt đầu xử lý?', [
+      { text: 'Để sau', style: 'cancel' },
+      { text: 'Bắt đầu', onPress: () => console.log('Start repair -> status=in_progress') },
     ]);
   };
 
   const handleUpdateProgress = () => {
-    Alert.alert("Cập nhật tiến độ", "Chọn cập nhật:", [
-      { text: "Huỷ", style: "cancel" },
-      { text: "Upload ảnh", onPress: () => console.log("Upload photos flow (placeholder)") },
-      { text: "Đang xử lý", onPress: () => console.log("status=in_progress") },
-      { text: "Hoàn tất", onPress: () => console.log("status=completed") },
+    Alert.alert('Cập nhật tiến độ', 'Chọn cập nhật:', [
+      { text: 'Huỷ', style: 'cancel' },
+      { text: 'Upload ảnh', onPress: () => console.log('Upload photos flow (placeholder)') },
+      { text: 'Đang xử lý', onPress: () => console.log('status=in_progress') },
+      { text: 'Hoàn tất', onPress: () => console.log('status=completed') },
     ]);
   };
 
   const handleMarkCompleted = () => {
-    Alert.alert("Thanh toán", "Khách đã thanh toán?", [
-      { text: "Chưa", onPress: () => router.push(`/payment?appointmentId=${inspection.appointmentId}`) },
+    Alert.alert('Thanh toán', 'Khách đã thanh toán?', [
       {
-        text: "Rồi",
+        text: 'Chưa',
+        onPress: () => router.push(`/payment?appointmentId=${inspection.appointmentId}`),
+      },
+      {
+        text: 'Rồi',
         onPress: () => {
-          console.log("Paid -> Mark completed");
+          console.log('Paid -> Mark completed');
           router.push(
             `/reports/create?inspectionId=${inspection.id}&appointmentId=${inspection.appointmentId}`
           );
@@ -153,14 +160,21 @@ export default function InspectionDetailsScreen() {
   };
 
   const handleCreateReport = () => {
-    router.push(
-      `/reports/create?inspectionId=${inspection.id}&appointmentId=${inspection.appointmentId}`
-    );
+    const apptId = appointment?.appointmentId;
+    if (!apptId) {
+      Alert.alert('Thiếu dữ liệu', 'Vui lòng khởi động lại ứng dụng.');
+      return;
+    }
+
+    router.push({
+      pathname: '/(technician)/inspectReport-create',
+      params: { appointmentId: String(apptId) },
+    });
   };
 
   const handleCreateChatWithResident = () => {
-    dispatch(getConversation(appointment?.repairRequest?.apartment?.residentId))
-  }
+    dispatch(getConversation(appointment?.repairRequest?.apartment?.residentId));
+  };
 
   return (
     <View style={styles.container}>
@@ -173,22 +187,26 @@ export default function InspectionDetailsScreen() {
               style={styles.backBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel="Quay lại"
-            >
+              accessibilityLabel="Quay lại">
               <Icon name="chevron.left" size={22} color={appleBlue} />
             </Pressable>
             <Icon name="wrench.and.screwdriver" size={22} color={appleBlue} />
-            <Text style={styles.headerCategory}>{getOrderTypeLabel(appointment?.repairRequest?.type) || 'loại appointment'}</Text>
+            <Text style={styles.headerCategory}>
+              {getOrderTypeLabel(appointment?.repairRequest?.type) || 'loại appointment'}
+            </Text>
           </View>
 
           <Badge
-            text={((appointment?.repairRequest?.isEmergency) ? "KHẨN CẤP" : "BÌNH THƯỜNG" ).toUpperCase()}
+            text={(appointment?.repairRequest?.isEmergency
+              ? 'KHẨN CẤP'
+              : 'BÌNH THƯỜNG'
+            ).toUpperCase()}
             tone={
               appointment?.repairRequest?.isEmergency === true
-                ? "danger"
+                ? 'danger'
                 : appointment?.repairRequest?.isEmergency === false
-                ? "muted"
-                : "warning"
+                  ? 'muted'
+                  : 'warning'
             }
           />
         </View>
@@ -197,9 +215,18 @@ export default function InspectionDetailsScreen() {
         </Text>
 
         <View style={styles.metaRow}>
-          <Badge text={(
-            (appointment?.status == 'Assigned' ? 'Đã phân công' : appointment?.status == 'InProgress' ? 'Đang xử lý' : appointment?.status == 'Completed' ? 'Đã hoàn tất' : 'Status')
-            || "").toUpperCase()} tone={statusTone} />
+          <Badge
+            text={(
+              (appointment?.status == 'Assigned'
+                ? 'Đã phân công'
+                : appointment?.status == 'InProgress'
+                  ? 'Đang xử lý'
+                  : appointment?.status == 'Completed'
+                    ? 'Đã hoàn tất'
+                    : 'Status') || ''
+            ).toUpperCase()}
+            tone={statusTone}
+          />
           {appointment?.technicians.map((tech) => (
             <View style={styles.metaItem} key={tech.id}>
               <Icon name="person" size={16} color={zincColors[500]} />
@@ -211,14 +238,13 @@ export default function InspectionDetailsScreen() {
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        {["details", "updates", "chat"].map((tab) => (
+        {['details', 'updates', 'chat'].map((tab) => (
           <Pressable
             key={tab}
             onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-          >
+            style={[styles.tab, activeTab === tab && styles.activeTab]}>
             <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab === "details" ? "Chi tiết" : tab === "updates" ? "Tiến độ" : "Chat"}
+              {tab === 'details' ? 'Chi tiết' : tab === 'updates' ? 'Tiến độ' : 'Chat'}
             </Text>
           </Pressable>
         ))}
@@ -226,7 +252,7 @@ export default function InspectionDetailsScreen() {
 
       {/* Content */}
       <ScrollView style={styles.content}>
-        {activeTab === "details" && (
+        {activeTab === 'details' && (
           <View style={styles.sectionWrap}>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Mô tả</Text>
@@ -236,31 +262,63 @@ export default function InspectionDetailsScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Thông tin </Text>
               <View style={styles.infoBlock}>
-                <Item icon="doc.text" label="ID yêu cầu" value={appointment?.repairRequest?.repairRequestId || "-"} />
-                
-                <Item icon="calendar" label="ID cuộc hẹn" value={appointment?.appointmentId || "-"} />
-                <Item icon="flag" label="Lỗi của chủ nhà" value={appointment?.faultOwner || "-"} />
-                <Item icon="wrench" label="Loại giải pháp" value={appointment?.solutionType || "-"} />
-                <Item icon="clock" label="Ngày tạo" value={formatDate(appointment?.createdAt) || "-"} />
-                <Item icon="list.bullet" label="Giải pháp" value={appointment?.solution || "-"} />
+                <Item
+                  icon="doc.text"
+                  label="ID yêu cầu"
+                  value={appointment?.repairRequest?.repairRequestId || '-'}
+                />
+
+                <Item
+                  icon="calendar"
+                  label="ID cuộc hẹn"
+                  value={appointment?.appointmentId || '-'}
+                />
+                <Item icon="flag" label="Lỗi của chủ nhà" value={appointment?.faultOwner || '-'} />
+                <Item
+                  icon="wrench"
+                  label="Loại giải pháp"
+                  value={appointment?.solutionType || '-'}
+                />
+                <Item
+                  icon="clock"
+                  label="Ngày tạo"
+                  value={formatDate(appointment?.createdAt) || '-'}
+                />
+                <Item icon="list.bullet" label="Giải pháp" value={appointment?.solution || '-'} />
               </View>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Cư dân / Căn hộ</Text>
               <View style={styles.infoBlock}>
-                <Item icon="person" label="ID người dùng" value={appointment?.repairRequest?.apartment?.residentId || "-"} />
-                <Item icon="person.fill" label="Cư dân" value={appointment?.repairRequest?.apartment?.residentName || "-"} />
-                <Item icon="building.2" label="Căn hộ" value={appointment?.repairRequest?.apartment?.room || "-"} />
+                <Item
+                  icon="person"
+                  label="ID người dùng"
+                  value={appointment?.repairRequest?.apartment?.residentId || '-'}
+                />
+                <Item
+                  icon="person.fill"
+                  label="Cư dân"
+                  value={appointment?.repairRequest?.apartment?.residentName || '-'}
+                />
+                <Item
+                  icon="building.2"
+                  label="Căn hộ"
+                  value={appointment?.repairRequest?.apartment?.room || '-'}
+                />
                 {appointment?.startTime ? (
-                  <Item icon="clock.fill" label="Lịch hẹn" value={formatDate(appointment?.startTime)} />
+                  <Item
+                    icon="clock.fill"
+                    label="Lịch hẹn"
+                    value={formatDate(appointment?.startTime)}
+                  />
                 ) : null}
               </View>
             </View>
           </View>
         )}
 
-        {activeTab === "updates" && (
+        {activeTab === 'updates' && (
           <View style={styles.sectionWrap}>
             <Text style={styles.sectionTitle}>Dòng thời gian</Text>
             <View style={styles.timeline}>
@@ -268,9 +326,9 @@ export default function InspectionDetailsScreen() {
                 icon="plus.circle"
                 title="Tạo yêu cầu / Inspection"
                 date={formatDate(appointment?.createdAt)}
-                desc={`Tạo bởi ${appointment?.repairRequest?.apartment?.users?.residentName || "Cư dân"}`}
+                desc={`Tạo bởi ${appointment?.repairRequest?.apartment?.users?.residentName || 'Cư dân'}`}
               />
-              {(appointment?.status === "in_progress" || appointment?.status === "completed") && (
+              {(appointment?.status === 'in_progress' || appointment?.status === 'completed') && (
                 <TimelineItem
                   icon="play.circle"
                   title="Đã bắt đầu sửa"
@@ -278,7 +336,7 @@ export default function InspectionDetailsScreen() {
                   desc="Kỹ thuật viên bắt đầu xử lý"
                 />
               )}
-              {appointment?.status === "completed" && (
+              {appointment?.status === 'completed' && (
                 <TimelineItem
                   icon="checkmark.circle"
                   title="Hoàn tất"
@@ -290,7 +348,7 @@ export default function InspectionDetailsScreen() {
           </View>
         )}
 
-        {activeTab === "chat" && (
+        {activeTab === 'chat' && (
           <View style={styles.sectionWrap}>
             <View style={styles.chatPlaceholder}>
               <Icon name="chat" size={44} color={zincColors[500]} />
@@ -305,35 +363,30 @@ export default function InspectionDetailsScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        {(
-          appointment?.status === "Confirmed"
-          || appointment?.status === "InProgress"
-        ) ? 
-        <>
-        <Pressable style={styles.primaryBtn} onPress={handleCreateReport}>
-          <Icon name="doc.text" size={20} color={THEME.background} />
-          <Text style={styles.primaryBtnText}>Báo cáo khảo sát</Text>
-        </Pressable>
-        </>
-        : null}
-        {(
-          appointment?.status === "Assigned"
-        ) ? 
-        <>
-        <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
-          <Icon name="play.circle" size={20} color={appleBlue} />
-          <Text style={styles.secondaryBtnText}>Bắt đầu gặp</Text>
-        </Pressable>
-        </>: null}
-        {(appointment?.status === "InProgress") ? (
-          <Pressable style={styles.secondaryBtn} onPress={handleUpdateProgress}>
-              <Icon name="pencil" size={20} color={appleBlue} />
-              <Text style={styles.secondaryBtnText}>Cập nhật</Text>
+        {appointment?.status === 'Confirmed' || appointment?.status === 'InProgress' ? (
+          <>
+            <Pressable style={styles.primaryBtn} onPress={handleCreateReport}>
+              <Icon name="doc.text" size={20} color={THEME.background} />
+              <Text style={styles.primaryBtnText}>Báo cáo khảo sát</Text>
             </Pressable>
+          </>
+        ) : null}
+        {appointment?.status === 'Assigned' ? (
+          <>
+            <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
+              <Icon name="play.circle" size={20} color={appleBlue} />
+              <Text style={styles.secondaryBtnText}>Bắt đầu gặp</Text>
+            </Pressable>
+          </>
+        ) : null}
+        {appointment?.status === 'InProgress' ? (
+          <Pressable style={styles.secondaryBtn} onPress={handleUpdateProgress}>
+            <Icon name="pencil" size={20} color={appleBlue} />
+            <Text style={styles.secondaryBtnText}>Cập nhật</Text>
+          </Pressable>
         ) : null}
         {isTechnician ? (
           <>
-            
             <Pressable style={styles.secondaryBtn} onPress={handleMarkCompleted}>
               <Icon name="checkmark.circle" size={20} color={appleGreen} />
               <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
@@ -356,7 +409,7 @@ function Item({ icon, label, value }) {
       <Icon name={icon} size={16} color={zincColors[500]} />
       <Text style={styles.itemLabel}>{label}</Text>
       <Text style={styles.itemValue} numberOfLines={1}>
-        {value || "-"}
+        {value || '-'}
       </Text>
     </View>
   );
@@ -378,7 +431,7 @@ function TimelineItem({ icon, title, date, desc }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: THEME.background , paddingTop: 30},
+  container: { flex: 1, backgroundColor: THEME.background, paddingTop: 30 },
   header: {
     padding: 20,
     backgroundColor: THEME.background,
@@ -386,29 +439,29 @@ const styles = StyleSheet.create({
     borderBottomColor: borderColor,
   },
   headerTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 10,
   },
-  headerLeft: { flexDirection: "row", alignItems: "center" },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
   backBtn: {
     marginRight: 8,
-    padding: 4,          // để dễ bấm hơn (kết hợp hitSlop)
+    padding: 4, // để dễ bấm hơn (kết hợp hitSlop)
     borderRadius: 999,
   },
   headerCategory: {
     marginLeft: 8,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: '700',
     color: appleBlue,
     letterSpacing: 0.5,
   },
-  title: { fontSize: 24, fontWeight: "800", color: THEME.text, marginVertical: 6, lineHeight: 30 },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
+  title: { fontSize: 24, fontWeight: '800', color: THEME.text, marginVertical: 6, lineHeight: 30 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -418,59 +471,59 @@ const styles = StyleSheet.create({
   metaText: { color: zincColors[600], fontSize: 12 },
 
   badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  badgeText: { fontSize: 12, fontWeight: "700" },
+  badgeText: { fontSize: 12, fontWeight: '700' },
 
   tabContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     backgroundColor: zincColors[50],
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: borderColor,
   },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 14 },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 14 },
   activeTab: { borderBottomWidth: 2, borderBottomColor: appleBlue },
-  tabText: { fontSize: 14, fontWeight: "500", color: zincColors[500] },
-  activeTabText: { color: appleBlue, fontWeight: "700" },
+  tabText: { fontSize: 14, fontWeight: '500', color: zincColors[500] },
+  activeTabText: { color: appleBlue, fontWeight: '700' },
 
   content: { flex: 1 },
   sectionWrap: { padding: 20 },
   section: { marginBottom: 28 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: THEME.text, marginBottom: 14 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: THEME.text, marginBottom: 14 },
   description: { fontSize: 16, color: THEME.text, lineHeight: 22 },
 
   infoBlock: { gap: 12 },
   itemRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 14,
     backgroundColor: zincColors[100],
     borderRadius: 12,
   },
-  itemLabel: { marginLeft: 10, color: zincColors[600], fontWeight: "600", flex: 1, fontSize: 14 },
-  itemValue: { color: THEME.text, fontWeight: "700", fontSize: 14, maxWidth: "55%" },
+  itemLabel: { marginLeft: 10, color: zincColors[600], fontWeight: '600', flex: 1, fontSize: 14 },
+  itemValue: { color: THEME.text, fontWeight: '700', fontSize: 14, maxWidth: '55%' },
 
   timeline: { paddingLeft: 8, marginTop: 6 },
-  timelineItem: { flexDirection: "row", marginBottom: 20 },
+  timelineItem: { flexDirection: 'row', marginBottom: 20 },
   timelineIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
     backgroundColor: THEME.background,
     borderWidth: 1,
     borderColor: borderColor,
   },
-  timelineTitle: { fontSize: 16, fontWeight: "700", color: THEME.text },
+  timelineTitle: { fontSize: 16, fontWeight: '700', color: THEME.text },
   timelineDate: { marginTop: 2, fontSize: 12, color: zincColors[500] },
   timelineDesc: { marginTop: 6, fontSize: 14, color: zincColors[600], lineHeight: 20 },
 
-  chatPlaceholder: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  chatPlaceholder: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   chatText: { marginTop: 12, marginBottom: 20, color: zincColors[600], fontSize: 15 },
 
   actionBar: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 10,
     padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -479,28 +532,28 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     flex: 1.1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: appleBlue,
     paddingVertical: 14,
-    paddingLeft:12,
+    paddingLeft: 12,
     borderRadius: 12,
   },
-  primaryBtnText: { marginLeft: 1, color: THEME.background, fontSize: 15, fontWeight: "700" },
+  primaryBtnText: { marginLeft: 1, color: THEME.background, fontSize: 15, fontWeight: '700' },
 
   secondaryBtn: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: zincColors[50],
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: borderColor,
   },
-  secondaryBtnText: { marginLeft: 8, color: appleBlue, fontSize: 16, fontWeight: "700" },
+  secondaryBtnText: { marginLeft: 8, color: appleBlue, fontSize: 16, fontWeight: '700' },
 
   ghostBtn: {
     paddingHorizontal: 18,
@@ -508,7 +561,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: appleBlue,
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
   },
-  ghostBtnText: { color: appleBlue, fontWeight: "700" },
+  ghostBtnText: { color: appleBlue, fontWeight: '700' },
 });
