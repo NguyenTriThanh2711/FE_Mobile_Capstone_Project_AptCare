@@ -45,7 +45,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  chipActive: { backgroundColor: '#E6F0FF', borderColor: '#BBD7FF' },
+  chipActive: { backgroundColor: '#E6F0FF', borderColor: '#007AFF' },
   chipText: { fontSize: 13, color: '#475569', fontWeight: '600' },
   chipTextActive: { color: '#0A66C2' },
 });

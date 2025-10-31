@@ -2,6 +2,8 @@ import React, { memo } from 'react';
 import { Pressable, Text, View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Icon } from '@/src/components/Icon.native';
+import { capitalizeFirst } from '../helper/capitalizeFirst';
+import Badge from './Badge';
 
 const colors = {
   primary: '#007AFF',
@@ -14,17 +16,6 @@ const colors = {
   border: '#E5E7EB',
 };
 
-function statusTone(status) {
-  const s = String(status || '').toLowerCase();
-  if (['completed', 'done', 'resolved'].includes(s))
-    return { bg: '#EAFBE7', fg: '#2E7D32', label: 'Hoàn tất' };
-  if (['assigned', 'working', 'in_progress'].includes(s))
-    return { bg: '#E6F0FF', fg: '#1565C0', label: 'Đã giao' };
-  if (['pending', 'new', 'created'].includes(s))
-    return { bg: '#F3F4F6', fg: '#374151', label: 'Mới' };
-  if (['cancelled', 'rejected'].includes(s)) return { bg: '#FEF2F2', fg: '#B91C1C', label: 'Huỷ' };
-  return { bg: '#F3F4F6', fg: '#374151', label: status || '-' };
-}
 
 function fmtHM(iso) {
   if (!iso) return '-';
@@ -53,22 +44,22 @@ function Pill({ icon, children }) {
  * - Để parent bọc box (mỗi appointment 1 box riêng)
  */
 function AppointmentCard({ appt, onPress }) {
-  const tone = statusTone(appt?.status);
-
-  const room = appt?.apartment?.roomNumber || '-';
-  const floor = appt?.apartment?.floor ?? appt?.floor;
-  const resident = appt?.resident || {};
+  const status = appt?.status || 'New';
+  const emergency = appt?.repairRequest?.isEmergency ? 'Emergency' : 'Normal';
+  const room = appt?.repairRequest?.apartment?.room || '-';
+  const floor = appt?.repairRequest?.apartment?.floor ?? '-';
+  const resident = appt?.repairRequest?.apartment?.users || {};
   const residentName =
     resident?.firstName || resident?.lastName
       ? `${resident?.firstName || ''} ${resident?.lastName || ''}`.trim()
-      : undefined;
-  const residentPhone = resident?.phoneNumber;
+      : '-';
+  const residentPhone = appt?.repairRequest?.apartment?.users?.phoneNumber || '-';
   const timeLabel = `${fmtHM(appt?.startTime)}${appt?.endTime ? ` - ${fmtHM(appt.endTime)}` : ''}`;
-
+  const title =  appt?.repairRequest?.object || appt?.object || 'Cuộc hẹn';
   const openDetail = () => {
     if (onPress) return onPress();
     const id = appt?.repairRequestId ?? appt?.appointmentId;
-    if (id) router.push(`/inspection/${id}`);
+    if (id) router.push(`/appointment/${id}`);
   };
 
   return (
@@ -81,10 +72,9 @@ function AppointmentCard({ appt, onPress }) {
           <Icon name="clock" size={14} color={colors.primary} />
           <Text style={sx.timeTxt}>{timeLabel}</Text>
         </View>
-        <View style={[sx.statusChip, { backgroundColor: tone.bg }]}>
-          <Text style={[sx.statusTxt, { color: tone.fg }]} numberOfLines={1}>
-            {tone.label}
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Badge status={emergency} />
+          <Badge status={status} style={[sx.statusChip]} />
         </View>
       </View>
 
@@ -94,7 +84,7 @@ function AppointmentCard({ appt, onPress }) {
           <Icon name="wrench.and.screwdriver" size={18} color="#fff" />
         </View>
         <Text style={sx.title} numberOfLines={1}>
-          {appt?.object || appt?.title || 'Cuộc hẹn sửa chữa'}
+          {capitalizeFirst(title)}
         </Text>
       </View>
 
@@ -104,21 +94,24 @@ function AppointmentCard({ appt, onPress }) {
         {floor !== undefined && floor !== null ? (
           <Pill icon="list.number">Tầng {String(floor)}</Pill>
         ) : null}
-        {!!appt?.appointmentId && <Pill icon="number">{`#${appt.appointmentId}`}</Pill>}
+        {!!appt?.appointmentId && <Pill icon="number">{`IdCH: ${appt.appointmentId}`}</Pill>}
       </View>
 
       {/* Resident */}
       {(residentName || residentPhone) && (
         <View style={sx.residentBlock}>
+          
           {residentName ? (
-            <Text style={sx.residentName} numberOfLines={1}>
-              {residentName}
-            </Text>
+            <>
+              <Text style={sx.residentName} numberOfLines={1}>
+                <Icon name="person" size={14} color={colors.textSecondary} /> {' '+residentName}
+              </Text>
+            </>
           ) : null}
           {residentPhone ? (
             <View style={sx.phoneRow}>
               <Icon name="phone" size={14} color={colors.textSecondary} />
-              <Text style={sx.phoneTxt}>{residentPhone}</Text>
+              <Text style={sx.phoneTxt}>{' '+residentPhone}</Text>
             </View>
           ) : null}
         </View>

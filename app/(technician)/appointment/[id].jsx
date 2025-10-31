@@ -21,70 +21,14 @@ import {
 } from '@/src/features/appointments/appointmentsSlice';
 import { pretty } from '@/src/helper/prettyLog';
 import { getConversation } from '@/src/features/chat/chatSlice';
-
-const CURRENT_USER = { id: 'u-1', role: 'technician', name: 'Technician A' };
-const SAMPLE_INSPECTIONS = [
-  {
-    id: 'insp-1001',
-    title: 'Rò rỉ nước phòng tắm',
-    category: 'plumbing',
-    description: 'Nước rò rỉ quanh chân bồn cầu, cần kiểm tra van và ống dẫn. Có mùi ẩm mốc nhẹ.',
-    residentName: 'Nguyễn Văn B',
-    residentId: 'res-12',
-    apartment: 'B2-12.05',
-    priority: 'high',
-    status: 'pending',
-    type: 'inspection',
-    technicianName: 'Trần Kỹ Thuật',
-    createdAt: '2025-01-10T09:45:00Z',
-    updatedAt: '2025-01-10T10:00:00Z',
-    scheduledDate: '2025-01-11T14:00:00Z',
-    appointmentId: 'appt-7788',
-    faultOwner: '', // BuildingFault | ResidentFault
-    solutionType: '',
-    solution: '-',
-  },
-  {
-    id: 'insp-1002',
-    title: 'Điện chập chờn phòng khách',
-    category: 'electric',
-    description: 'Đèn chớp và ổ cắm nóng. Kiểm tra aptomat và dây nối.',
-    residentName: 'Lê Thị C',
-    residentId: 'res-33',
-    apartment: 'C1-08.02',
-    priority: 'medium',
-    status: 'in_progress',
-    type: 'inspection',
-    technicianName: 'Trần Kỹ Thuật',
-    createdAt: '2025-01-09T07:20:00Z',
-    updatedAt: '2025-01-10T03:30:00Z',
-    scheduledDate: '2025-01-10T09:00:00Z',
-    appointmentId: 'appt-8899',
-    faultOwner: 'ResidentFault',
-    solutionType: 'Replace',
-    solution: 'Thay công tắc + ổ cắm chịu tải',
-  },
-];
+import Badge from '@/src/components/Badge';
+import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
+import { timeDayDate } from '@/src/utils/date';
+import ReportListItem from '@/src/components/ReportListItem';
 
 const THEME = Colors.light;
 
-const Badge = ({ text, tone = 'muted' }) => {
-  const map = {
-    muted: { bg: zincColors[100], color: zincColors[700] },
-    info: { bg: '#F0F9FF', color: appleBlue },
-    success: { bg: '#EAFBE7', color: appleGreen },
-    warning: { bg: '#FFF7ED', color: '#F59E0B' },
-    danger: { bg: '#FEF2F2', color: appleRed },
-  };
-  const t = map[tone] || map.muted;
-  return (
-    <View style={[styles.badge, { backgroundColor: t.bg }]}>
-      <Text style={[styles.badgeText, { color: t.color }]}>{text}</Text>
-    </View>
-  );
-};
-
-export default function InspectionDetailsScreen() {
+export default function AppointmentDetailsScreen() {
   const { id } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState('details');
   const dispatch = useAppDispatch();
@@ -92,39 +36,16 @@ export default function InspectionDetailsScreen() {
   const appointment = useAppSelector((state) => selectAppointmentById(state, id));
   const loading = useAppSelector((state) => selectAppointmentLoading(state, id));
   const error = useAppSelector((state) => selectAppointmentError(state, id));
+  const inspection = appointment?.inspection || {};
+  const allReportsById = useAppSelector((s) => s.inspectionReports.byId);
 
   useEffect(() => {
     if (id) {
       dispatch(fetchAppointmentById(id));
     }
   }, [id, dispatch]);
-  // console.log('appointment = useAppSelector', pretty(appointment));
+  console.log('appointment = useAppSelector', pretty(appointment));
 
-  const isTechnician = CURRENT_USER.role === 'technician';
-
-  const statusTone =
-    appointment?.status === 'completed'
-      ? 'success'
-      : appointment?.status === 'in_progress'
-        ? 'info'
-        : 'muted';
-
-  const formatDate = (s) => {
-    try {
-      return new Date(s).toLocaleString('vi-VN', {
-        weekday: 'short',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return s;
-    }
-  };
-
-  // ===== hành động bám swimlane =====
   const handleStartRepair = () => {
     Alert.alert('Bắt đầu sửa', 'Đánh dấu bắt đầu xử lý?', [
       { text: 'Để sau', style: 'cancel' },
@@ -165,7 +86,6 @@ export default function InspectionDetailsScreen() {
       Alert.alert('Thiếu dữ liệu', 'Vui lòng khởi động lại ứng dụng.');
       return;
     }
-
     router.push({
       pathname: '/(technician)/inspectReport-create',
       params: { appointmentId: String(apptId) },
@@ -175,7 +95,14 @@ export default function InspectionDetailsScreen() {
   const handleCreateChatWithResident = () => {
     dispatch(getConversation(appointment?.repairRequest?.apartment?.residentId));
   };
+  const goInspectionReportDetail = (reportId) => {
+    router.push({ pathname: '/(technician)/inspectReport-detail/[id]', params: { id: String(reportId) } });
+  };
+  const reportIds = [
 
+  ]
+
+  
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -196,39 +123,16 @@ export default function InspectionDetailsScreen() {
             </Text>
           </View>
 
-          <Badge
-            text={(appointment?.repairRequest?.isEmergency
-              ? 'KHẨN CẤP'
-              : 'BÌNH THƯỜNG'
-            ).toUpperCase()}
-            tone={
-              appointment?.repairRequest?.isEmergency === true
-                ? 'danger'
-                : appointment?.repairRequest?.isEmergency === false
-                  ? 'muted'
-                  : 'warning'
-            }
-          />
+          <Badge status={(appointment?.repairRequest?.isEmergency) ? 'Emergency' : 'Normal'}/>
         </View>
         <Text style={styles.title} numberOfLines={2}>
-          {appointment?.repairRequest?.object || '-Tên cuộc hẹn-'}
+          {capitalizeFirst(appointment?.repairRequest?.object) || '-Tên cuộc hẹn-'}
         </Text>
 
         <View style={styles.metaRow}>
-          <Badge
-            text={(
-              (appointment?.status == 'Assigned'
-                ? 'Đã phân công'
-                : appointment?.status == 'InProgress'
-                  ? 'Đang xử lý'
-                  : appointment?.status == 'Completed'
-                    ? 'Đã hoàn tất'
-                    : 'Status') || ''
-            ).toUpperCase()}
-            tone={statusTone}
-          />
+          <Badge status={appointment?.status} />
           {appointment?.technicians.map((tech) => (
-            <View style={styles.metaItem} key={tech.id}>
+            <View style={styles.metaItem} key={tech.userId}>
               <Icon name="person" size={16} color={zincColors[500]} />
               <Text style={styles.metaText}>KTV. {tech.lastName}</Text>
             </View>
@@ -256,7 +160,7 @@ export default function InspectionDetailsScreen() {
           <View style={styles.sectionWrap}>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Mô tả</Text>
-              <Text style={styles.description}>{appointment?.repairRequest?.description}</Text>
+              <Text style={styles.description}>{capitalizeFirst(appointment?.repairRequest?.description)}</Text>
             </View>
 
             <View style={styles.section}>
@@ -282,16 +186,57 @@ export default function InspectionDetailsScreen() {
                 <Item
                   icon="clock"
                   label="Ngày tạo"
-                  value={formatDate(appointment?.createdAt) || '-'}
+                  value={timeDayDate(appointment?.createdAt) || '-'}
                 />
                 <Item icon="list.bullet" label="Giải pháp" value={appointment?.solution || '-'} />
               </View>
             </View>
 
+            {/* Inspection Reports */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Cư dân / Căn hộ</Text>
+              <Text style={styles.sectionTitle}>Báo cáo khảo sát</Text>
+                {/* {loadingReports && reportIds.length === 0 ? (
+                  <Text style={{ color: zincColors[500] }}>Đang tải danh sách báo cáo…</Text>
+                ) : reportIds.length === 0 ? (
+                  <Text style={{ color: zincColors[500] }}>Chưa có báo cáo nào.</Text>
+                ) : ( */}
+                  <View style={{ gap: 10 }}>
+                    {reportIds.map((irid, idx) => (
+                      <ReportListItem
+                        key={irid}
+                        index={idx + 1} // "Báo cáo [x]"
+                        report={reportIds[irid]}
+                        type='Inspection'
+                        onPress={() => goInspectionReportDetail(irid)}
+                      />
+                    ))}
+                  </View>
+                {/* )} */}
+            </View>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Báo cáo sửa chữa</Text>
+                {/* {loadingReports && reportIds.length === 0 ? (
+                  <Text style={{ color: zincColors[500] }}>Đang tải danh sách báo cáo…</Text>
+                ) : reportIds.length === 0 ? (
+                  <Text style={{ color: zincColors[500] }}>Chưa có báo cáo nào.</Text>
+                ) : ( 
+                  <View style={{ gap: 10 }}>
+                    {reportIds.map((rrid, idx) => (
+                      <ReportListItem
+                        key={rrid}
+                        index={idx + 1} // "Báo cáo [x]"
+                        report={reportIds[rrid]}
+                        type='Repair'
+                        onPress={() => goRepairReportDetail(rrid)}
+                      />
+                    ))}
+                  </View>
+                )} */}
+            </View>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Căn hộ</Text>
               <View style={styles.infoBlock}>
-                <Item
+                {/* <Item
                   icon="person"
                   label="ID người dùng"
                   value={appointment?.repairRequest?.apartment?.residentId || '-'}
@@ -300,17 +245,22 @@ export default function InspectionDetailsScreen() {
                   icon="person.fill"
                   label="Cư dân"
                   value={appointment?.repairRequest?.apartment?.residentName || '-'}
-                />
+                /> */}
                 <Item
                   icon="building.2"
                   label="Căn hộ"
-                  value={appointment?.repairRequest?.apartment?.room || '-'}
+                  value={appointment?.repairRequest?.apartment?.roomNumber || '-'}
+                />
+                <Item
+                  icon="door.left.hand.closed"
+                  label="Lầu"
+                  value={appointment?.repairRequest?.apartment?.floor || '-'}
                 />
                 {appointment?.startTime ? (
                   <Item
                     icon="clock.fill"
                     label="Lịch hẹn"
-                    value={formatDate(appointment?.startTime)}
+                    value={timeDayDate(appointment?.startTime)}
                   />
                 ) : null}
               </View>
@@ -325,14 +275,14 @@ export default function InspectionDetailsScreen() {
               <TimelineItem
                 icon="plus.circle"
                 title="Tạo yêu cầu / Inspection"
-                date={formatDate(appointment?.createdAt)}
+                date={timeDayDate(appointment?.createdAt)}
                 desc={`Tạo bởi ${appointment?.repairRequest?.apartment?.users?.residentName || 'Cư dân'}`}
               />
               {(appointment?.status === 'in_progress' || appointment?.status === 'completed') && (
                 <TimelineItem
                   icon="play.circle"
                   title="Đã bắt đầu sửa"
-                  date={formatDate(appointment?.updatedAt)}
+                  date={timeDayDate(appointment?.updatedAt)}
                   desc="Kỹ thuật viên bắt đầu xử lý"
                 />
               )}
@@ -340,7 +290,7 @@ export default function InspectionDetailsScreen() {
                 <TimelineItem
                   icon="checkmark.circle"
                   title="Hoàn tất"
-                  date={formatDate(appointment?.updatedAt)}
+                  date={timeDayDate(appointment?.updatedAt)}
                   desc="Đã đánh dấu hoàn tất"
                 />
               )}
@@ -352,7 +302,7 @@ export default function InspectionDetailsScreen() {
           <View style={styles.sectionWrap}>
             <View style={styles.chatPlaceholder}>
               <Icon name="chat" size={44} color={zincColors[500]} />
-              <Text style={styles.chatText}>Tin nhắn sẽ hiển thị tại đây</Text>
+              {/* <Text style={styles.chatText}>Tin nhắn sẽ hiển thị tại đây</Text> */}
               <Pressable style={styles.ghostBtn} onPress={handleCreateChatWithResident}>
                 <Text style={styles.ghostBtnText}>Mở hội thoại</Text>
               </Pressable>
@@ -363,7 +313,7 @@ export default function InspectionDetailsScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        {appointment?.status === 'Confirmed' || appointment?.status === 'InProgress' ? (
+        {appointment?.status === 'Pending' || appointment?.status === 'InProgress' ? (
           <>
             <Pressable style={styles.primaryBtn} onPress={handleCreateReport}>
               <Icon name="doc.text" size={20} color={THEME.background} />
@@ -385,19 +335,14 @@ export default function InspectionDetailsScreen() {
             <Text style={styles.secondaryBtnText}>Cập nhật</Text>
           </Pressable>
         ) : null}
-        {isTechnician ? (
-          <>
+        
+          
             <Pressable style={styles.secondaryBtn} onPress={handleMarkCompleted}>
               <Icon name="checkmark.circle" size={20} color={appleGreen} />
               <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
             </Pressable>
-          </>
-        ) : (
-          <Pressable style={styles.secondaryBtn} onPress={handleChat}>
-            <Icon name="chat" size={20} color={appleBlue} />
-            <Text style={styles.secondaryBtnText}>Nhắn kỹ thuật</Text>
-          </Pressable>
-        )}
+          
+        
       </View>
     </View>
   );

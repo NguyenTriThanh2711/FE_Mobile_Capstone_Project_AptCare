@@ -10,11 +10,11 @@ import { Icon } from '@/src/components/Icon.native';
 import MUITextField from '@/src/components/common/MUITextField';
 import ChipRadioGroup from '@/src/components/ChipRadioGroup';
 import { Colors } from '@/src/utils/colors';
-import { http } from '@/src/services/http';
+import http from '@/src/services/http';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
-// ===== Enums (theo BE) =====
+// ===== Enums  =====
 const FaultOwner = {
   BuildingFault: 1,
   ResidentFault: 2,
@@ -25,7 +25,6 @@ const SolutionType = {
   Outsource: 3,
 };
 
-// ===== Options hiển thị =====
 const FAULT_OWNER_OPTIONS = [
   { label: 'Lỗi tòa nhà', value: FaultOwner.BuildingFault },
   { label: 'Lỗi cư dân', value: FaultOwner.ResidentFault },
@@ -68,13 +67,9 @@ export default function CreateInspectionReportScreen() {
     },
   });
 
-  // ===== Submit API =====
   const onSubmit = async (values) => {
     try {
-      // Endpoint bạn map theo BE — đặt theo chuẩn REST:
-      // BE method: GenerateInspectionReportAsync(CreateInspectionReporDto dto)
-      // Gợi ý endpoint: "/api/inspections/reports/generate"
-      const { data } = await http.post('/api/inspections/reports/generate', {
+      const { data } = await http.post('/api/inspectionreports/generate-inspection-report', {
         appointmentId: Number(values.appointmentId),
         faultOwner: Number(values.faultOwner),
         solutionType: Number(values.solutionType),
@@ -85,6 +80,7 @@ export default function CreateInspectionReportScreen() {
       Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
       router.back();
     } catch (err) {
+      console.log('[error] :', err);
       const msg =
         err?.response?.data?.detail || err?.response?.data?.message || 'Tạo báo cáo thất bại';
       Toast.show({ type: 'error', text1: msg });
@@ -109,7 +105,7 @@ export default function CreateInspectionReportScreen() {
           name="appointmentId"
           render={({ field: { value, onChange, onBlur } }) => (
             <MUITextField
-              label="Appointment ID"
+              label="ID Cuộc hẹn (không nên sửa)"
               placeholder="Nhập mã cuộc hẹn"
               keyboardType="numeric"
               value={String(value ?? '')}
@@ -212,7 +208,7 @@ export default function CreateInspectionReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: THEME.background },
+  container: { flex: 1, backgroundColor: THEME.background, paddingTop: 40 },
   header: {
     paddingTop: 16,
     paddingHorizontal: 16,

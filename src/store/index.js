@@ -8,9 +8,9 @@ import requests from '@/src/features/requests/requestsSlice';
 import workslots from '@/src/features/technician/workSlotsSlice';
 import issues from '@/src/features/issues/issuesSlice';
 import slots from '@/src/features/slots/slotsSlice';
-import appointmentsReducer from '@/src/features/appointments/appointmentsSlice';
-import chatReducer from '@/src/features/chat/chatSlice';
-
+import appointments from '@/src/features/appointments/appointmentsSlice';
+import chat from '@/src/features/chat/chatSlice';
+import inspectionReports from '@/src/features/inspectionReport/inspectionRPSlice';
 // --- Chỉ persist "user" của auth (KHÔNG persist status/error/token)
 const authTransform = createTransform(
   (inboundState) => ({ user: inboundState.user }),
@@ -31,8 +31,9 @@ const rootReducer = combineReducers({
   workslots,
   issues,
   slots,
-  appointments: appointmentsReducer,
-  chat: chatReducer,
+  appointments,
+  chat,
+  inspectionReports,
 });
 
 const persistConfig = {

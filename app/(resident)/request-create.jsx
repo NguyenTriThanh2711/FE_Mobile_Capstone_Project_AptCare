@@ -90,7 +90,7 @@ export default function RequestCreate() {
     () => (issues || []).filter((it) => it.isEmergency === !!isEmergency),
     [issues, isEmergency]
   );
-  console.log('filteredIssues', filteredIssues);
+  // console.log('filteredIssues', filteredIssues);
   const currentIssueLabel =
     issueId == null
       ? issues?.length

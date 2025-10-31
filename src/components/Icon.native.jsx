@@ -65,11 +65,13 @@ const MAP = {
   "calendar": "calendar",
   "calendar.fill": "calendar", // Ionicons không có fill riêng
 
-  // Check/Done
+  // Check/Done/Undone
   "checkmark.circle": "checkmark-circle-outline",
   "checkmark.circle.fill": "checkmark-circle",
   "checkmark.seal": "shield-checkmark-outline",    
   "checkmark.seal.fill": "shield-checkmark",
+  "circle": "ellipse-outline",
+  "circle.fill": "ellipse",
   // Thời tiết
   "cloud.sun.fill": "partly-sunny",
   "sun.max.fill": "sunny",

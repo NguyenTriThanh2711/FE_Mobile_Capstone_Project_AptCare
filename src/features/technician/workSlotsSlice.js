@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
 import { toYMD } from '@/src/utils/date';
 import { mockMySchedule } from '@/src/utils/mockdata';
+import { pretty } from '@/src/helper/prettyLog';
 
 /* --------------- Thunks ----------------- */
 /** GET /workslots/my-schedule?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD
@@ -16,7 +17,7 @@ export const fetchMySchedule = createAsyncThunk(
         params: { fromDate, toDate },
       });
 
-      console.log('res fetchmychedule data', data);
+      // console.log('[Data]:res fetchmychedule data', pretty(data));
       return data;
     } catch (err) {
       const message =

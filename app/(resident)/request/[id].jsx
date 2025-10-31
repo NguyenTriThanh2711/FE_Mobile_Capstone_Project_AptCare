@@ -17,6 +17,7 @@ import { dotnetArr } from '@/src/helper/dotnetArr';
 import { selectCurrentRequest } from '@/src/features/requests/requestsSlice';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fmtDateTime } from '@/src/utils/date';
+import { pretty } from '@/src/helper/prettyLog';
 
 const screen = Dimensions.get('window');
 
@@ -34,7 +35,7 @@ function StatusPill({ isEmergency }) {
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
   const data = useSelector(selectCurrentRequest);
-
+  // console.log('[Data] : request detail', pretty(data));
   // Nếu user vào trực tiếp mà store chưa có current -> có thể redirect về list
   // hoặc hiển thị một empty state nhẹ.
   if (!data || String(data?.repairRequestId) !== String(id)) {

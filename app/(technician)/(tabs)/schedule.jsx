@@ -13,6 +13,7 @@ import {
 import AppointmentCard from '@/src/components/AppointmentCard';
 import { router } from 'expo-router';
 import { pretty } from '@/src/helper/prettyLog';
+import Badge from '@/src/components/Badge';
 
 /* ========= utils ========= */
 const colors = {
@@ -169,7 +170,7 @@ export default function TechnicianSchedule() {
     [shifts]
   );
 
-  // console.log('const shifts', shifts);
+  console.log('[Data]: const shifts', pretty(shifts));
 
   return (
     <View style={styles.container}>
@@ -259,25 +260,7 @@ export default function TechnicianSchedule() {
                     {startLabel} - {endLabel}
                   </Text>
                 </View>
-                <View
-                  style={[
-                    styles.statusChip,
-                    {
-                      backgroundColor: shift.checkedOutAt
-                        ? colors.success
-                        : shift.checkedInAt
-                          ? colors.primary
-                          : '#8E8E93',
-                    },
-                  ]}>
-                  <Text style={styles.statusText}>
-                    {shift.checkedOutAt
-                      ? 'Đã check-out'
-                      : shift.checkedInAt
-                        ? 'Đang trong ca'
-                        : 'Chưa bắt đầu'}
-                  </Text>
-                </View>
+                <Badge status={shift.status} style={styles.statusChip} />
               </View>
 
               {/* Actions */}
@@ -401,9 +384,6 @@ const styles = StyleSheet.create({
   },
   timeCol: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   timeText: { fontSize: 13, color: colors.textSecondary },
-
-  statusChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14 },
-  statusText: { fontSize: 11, color: '#fff', fontWeight: '700' },
 
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   btn: {
