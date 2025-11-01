@@ -1,4 +1,3 @@
-// src/utils/imageCompression.js (JS)
 import * as ImageManipulator from 'expo-image-manipulator';
 
 /**
@@ -10,8 +9,6 @@ import * as ImageManipulator from 'expo-image-manipulator';
 export async function compressAndResizeImage(uri, opts = {}) {
   const { maxWidth = 1280, maxHeight = 1280, quality = 0.7, format = 'jpeg' } = opts;
 
-  // Resize theo cạnh dài tối đa (giữ tỉ lệ) — dùng width hoặc height đều được,
-  // ở đây dùng width để đơn giản.
   const actions = [{ resize: { width: maxWidth } }];
 
   const saveFormat =

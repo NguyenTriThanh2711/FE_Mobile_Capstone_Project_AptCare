@@ -9,7 +9,9 @@ import { router } from 'expo-router';
 import { useAppDispatch } from '@/src/store';
 import { setCurrentRequest } from '../features/requests/requestsSlice';
 import { dotnetArr } from '../helper/dotnetArr';
-import { fmtDateTime } from '../utils/date';
+import { fmtDateTime, timeDayDate } from '../utils/date';
+import Badge from './Badge';
+import { capitalizeFirst } from '../helper/capitalizeFirst';
 
 const C = {
   text: '#0F172A', // slate-900
@@ -83,8 +85,8 @@ export default function RequestListItem({ item }) {
   const tone = statusTone(latestTracking?.status);
 
   // tầng/phòng
-  const floorLabel = item?.apartment?.floorId != null ? String(item.apartment.floorId) : '-';
-  const roomLabel = item?.apartment?.roomNumber || '-';
+  const floorLabel = item?.apartment?.floor != null ? String(item.apartment.floorId) : '-';
+  const roomLabel = item?.apartment?.room || '-';
 
   // appointment sớm nhất
   const startAppointment = dotnetArr(item?.appointments)?.[0]?.startTime;
@@ -141,20 +143,21 @@ export default function RequestListItem({ item }) {
 
           <View style={s.titleWrap}>
             <Text style={s.title} numberOfLines={1}>
-              {item?.object || 'Không tiêu đề'}
+              {capitalizeFirst(item?.object) || '-'}
             </Text>
             {!!item?.description && (
               <Text style={s.desc} numberOfLines={2}>
-                {item.description}
+                {capitalizeFirst(item?.description) || '-'}
               </Text>
             )}
           </View>
 
-          <View style={s.pillWrap}>
+          {/* <View style={s.pillWrap}>
             <View style={[s.pill, { backgroundColor: p.bg, borderColor: p.fg + '22' }]}>
               <Text style={[s.pillTxt, { color: p.fg }]}>{p.text}</Text>
             </View>
-          </View>
+          </View> */}
+          <Badge status={item?.isEmergency == true ? 'Emergency' : 'Normal'} />
         </View>
 
         {!!item?.issue?.name && (
@@ -169,14 +172,14 @@ export default function RequestListItem({ item }) {
         <View style={s.divider} />
 
         <View style={s.metaRow}>
-          <View style={[s.statusChip, { backgroundColor: tone.bg, borderColor: tone.bd }]}>
+          {/* <View style={[s.statusChip, { backgroundColor: tone.bg, borderColor: tone.bd }]}>
             <Icon name={tone.icon} size={14} color={tone.fg} />
             <Text style={[s.statusTxt, { color: tone.fg }]}>{tone.label}</Text>
-          </View>
-
+          </View> */}
+          <Badge status={latestTracking?.status} />
           <View style={s.metaItem}>
             <Icon name="calendar" size={14} color={C.sub} />
-            <Text style={s.metaTxt}>Đã tạo: {fmtDateTime(item?.createdAt)}</Text>
+            <Text style={s.metaTxt}>Đã tạo: {timeDayDate(item?.createdAt)}</Text>
           </View>
 
           <View style={s.metaItem}>
@@ -191,7 +194,7 @@ export default function RequestListItem({ item }) {
             <View style={s.metaItem}>
               <Icon name="calendar" size={14} color={C.blue} />
               <Text style={[s.metaTxt, s.arrivalTxt]}>
-                K/Thuật viên tới: {fmtDateTime(startAppointment)}
+                K/Thuật viên tới: {timeDayDate(startAppointment)}
               </Text>
             </View>
           </View>

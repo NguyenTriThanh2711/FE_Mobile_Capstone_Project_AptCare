@@ -72,6 +72,11 @@ export const firstChangePassword = createAsyncThunk(
   async ({ accountId, newPassword }, { rejectWithValue }) => {
     try {
       await http.post('/auth/password/first-change', { accountId, newPassword });
+      const accessTK = data?.accessToken;
+      const refreshTK = data?.refreshToken;
+      if (accessTK && refreshTK) {
+        await saveTokens({ access: accessTK, refresh: refreshTK });
+      }
       return true;
     } catch (err) {
       const res = err?.response;

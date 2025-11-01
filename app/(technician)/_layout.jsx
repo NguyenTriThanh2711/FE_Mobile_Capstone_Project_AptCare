@@ -22,6 +22,20 @@ export default function TechnicianStackLayout() {
           headerShown: false, // vì bạn đã tự render header trong file
         }}
       />
+      <Stack.Screen
+        name="inspectionReport/[id]"
+        options={{
+          title: 'Chi tiết báo cáo',
+          headerShown: false, // vì bạn đã tự render header trong file
+        }}
+      />
+      <Stack.Screen
+        name="invoice-create"
+        options={{
+          title: 'Tạo hóa đơn',
+          headerShown: false, // vì bạn đã tự render header trong file
+        }}
+      />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
     </Stack>
   );

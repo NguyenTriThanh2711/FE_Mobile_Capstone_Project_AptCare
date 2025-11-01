@@ -13,6 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { Icon } from '@/src/components/Icon.native';
 
+/** Chuẩn hoá asset từ ImagePicker để upload */
 function normalizePickedAsset(asset) {
   const uri = asset?.uri;
   const nameFromPicker = asset?.fileName || uri?.split('/').pop() || `photo_${Date.now()}.jpg`;
@@ -22,28 +23,65 @@ function normalizePickedAsset(asset) {
   return { uri, name: nameFromPicker, type: mime, width: asset?.width, height: asset?.height };
 }
 
-export default function ImagePickerStrip({
+/**
+ * MediaSection (gộp View + Update)
+ * - mode="view": chỉ xem ảnh từ BE (props: items, mapUri, mapKey)
+ * - mode="update": thêm/sửa/xoá ảnh local (props: value, onChange, maxCount)
+ *
+ * Props chung:
+ *  - title: string
+ *  - thumbCols: số cột hiển thị nhanh (mặc định 2)
+ *
+ * View mode:
+ *  - items: mảng từ BE (ví dụ: [{ mediaId, filePath }, ...])
+ *  - mapUri: (item) => string (URL)
+ *  - mapKey: (item, index) => string
+ *
+ * Update mode:
+ *  - value: mảng ảnh local [{ uri, name, type }, ...]
+ *  - onChange: fn(nextArray)
+ *  - maxCount: số ảnh tối đa
+ */
+export default function MediaSection({
+  mode = 'view', // 'view' | 'update'
+  title = 'Hình ảnh',
+  thumbCols = 2,
+  style = {},
+  // VIEW props
+  items = [],
+  mapUri = (it) => it?.filePath || it?.uri || '',
+  mapKey = (it, i) => String(it?.mediaId || it?.id || it?.uri || i),
+
+  // UPDATE props
   value = [],
   onChange,
   maxCount = 10,
-  title = 'Ảnh đính kèm',
 }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
-  const [cardWidth, setCardWidth] = useState(Dimensions.get('window').width); // fallback
+  const winW = Dimensions.get('window').width;
 
-  // khoảng padding ngang bên trong hàng ảnh + gap giữa 2 ảnh
-  const PADDING_H = 16;
-  const GAP = 10;
+  // Dữ liệu hiển thị tuỳ theo mode
+  const data = mode === 'view' ? items : value;
 
-  // dùng bề rộng THỰC CỦA CARD để tính size, không dùng screen.width
-  const thumbSize = useMemo(() => {
-    const inner = Math.max(0, cardWidth - PADDING_H * 2);
-    const s = Math.floor((inner - GAP) / 2); // 2 cột => (inner - gap)/2
-    return s;
-  }, [cardWidth]);
+  const hasImages = Array.isArray(data) && data.length > 0;
+  const overCount = Math.max(0, (data?.length || 0) - thumbCols);
+  const firstN = useMemo(() => (hasImages ? data.slice(0, thumbCols) : []), [data, thumbCols]);
+
+  const openViewer = (startIndex = 0) => {
+    if (!hasImages) return;
+    setViewerIndex(startIndex);
+    setViewerOpen(true);
+  };
+
+  // ====== UPDATE ACTIONS ======
+  const removeAt = (idx) => {
+    if (mode !== 'update') return;
+    onChange?.(value.filter((_, i) => i !== idx));
+  };
 
   const askCamera = async () => {
+    if (mode !== 'update') return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') return Alert.alert('Quyền truy cập', 'Cần quyền Camera.');
     const res = await ImagePicker.launchCameraAsync({ quality: 0.8, exif: false });
@@ -54,6 +92,7 @@ export default function ImagePickerStrip({
   };
 
   const askLibrary = async () => {
+    if (mode !== 'update') return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return Alert.alert('Quyền truy cập', 'Cần quyền Thư viện ảnh.');
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -68,69 +107,60 @@ export default function ImagePickerStrip({
     }
   };
 
-  const openViewer = (startIndex = 0) => {
-    if (!value.length) return;
-    setViewerIndex(startIndex);
-    setViewerOpen(true);
-  };
-
-  const removeAt = (idx) => onChange?.(value.filter((_, i) => i !== idx));
-
-  const overCount = Math.max(0, value.length - 2);
-  const firstTwo = value.slice(0, 2);
-
   return (
-    <View
-      style={styles.card}
-      onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)} // << đo bề rộng thực
-    >
+    <View style={[styles.card, style]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.title}>{title}</Text>
-        <View style={styles.actions}>
-          <Pressable style={[styles.pillBtn]} onPress={askCamera}>
-            <Icon name="camera.fill" size={16} color="#fff" />
-            <Text style={styles.pillBtnText}>Chụp</Text>
-          </Pressable>
-          <Pressable style={[styles.pillBtn, styles.pillSecondary]} onPress={askLibrary}>
-            <Icon name="photo.fill" size={16} color="#fff" />
-            <Text style={styles.pillBtnText}>Thư viện</Text>
-          </Pressable>
-        </View>
+        {mode === 'update' ? (
+          <View style={styles.actions}>
+            <Pressable style={[styles.pillBtn]} onPress={askCamera}>
+              <Icon name="camera.fill" size={16} color="#fff" />
+              <Text style={styles.pillBtnText}>Chụp</Text>
+            </Pressable>
+            <Pressable style={[styles.pillBtn, styles.pillSecondary]} onPress={askLibrary}>
+              <Icon name="photo.fill" size={16} color="#fff" />
+              <Text style={styles.pillBtnText}>Thư viện</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
 
       {/* Thumbs / Placeholder */}
-      {value.length === 0 ? (
-        <Pressable
-          onPress={askLibrary}
-          style={[styles.placeholder, { paddingHorizontal: PADDING_H }]}>
+      {!hasImages ? (
+        <View style={styles.placeholderWrap}>
           <View style={styles.placeholderBox}>
             <Icon name="photo" size={22} color="#9CA3AF" />
-            <Text style={styles.placeholderText}>Chưa có ảnh — chạm để thêm</Text>
+            <Text style={styles.placeholderText}>
+              {mode === 'update' ? 'Chưa có ảnh — chạm nút để thêm' : 'Chưa có hình'}
+            </Text>
           </View>
-        </Pressable>
+        </View>
       ) : (
-        <Pressable
-          onPress={() => openViewer(0)}
-          style={[styles.thumbsRow, { paddingHorizontal: PADDING_H, columnGap: GAP }]}>
-          {firstTwo.map((f, idx) => (
-            <View key={idx} style={[styles.thumbBox, { width: thumbSize, height: thumbSize }]}>
-              <Image source={{ uri: f.uri }} style={styles.thumb} resizeMode="cover" />
-              <Pressable
-                style={styles.closeBtn}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  removeAt(idx);
-                }}>
-                <Text style={styles.closeTxt}>×</Text>
-              </Pressable>
-              {idx === 1 && overCount > 0 ? (
-                <View style={styles.overlay}>
-                  <Text style={styles.overlayTxt}>+{overCount}</Text>
-                </View>
-              ) : null}
-            </View>
-          ))}
+        <Pressable onPress={() => openViewer(0)} style={styles.thumbsRow}>
+          {firstN.map((item, idx) => {
+            const uri = mode === 'view' ? mapUri(item) : item.uri;
+            return (
+              <View key={mapKey(item, idx)} style={[styles.thumbBox]}>
+                <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />
+                {mode === 'update' ? (
+                  <Pressable
+                    style={styles.closeBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      removeAt(idx);
+                    }}>
+                    <Text style={styles.closeTxt}>×</Text>
+                  </Pressable>
+                ) : null}
+                {idx === thumbCols - 1 && overCount > 0 ? (
+                  <View style={styles.overlay}>
+                    <Text style={styles.overlayTxt}>+{overCount}</Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </Pressable>
       )}
 
@@ -146,39 +176,41 @@ export default function ImagePickerStrip({
               <Icon name="xmark" size={22} color="#fff" />
             </Pressable>
             <Text style={styles.viewerTitle}>
-              {viewerIndex + 1}/{value.length}
+              {viewerIndex + 1}/{data.length}
             </Text>
             <View style={{ width: 34 }} />
           </View>
 
-          {/* full width x full height content area, ảnh contain để không tràn */}
           <FlatList
-            data={value}
-            keyExtractor={(item, i) => item.uri + i}
+            data={data}
+            keyExtractor={(item, i) => mapKey(item, i)}
             horizontal
             pagingEnabled
             onMomentumScrollEnd={(e) => {
-              const winW = Dimensions.get('window').width;
               const idx = Math.round(e.nativeEvent.contentOffset.x / winW);
               setViewerIndex(idx);
             }}
-            renderItem={({ item }) => (
-              <View style={styles.viewerItem}>
-                <Image style={styles.viewerImage} source={{ uri: item.uri }} resizeMode="contain" />
-                <Pressable
-                  onPress={() => {
-                    const idx = viewerIndex;
-                    const next = value.filter((_, i) => i !== idx);
-                    onChange?.(next);
-                    setViewerIndex(Math.max(0, next.length - 1));
-                    if (next.length === 0) setViewerOpen(false);
-                  }}
-                  style={styles.viewerRemoveBtn}>
-                  <Icon name="trash" size={16} color="#fff" />
-                  <Text style={styles.viewerRemoveTxt}>Xoá ảnh này</Text>
-                </Pressable>
-              </View>
-            )}
+            renderItem={({ item, index }) => {
+              const uri = mode === 'view' ? mapUri(item) : item.uri;
+              return (
+                <View style={styles.viewerItem}>
+                  <Image style={styles.viewerImage} source={{ uri }} resizeMode="contain" />
+                  {mode === 'update' ? (
+                    <Pressable
+                      onPress={() => {
+                        const next = value.filter((_, i) => i !== index);
+                        onChange?.(next);
+                        setViewerIndex(Math.max(0, next.length - 1));
+                        if (next.length === 0) setViewerOpen(false);
+                      }}
+                      style={styles.viewerRemoveBtn}>
+                      <Icon name="trash" size={16} color="#fff" />
+                      <Text style={styles.viewerRemoveTxt}>Xoá ảnh này</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              );
+            }}
           />
         </View>
       </Modal>
@@ -186,9 +218,9 @@ export default function ImagePickerStrip({
   );
 }
 
+/* ================== Styles ================== */
 const styles = StyleSheet.create({
   card: {
-    marginTop: 14,
     backgroundColor: '#fff',
     borderRadius: 14,
     borderWidth: 1,
@@ -197,6 +229,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
+    marginBottom: 14,
     elevation: 2,
   },
 
@@ -225,16 +258,20 @@ const styles = StyleSheet.create({
 
   thumbsRow: {
     flexDirection: 'row',
+    paddingHorizontal: 16,
     paddingBottom: 16,
+    columnGap: 10,
   },
   thumbBox: {
+    width: 96,
+    height: 96,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#E5E7EB',
   },
   thumb: { width: '100%', height: '100%' },
 
-  placeholder: { paddingBottom: 16 },
+  placeholderWrap: { paddingHorizontal: 16, paddingBottom: 16 },
   placeholderBox: {
     height: 120,
     borderWidth: 1,
@@ -277,13 +314,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexDirection: 'row',
     paddingHorizontal: 12,
-    marginTop: 24,
+    marginTop: 5,
   },
   viewerTitle: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   viewerItem: {
-    width: '100%',
-    height: '100%',
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
     alignItems: 'center',
     justifyContent: 'center',
   },

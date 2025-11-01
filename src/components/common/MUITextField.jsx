@@ -28,7 +28,7 @@ export default function MUITextField({
   const [showPwd, setShowPwd] = React.useState(false);
   const isPassword = !!secureTextEntry;
 
-  const height = size === 'small' ? 44 : 52;
+  const height = size === 'small' ? 44  : size === 'large' ? 100 : 74;
   const contentStyle = { minHeight: height, height };
 
   const left = startIcon ? (

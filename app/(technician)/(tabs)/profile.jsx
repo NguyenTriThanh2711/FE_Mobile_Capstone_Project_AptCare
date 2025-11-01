@@ -1,3 +1,4 @@
+import GradientButton from '@/src/components/common/GradientButton';
 import { Icon } from '@/src/components/Icon.native';
 import { logout } from '@/src/features/auth/authSlice';
 import { persistor } from '@/src/store';
@@ -196,11 +197,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   logoutButton: {
-    backgroundColor: '#FF3B30',
     margin: 20,
-    padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
   },
   logoutButtonText: {
     color: 'white',
@@ -246,7 +244,7 @@ export default function TechnicianProfile() {
     newPassword: '',
     confirmPassword: '',
   });
-
+  const [isLogOut, setIsLogOut] = useState(false);
   const handleEditProfile = () => {
     setEditingProfile({ ...profile });
     setShowEditModal(true);
@@ -297,11 +295,14 @@ export default function TechnicianProfile() {
         style: 'destructive',
         onPress: async () => {
           try {
+            setIsLogOut(true);
             await dispatch(logout()).unwrap();
             await persistor.purge();
             router.replace('/(auth)/login');
           } catch (e) {
             Alert.alert('Lỗi', 'Đăng xuất không thành công. Vui lòng thử lại.');
+          } finally {
+            setIsLogOut(false);
           }
         },
       },
@@ -516,9 +517,15 @@ export default function TechnicianProfile() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Đăng xuất</Text>
-        </Pressable>
+        <GradientButton
+          title="Đăng xuất"
+          onPress={handleLogout}
+          loading={isLogOut}
+          from="red"
+          to="orange"
+          className="rounded-lg"
+          style={styles.logoutButton}
+        />
       </ScrollView>
 
       {/* Edit Profile Modal */}

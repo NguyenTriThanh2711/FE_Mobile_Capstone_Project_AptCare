@@ -1,23 +1,26 @@
 // app/_layout.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router';
-import { Provider, useSelector, useDispatch } from 'react-redux';
+import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { store, persistor } from '@/src/store';
-import { fetchProfile } from '@/src/features/auth/authSlice';
+import { store, persistor, useAppSelector, useAppDispatch } from '@/src/store';
+import { fetchProfile, logout } from '@/src/features/auth/authSlice';
 import '../global.css';
 import { MD3LightTheme, Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast, { ErrorToast } from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { startRealtime, stopRealtime } from '@/src/services/realtime';
+import { setOnAuthFail } from '@/src/services/http';
+import * as Notifications from 'expo-notifications';
+import { registerForPushAsync } from '@/src/services/pushNotifications';
 
 function AuthGate() {
-  const user = useSelector((s) => s.auth.user);
+  const user = useAppSelector((s) => s.auth.user);
   const router = useRouter();
   const segments = useSegments();
   const rootState = useRootNavigationState();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const triedBootstrap = useRef(false);
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -25,6 +28,17 @@ function AuthGate() {
   // console.log('AuthGate: user =', user); //mocked
   console.log('AuthGate: segments =', segments);
   // nếu chưa có user, thử gọi /me (sử dụng token trong SecureStore)
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const token = await registerForPushAsync();
+      console.log('[Token ->]', token);
+      if (token) {
+        // gửi token này lên BE của bạn để lưu theo userId
+        await api.post('/notifications/register', { token });
+      }
+    })();
+  }, [user]);
   useEffect(() => {
     console.log('Realtime call')
     if (user) startRealtime().catch(console.warn);

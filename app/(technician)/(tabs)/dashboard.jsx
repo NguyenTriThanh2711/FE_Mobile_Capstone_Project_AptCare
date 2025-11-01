@@ -5,6 +5,18 @@ import { WeatherCard } from '@/src/components/WeatherCard';
 import { useWeather } from '@/src/hooks/useWeather';
 import { router } from 'expo-router';
 import callPhone from '@/src/utils/call-phone';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const StatCard = ({ colors, children }) => (
+  <LinearGradient
+    colors={colors}
+    start={{ x: 0, y: 1 }}
+    end={{ x: 1, y: 1 }}
+    style={styles.statCard}
+  >
+    {children}
+  </LinearGradient>
+);
 
 export default function TechnicianDashboard() {
   // ===== Mock data hôm nay =====
@@ -15,7 +27,7 @@ export default function TechnicianDashboard() {
     completedToday: 3,
     urgentTasks: 2,
   });
-
+  
   const [todayJobs, setTodayJobs] = useState([
     {
       id: 1,
@@ -100,38 +112,38 @@ export default function TechnicianDashboard() {
 
         {/* Hàng 1: Tổng, Kiểm tra, Sửa chữa */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: '#E3F2FD' }]}>
+          <StatCard colors={['#ff0000', '#ffc700']}>
             <Icon name="calendar" size={22} color="#1976D2" />
             <Text style={styles.statNumber}>{stats.todayTotal}</Text>
             <Text style={styles.statLabel}>Tổng công việc</Text>
-          </View>
+          </StatCard>
 
-          <View style={[styles.statCard, { backgroundColor: '#EEF7FF' }]}>
+          <StatCard colors={['#ffc700', '#1cff00']}>
             <Icon name="checkmark.seal" size={22} color="#0A84FF" />
             <Text style={styles.statNumber}>{stats.inspectionsToday}</Text>
             <Text style={styles.statLabel}>Kiểm tra hôm nay</Text>
-          </View>
+          </StatCard>
 
-          <View style={[styles.statCard, { backgroundColor: '#FFF3E0' }]}>
+          <StatCard colors={['#1cff00', '#0085ff']}>
             <Icon name="wrench.and.screwdriver" size={22} color="#F57C00" />
             <Text style={styles.statNumber}>{stats.repairsToday}</Text>
             <Text style={styles.statLabel}>Sửa chữa hôm nay</Text>
-          </View>
+          </StatCard>
         </View>
 
         {/* Hàng 2: Hoàn thành, Khẩn cấp */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: '#E8F5E8' }]}>
+          <StatCard colors={['#ff0000', '#ff0063']}>
             <Icon name="checkmark.circle" size={22} color="#388E3C" />
             <Text style={styles.statNumber}>{stats.completedToday}</Text>
             <Text style={styles.statLabel}>Đã hoàn thành</Text>
-          </View>
+          </StatCard>
 
-          <View style={[styles.statCard, { backgroundColor: '#FFEBEE' }]}>
+          <StatCard colors={['#ff0063', '#ff00ed']}>
             <Icon name="exclamationmark.triangle" size={22} color="#D32F2F" />
             <Text style={styles.statNumber}>{stats.urgentTasks}</Text>
             <Text style={styles.statLabel}>Khẩn cấp</Text>
-          </View>
+          </StatCard>
         </View>
       </View>
       {/* Thao tác nhanh */}
@@ -274,7 +286,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statNumber: { fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginTop: 6, marginBottom: 2 },
-  statLabel: { fontSize: 12, color: '#666', textAlign: 'center' },
+  statLabel: { fontSize: 12, color: '#000000', textAlign: 'center' },
 
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   quickActionButton: {

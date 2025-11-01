@@ -18,6 +18,9 @@ import { selectCurrentRequest } from '@/src/features/requests/requestsSlice';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fmtDateTime } from '@/src/utils/date';
 import { pretty } from '@/src/helper/prettyLog';
+import Badge from '@/src/components/Badge';
+import ImagePickerStrip from '@/src/components/ImagePickerStrip';
+import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
 
 const screen = Dimensions.get('window');
 
@@ -84,14 +87,14 @@ export default function RequestDetail() {
         <View style={styles.titleRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.titleText} numberOfLines={2}>
-              {data?.object || 'Không có tiêu đề'}
+              {capitalizeFirst(data?.object) || 'Không có tiêu đề'}
             </Text>
             <View style={styles.metaRow}>
               <Icon name="calendar" size={14} color="#6B7280" />
               <Text style={styles.metaText}>{'Ngày tạo: ' + createdAt || '—'}</Text>
             </View>
           </View>
-          <StatusPill isEmergency={!!data?.isEmergency} />
+          <Badge status={data?.isEmergency == true ? 'Emergency' : 'Normal'} styles={{ flex: 1, marginLeft: 12 }} />
         </View>
 
         {/* Issue & Apartment */}
@@ -108,7 +111,7 @@ export default function RequestDetail() {
           </View>
           <Text style={styles.cardValue}>
             {data?.apartment
-              ? `Tầng ${data?.apartment?.floor ?? ''} - P.${data?.apartment?.roomNumber ?? ''}`
+              ? `Tầng ${data?.apartment?.floor ?? '-'} - P.${data?.apartment?.room ?? ''}`
               : '—'}
           </Text>
         </View>
@@ -123,41 +126,14 @@ export default function RequestDetail() {
         </View>
 
         {/* Medias */}
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <Icon name="photo.fill" size={16} color="#6B7280" />
-            <Text style={styles.cardLabel}>Hình ảnh</Text>
-          </View>
-
-          {!medias || medias.length === 0 ? (
-            <View style={styles.placeholderBox}>
-              <Icon name="photo" size={22} color="#9CA3AF" />
-              <Text style={styles.placeholderText}>Chưa có hình</Text>
-            </View>
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingTop: 10 }}>
-              {medias.map((m, idx) => (
-                <Pressable
-                  key={m.mediaId || idx}
-                  onPress={() => openViewer(idx)}
-                  style={styles.thumbBox}>
-                  <Image
-                    source={{ uri: m.filePath }}
-                    style={styles.thumb}
-                    resizeMode="cover"
-                    onError={(e) => {
-                      console.error('Image Error', e?.nativeEvent);
-                    }}
-                  />
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
+        <ImagePickerStrip
+          mode="view"
+          title="Hình ảnh"
+          items={medias}                          
+          mapUri={(m) => m.filePath}              
+          mapKey={(m, i) => String(m.mediaId || i)}
+        />
+        
         {/* Appointments */}
         {appts?.length ? (
           <View style={styles.card}>
@@ -170,15 +146,12 @@ export default function RequestDetail() {
               const techs = dotnetArr(ap?.technicians);
               return (
                 <View key={ap.appointmentId} style={styles.apptItem}>
+                  <Badge status={ap.status} style={{fontSize: 14, fontWeight: '700'}}  />
                   <View style={styles.apptRow}>
                     <Icon name="clock.fill" size={14} color="#2563EB" />
                     <Text style={styles.apptTime}>
                       {fmtDateTime(ap.startTime)} — {fmtDateTime(ap.endTime)}
                     </Text>
-                  </View>
-                  <View style={styles.apptRow}>
-                    <Icon name="checkmark.seal.fill" size={14} color="#16A34A" />
-                    <Text style={styles.apptStatus}>{ap.status || '—'}</Text>
                   </View>
                   {!!techs?.length && (
                     <View style={styles.apptTechs}>
@@ -210,7 +183,8 @@ export default function RequestDetail() {
                 <View key={t.requestTrackingId} style={styles.trackRow}>
                   <View style={styles.trackDot} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.trackStatus}>{t.status}</Text>
+                    {/* <Text style={styles.trackStatus}>{t.status}</Text> */}
+                    <Badge status={t.status} style={{fontSize: 14, fontWeight: '700'}} />
                     <Text style={styles.trackTime}>{fmtDateTime(t.updatedAt)}</Text>
                     {t.updatedByUser ? (
                       <Text style={styles.trackBy}>
@@ -243,57 +217,6 @@ export default function RequestDetail() {
           </View>
         </View>
       </ScrollView>
-
-      {/* Viewer Modal */}
-      <Modal
-        visible={viewerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setViewerOpen(false)}>
-        <View style={styles.viewerBg}>
-          <View style={styles.viewerHeader}>
-            <Pressable onPress={() => setViewerOpen(false)} hitSlop={10} style={{ padding: 6 }}>
-              <Icon name="xmark.circle.fill" size={22} color="#fff" />
-            </Pressable>
-            <Text style={styles.viewerTitle}>
-              {viewerIndex + 1}/{medias?.length || 0}
-            </Text>
-            <View style={{ width: 34 }} />
-          </View>
-
-          <FlatList
-            data={medias}
-            keyExtractor={(item, i) => String(item?.mediaId || i)}
-            horizontal
-            pagingEnabled
-            initialScrollIndex={viewerIndex}
-            onMomentumScrollEnd={(e) => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / screen.width);
-              setViewerIndex(idx);
-            }}
-            getItemLayout={(_, index) => ({
-              length: screen.width,
-              offset: screen.width * index,
-              index,
-            })}
-            renderItem={({ item }) => (
-              <View
-                style={{
-                  width: screen.width,
-                  height: screen.height,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
-                <Image
-                  source={{ uri: item?.filePath }}
-                  style={{ width: screen.width, height: screen.width }}
-                  resizeMode="contain"
-                />
-              </View>
-            )}
-          />
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -323,6 +246,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 10,
+    marginLeft: 8,
+    marginRight: 8,
   },
   titleText: { fontSize: 18, fontWeight: '700', color: '#111827', lineHeight: 22 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
@@ -342,7 +267,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 12,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
@@ -357,28 +282,6 @@ const styles = StyleSheet.create({
 
   descText: { fontSize: 14, color: '#374151', marginTop: 6, lineHeight: 20 },
 
-  // media
-  thumbBox: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#E5E7EB',
-  },
-  thumb: { width: '100%', height: '100%' },
-  placeholderBox: {
-    marginTop: 10,
-    height: 100,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FAFAFA',
-  },
-  placeholderText: { color: '#6B7280', fontSize: 13, fontWeight: '600', marginTop: 6 },
-
   // appointments
   apptItem: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   apptRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
@@ -390,7 +293,7 @@ const styles = StyleSheet.create({
   // tracking
   trackRow: { flexDirection: 'row', gap: 12, paddingVertical: 8 },
   trackDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB', marginTop: 6 },
-  trackStatus: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  // trackStatus: { fontSize: 14, fontWeight: '700', color: '#111827' },
   trackTime: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   trackBy: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   emptyLine: { fontSize: 13, color: '#6B7280', marginTop: 6 },
@@ -417,15 +320,4 @@ const styles = StyleSheet.create({
   },
   backBtnText: { color: '#fff', fontWeight: '700' },
 
-  // viewer
-  viewerBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' },
-  viewerHeader: {
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    marginTop: 24,
-  },
-  viewerTitle: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

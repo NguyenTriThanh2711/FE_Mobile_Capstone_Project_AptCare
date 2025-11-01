@@ -37,7 +37,7 @@ export default function AppointmentDetailsScreen() {
   const loading = useAppSelector((state) => selectAppointmentLoading(state, id));
   const error = useAppSelector((state) => selectAppointmentError(state, id));
   const inspection = appointment?.inspection || {};
-  const allReportsById = useAppSelector((s) => s.inspectionReports.byId);
+  // const allReportsById = useAppSelector((s) => s.inspectionReports.byId);
 
   useEffect(() => {
     if (id) {
@@ -80,7 +80,7 @@ export default function AppointmentDetailsScreen() {
     ]);
   };
 
-  const handleCreateReport = () => {
+  const handleCreateInspectionReport = () => {
     const apptId = appointment?.appointmentId;
     if (!apptId) {
       Alert.alert('Thiếu dữ liệu', 'Vui lòng khởi động lại ứng dụng.');
@@ -88,18 +88,32 @@ export default function AppointmentDetailsScreen() {
     }
     router.push({
       pathname: '/(technician)/inspectReport-create',
-      params: { appointmentId: String(apptId) },
+      params: { appointmentId: Number(apptId) },
+    });
+  };
+  const handleCreateInvoice = () => {
+    const apptId = appointment?.appointmentId;
+    if (!apptId) {
+      Alert.alert('Thiếu dữ liệu', 'Vui lòng khởi động lại ứng dụng.');
+      return;
+    }
+    router.push({
+      pathname: '/(technician)/invoice-create',
+      params: { repairRequestId: Number(appointment?.repairRequest?.repairRequestId) },
     });
   };
 
   const handleCreateChatWithResident = () => {
-    dispatch(getConversation(appointment?.repairRequest?.apartment?.residentId));
+    router.push({ pathname: '/(technician)/chat/[id]', params: { userId: String(appointment?.repairRequest?.apartment?.residentId) } });
   };
   const goInspectionReportDetail = (reportId) => {
-    router.push({ pathname: '/(technician)/inspectReport-detail/[id]', params: { id: String(reportId) } });
+    router.push({ pathname: '/(technician)/inspectionReport/[id]', params: { id: String(reportId) } });
   };
   const reportIds = [
-
+    {
+      id: 2,
+      title: 'Báo cáo khảo sát 1',
+    }
   ]
 
   
@@ -315,9 +329,17 @@ export default function AppointmentDetailsScreen() {
       <View style={styles.actionBar}>
         {appointment?.status === 'Pending' || appointment?.status === 'InProgress' ? (
           <>
-            <Pressable style={styles.primaryBtn} onPress={handleCreateReport}>
+            <Pressable style={styles.primaryBtn} onPress={handleCreateInspectionReport}>
               <Icon name="doc.text" size={20} color={THEME.background} />
               <Text style={styles.primaryBtnText}>Báo cáo khảo sát</Text>
+            </Pressable>
+          </>
+        ) : null}
+        {appointment?.status === 'Pending' || appointment?.status === 'InProgress' ? (
+          <>
+            <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
+              <Icon name="doc.text" size={20} color={THEME.background} />
+              <Text style={styles.primaryBtnText}>Tạo hóa đơn</Text>
             </Pressable>
           </>
         ) : null}

@@ -72,12 +72,6 @@ export default function ResidentRequests() {
     if (!loading && page < totalPages) load(page + 1);
   };
 
-  const pill = (isEmergency) => ({
-    bg: isEmergency ? '#FEE2E2' : '#E5F6FF',
-    fg: isEmergency ? '#B91C1C' : '#0C4A6E',
-    text: isEmergency ? 'Khẩn cấp' : 'Bình thường',
-  });
-
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -270,8 +264,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardTitle: { fontSize: 15, fontWeight: '700', color: '#111827', flex: 1, marginRight: 10 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { fontSize: 11, fontWeight: '800' },
   desc: { fontSize: 14, color: '#374151', marginBottom: 8 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metaLeft: { fontSize: 12, color: '#6B7280' },

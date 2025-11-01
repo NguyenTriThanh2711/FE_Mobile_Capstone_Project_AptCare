@@ -1,5 +1,5 @@
 // app/(technician)/inspectReport-create.jsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -11,6 +11,9 @@ import MUITextField from '@/src/components/common/MUITextField';
 import ChipRadioGroup from '@/src/components/ChipRadioGroup';
 import { Colors } from '@/src/utils/colors';
 import http from '@/src/services/http';
+import { compressMany } from '@/src/utils/imageCompression';
+import ImagePickerStrip from '@/src/components/ImagePickerStrip';
+import { markRead } from '@/src/features/chat/chatSlice';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
@@ -45,6 +48,7 @@ const schema = yup.object({
 });
 
 export default function CreateInspectionReportScreen() {
+  const [images, setImages] = useState([]);
   const { appointmentId } = useLocalSearchParams();
   const defaultAppointmentId = useMemo(() => {
     const n = Number(appointmentId);
@@ -69,14 +73,21 @@ export default function CreateInspectionReportScreen() {
 
   const onSubmit = async (values) => {
     try {
-      const { data } = await http.post('/api/inspectionreports/generate-inspection-report', {
+      const filesCompressed = await compressMany(images, {
+        maxWidth: 1280,
+        quality: 0.7,
+        format: 'jpeg',
+      });
+      const payload = {
         appointmentId: Number(values.appointmentId),
         faultOwner: Number(values.faultOwner),
         solutionType: Number(values.solutionType),
         description: values.description?.trim() || '',
         solution: values.solution?.trim() || '',
-      });
-
+        file: filesCompressed,
+      }
+      const { data } = await http.post('/api/inspectionreports/generate-inspection-report', payload);
+      console.log('[response ->] :', data);
       Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
       router.back();
     } catch (err) {
@@ -105,9 +116,11 @@ export default function CreateInspectionReportScreen() {
           name="appointmentId"
           render={({ field: { value, onChange, onBlur } }) => (
             <MUITextField
-              label="ID Cuộc hẹn (không nên sửa)"
+              label="ID Cuộc hẹn"
               placeholder="Nhập mã cuộc hẹn"
               keyboardType="numeric"
+              disabled={true}
+              size='small'
               value={String(value ?? '')}
               onBlur={onBlur}
               onChangeText={(txt) => onChange(txt.replace(/\D+/g, ''))}
@@ -179,12 +192,15 @@ export default function CreateInspectionReportScreen() {
               multiline
               numberOfLines={4}
               value={value}
+              size='large'
+              style={{marginTop : 14, marginBottom: 14}}
               onBlur={onBlur}
               onChangeText={onChange}
               error={errors.solution?.message}
             />
           )}
         />
+        <ImagePickerStrip mode="update" value={images} onChange={setImages} maxCount={10} title="Ảnh khảo sát" />
       </ScrollView>
 
       {/* Action bar */}

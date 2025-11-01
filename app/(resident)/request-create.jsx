@@ -182,7 +182,7 @@ export default function RequestCreate() {
           <View style={{ width: 72 }} />
         </LinearGradient>
       ) : (
-        <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+        <View style={[styles.headerBase, styles.headerPlain, { paddingTop: insets.top + 6 }]}>
           <Pressable onPress={() => router.back()} style={styles.headerLeft} hitSlop={8}>
             <Icon name="chevron.left" size={24} color="#1a1a1a" />
             <Text style={styles.headerBack}>Quay lại</Text>
@@ -261,7 +261,7 @@ export default function RequestCreate() {
                       }}
                       style={[styles.optionItem, active && styles.optionItemActive]}>
                       <Text style={[styles.optionText, active && styles.optionTextActive]}>
-                        {`Tầng ${apt.floor} - Phòng ${apt.roomNumber}`}
+                        {`Tầng ${apt.floor} - Phòng ${apt.room}`}
                       </Text>
                     </Pressable>
                   );
@@ -395,7 +395,7 @@ export default function RequestCreate() {
             />
           )}
         />
-        <ImagePickerStrip value={images} onChange={setImages} maxCount={10} title="Ảnh đính kèm" />
+        <ImagePickerStrip mode="update" value={images} onChange={setImages} maxCount={10} title="Ảnh đính kèm" />
         {/* Thời gian phù hợp – ẨN khi Urgent */}
         {isEmergency !== true ? (
           <View style={styles.card}>

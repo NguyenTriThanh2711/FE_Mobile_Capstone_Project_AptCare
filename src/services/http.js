@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './secure-store';
 import { Platform } from 'react-native';
+import { pretty } from '../helper/prettyLog';
 const BASE_URL = Platform.select({
   android: process.env.EXPO_PUBLIC_API_URL_ANDROID_EMU || process.env.EXPO_PUBLIC_API_URL,
   ios:     process.env.EXPO_PUBLIC_API_URL_IOS_SIM   || process.env.EXPO_PUBLIC_API_URL,
@@ -11,6 +12,9 @@ const http = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
 });
+
+let onAuthFail = null;
+export function setOnAuthFail(fn) { onAuthFail = fn; } //handler khi logout do auth fail
 
 // ---- Gắn access token vào mọi request
 http.interceptors.request.use(async (config) => {
@@ -41,7 +45,10 @@ const processQueue = (error, token = null) => {
 
 // ---- Response interceptor
 http.interceptors.response.use(
-  (r) => r,
+  (r) => {
+    console.log('[HTTP Response]', pretty(r?.data));
+    return r;
+  },
   async (error) => {
     const original = error.config;
 
@@ -63,7 +70,11 @@ http.interceptors.response.use(
 
       try {
         const refresh = await getRefreshToken();
-        if (!refresh) throw new Error('Không có refresh token');
+        if (!refresh) {
+          await clearTokens();
+          if (onAuthFail) await onAuthFail('NO_REFRESH');
+          return Promise.reject(error);
+        }
 
         // gọi API refresh token
         const { data } = await axios.post(
@@ -81,7 +92,7 @@ http.interceptors.response.use(
       } catch (e) {
         processQueue(e, null);
         await clearTokens();
-        // tuỳ bạn: điều hướng về login ở UI
+        if (onAuthFail) await onAuthFail('REFRESH_FAILED');
         return Promise.reject(e);
       } finally {
         isRefreshing = false;

@@ -31,6 +31,19 @@ import { useAppDispatch } from '@/src/store';
 import { use, useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 
+const firstChangeSchema = yup.object({
+  accountId: yup
+    .number()
+    .typeError('AccountId phải là số')
+    .required('Thiếu AccountId'),
+  currentPassword: yup.string().min(1, 'Nhập mật khẩu hiện tại').required('Bắt buộc'),
+  newPassword: yup.string().min(6, 'Tối thiểu 6 ký tự').required('Bắt buộc'),
+  confirmNewPassword: yup
+    .string()
+    .oneOf([yup.ref('newPassword')], 'Mật khẩu mới nhập lại chưa khớp')
+    .required('Bắt buộc'),
+});
+
 const registerSchema = yup.object({
   email: yup.string().trim().email('Email không hợp lệ').required('Vui lòng nhập email'),
   password: yup.string().min(6, 'Tối thiểu 6 ký tự').required('Vui lòng nhập mật khẩu'),
@@ -52,13 +65,14 @@ function Field({
   control,
   errors,
   name,
+  disabled,
   label,
   placeholder,
   secure = false,
   keyboardType,
   startIcon,
   variant = 'outlined',
-  size = 'medium',
+  size = 'small',
   style,
   maxLength,
   onChangeTransform,
@@ -79,6 +93,7 @@ function Field({
             secureTextEntry={secure}
             keyboardType={keyboardType}
             startIcon={startIcon}
+            disabled={disabled}
             variant={variant}
             size={size}
             autoCapitalize={autoCapitalize}
@@ -113,7 +128,7 @@ export default function AuthScreen() {
     typeof params.accountId === 'string' ? decodeURIComponent(params.accountId) : '';
   const [verifyEmail, setVerifyEmail] = useState(initialEmail);
   const [verifyAccountId, setVerifyAccountId] = useState(initialAccountId);
-
+  const [idAccount, setIdAccount] = useState('');
   //shared bg
   const progress = useSharedValue(tab === 'login' ? 0 : 1);
   useEffect(() => {
@@ -138,9 +153,15 @@ export default function AuthScreen() {
   });
   const onLogin = async (values) => {
     try {
-      await dispatch(
+      const result = await dispatch(
         authLogin({ usernameOrEmail: values.usernameOrEmail.trim(), password: values.password })
       ).unwrap();
+
+      if (result?.requiresFirstPasswordChange) {
+        setIdAccount(String(result.accountId ?? ''));
+        setTab('first-change');
+        return;
+      }
       router.replace('/role-gateway');
     } catch (e) {
       Toast.show({
@@ -148,7 +169,6 @@ export default function AuthScreen() {
         text1: 'Đăng nhập thất bại',
         text2: e?.message || 'Vui lòng kiểm tra lại thông tin.',
       });
-      console.error(e);
     }
   };
 
@@ -230,6 +250,23 @@ export default function AuthScreen() {
       console.error(e);
     }
   };
+
+  //first change password
+  const {
+    control: fcControl,
+    handleSubmit: handleFcSubmit,
+    formState: { errors: fcErrors, isSubmitting: isFcSubmitting },
+    setValue: setFcValue,
+  } = useForm({
+    defaultValues: {
+      accountId: idAccount ,
+      currentPassword: '',
+      newPassword: '',
+      confirmNewPassword: '',
+    },
+    resolver: yupResolver(firstChangeSchema),
+    mode: 'onTouched',
+  });
   return (
     <ImageBackground
       source={require('@/assets/building.jpg')}
@@ -272,6 +309,7 @@ export default function AuthScreen() {
                   <Field
                     control={loginControl}
                     errors={loginErrors}
+                    disabled={isLoginSubmitting}
                     name="usernameOrEmail"
                     label="Email hoặc tên đăng nhập"
                     placeholder="vd: thanh@gmail.com"
@@ -280,6 +318,7 @@ export default function AuthScreen() {
                   <Field
                     control={loginControl}
                     errors={loginErrors}
+                    disabled={isLoginSubmitting}
                     name="password"
                     label="Mật khẩu"
                     placeholder="••••••••"
@@ -307,6 +346,7 @@ export default function AuthScreen() {
                   <Field
                     control={registerControl}
                     errors={registerErrors}
+                    disabled={isRegisterSubmitting}
                     name="email"
                     label="Email"
                     placeholder="vd: thanh@gmail.com"
@@ -316,6 +356,7 @@ export default function AuthScreen() {
                   <Field
                     control={registerControl}
                     errors={registerErrors}
+                    disabled={isRegisterSubmitting}
                     name="password"
                     label="Mật khẩu"
                     placeholder="••••••••"
@@ -325,6 +366,7 @@ export default function AuthScreen() {
                   <Field
                     control={registerControl}
                     errors={registerErrors}
+                    disabled={isRegisterSubmitting}
                     name="confirmPassword"
                     label="Xác nhận mật khẩu"
                     placeholder="••••••••"
@@ -380,6 +422,34 @@ export default function AuthScreen() {
                       <Text style={{ fontWeight: '600', color: 'blue' }}>{'Gửi lại OTP'}</Text>
                     </TouchableOpacity>
                   </View>
+                </View>
+              )}
+              {tab === 'first-change' && (
+                <View>
+                  <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 13, marginBottom: 8 }}>
+                    Bạn cần đổi mật khẩu mặc định trước khi tiếp tục.
+                  </Text>
+
+                  <Field control={fcControl} errors={fcErrors} name="accountId" label="Account ID"
+                         placeholder="VD: 1024" keyboardType="number-pad" startIcon="number"
+                         onChangeTransform={(t) => t.replace(/[^0-9]/g, '')} />
+
+                  <Field control={fcControl} errors={fcErrors} name="currentPassword"
+                         label="Mật khẩu hiện tại" placeholder="••••••••" secure startIcon="lock" />
+
+                  <Field control={fcControl} errors={fcErrors} name="newPassword"
+                         label="Mật khẩu mới (≥ 6 ký tự)" placeholder="••••••••" secure startIcon="lock" />
+
+                  <Field control={fcControl} errors={fcErrors} name="confirmNewPassword"
+                         label="Xác nhận mật khẩu mới" placeholder="••••••••" secure startIcon="lock" />
+
+                  <GradientButton title={isFcSubmitting ? 'Đang đổi mật khẩu...' : 'Đổi mật khẩu & tiếp tục'}
+                                  loading={isFcSubmitting} disabled={isFcSubmitting}
+                                  from="orange" to="blue" onPress={handleFcSubmit(onFirstChange)} />
+
+                  <Text style={{ marginTop: 10, fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>
+                    Thiết bị: {deviceInfo}
+                  </Text>
                 </View>
               )}
             </Animated.View>

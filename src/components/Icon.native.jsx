@@ -108,6 +108,10 @@ const MAP = {
   "stop.circle.fill": "stop-circle",
   "stop.circle": "stop-circle-outline",
 
+  // tắt
+  "xmark": "close",
+  "xmark.circle": "close-circle-outline",
+  "xmark.circle.fill": "close-circle",  
   // Tòa nhà & phòng
   "building.2": "business",                 // biểu tượng tòa nhà
   "door.left.hand.closed": "enter-outline", // không có icon "door", dùng enter như biểu đạt lối vào

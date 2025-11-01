@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "571188100977",
+    "project_id": "aptcare-28d40",
+    "storage_bucket": "aptcare-28d40.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:571188100977:android:5e77a958426b5859a840d0",
+        "android_client_info": {
+          "package_name": "android.vn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApPZPkUyXXk8Nr43sapA2hPYnKfPQfx9c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

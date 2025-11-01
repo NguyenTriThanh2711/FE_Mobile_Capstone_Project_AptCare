@@ -188,7 +188,7 @@ export default function ResidentProfile() {
   React.useEffect(() => {
    if (!user) dispatch(fetchProfile());
   }, [user, dispatch]);
-  
+  const [isLogOut, setIsLogOut] = useState(false);
 
   const [notifications, setNotifications] = useState({
     pushNotifications: true,
@@ -278,6 +278,7 @@ export default function ResidentProfile() {
             style: "destructive",
             onPress: async () => {
             try {
+                setIsLogOut(true);
                 await dispatch(logout()).unwrap();
                 await persistor.purge();
                 router.replace("/(auth)/login");
@@ -416,6 +417,7 @@ export default function ResidentProfile() {
         <GradientButton
           title="Đăng xuất"
           onPress={handleLogout}
+          loading={isLogOut}
           from="red"
           to="orange"
           className="rounded-lg"
