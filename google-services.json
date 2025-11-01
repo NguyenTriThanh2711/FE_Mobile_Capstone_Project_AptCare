@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "571188100977",
-    "project_id": "aptcare-28d40",
-    "storage_bucket": "aptcare-28d40.firebasestorage.app"
+    "project_number": "339602712239",
+    "project_id": "thnah-e279c",
+    "storage_bucket": "thnah-e279c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:571188100977:android:5e77a958426b5859a840d0",
+        "mobilesdk_app_id": "1:339602712239:android:80f02da95945b1c489965a",
         "android_client_info": {
-          "package_name": "android.vn"
+          "package_name": "com.aptcare.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyApPZPkUyXXk8Nr43sapA2hPYnKfPQfx9c"
+          "current_key": "AIzaSyAQ8mRxUsrreW3F8J1-HU8FJB6kDRhTw9U"
         }
       ],
       "services": {
