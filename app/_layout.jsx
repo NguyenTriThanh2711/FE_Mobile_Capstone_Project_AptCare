@@ -13,7 +13,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { startRealtime, stopRealtime } from '@/src/services/realtime';
 import http, { setOnAuthFail } from '@/src/services/http';
 import * as Notifications from 'expo-notifications';
-import { registerForPushAsync } from '@/src/services/pushNotifications';
+import { attachForegroundListener, registerForPushAsync } from '@/src/services/pushNotifications';
 
 function AuthGate() {
   const user = useAppSelector((s) => s.auth.user);
@@ -34,11 +34,12 @@ function AuthGate() {
       const fcmToken = await registerForPushAsync();
       console.log('[Token ->] nè', fcmToken);
       if (fcmToken) {
+        const unSubscribe = attachForegroundListener();
         // gửi token này lên BE của bạn để lưu theo userId
         // await http.post('/notifications/register', { token: fcmToken });
       }
     })();
-  }, [user]);
+  }, []);
   useEffect(() => {
     console.log('Realtime call')
     if (user) startRealtime().catch(console.warn);

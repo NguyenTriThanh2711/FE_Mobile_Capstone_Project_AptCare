@@ -19,7 +19,7 @@ export async function registerForPushAsync() {
   if (!ok) return null;
 
   const token = await messaging().getToken();
-  console.log('[FCM token]', token);
+  console.log('[FCM tokens', token);
   return token;
 }
 

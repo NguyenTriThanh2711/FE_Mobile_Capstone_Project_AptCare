@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "FE_Mobile_Capstone_Project_AptCare",
+    "name": "AptCare",
     "slug": "FE_Mobile_Capstone_Project_AptCare",
     "version": "1.0.0",
     "scheme": "FE_Mobile_Capstone_Project_AptCare",
@@ -32,7 +32,7 @@
       "tsconfigPaths": true
     },
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./aptcareapp.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -49,7 +49,7 @@
       "package": "com.aptcare.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./aptcareapp.png",
         "backgroundColor": "#ffffff"
       }
     },
