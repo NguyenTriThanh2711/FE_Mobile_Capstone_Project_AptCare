@@ -1,7 +1,6 @@
-// src/services/pushNotifications.js
 import { Platform, PermissionsAndroid } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
-
+import notifee, { AndroidImportance } from '@notifee/react-native';
 // Xin quyền (Android 13+ cần POST_NOTIFICATIONS, iOS dùng requestPermission)
 export async function requestPushPermission() {
   if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -15,7 +14,6 @@ export async function requestPushPermission() {
   );
 }
 
-// Lấy FCM token -> gửi về BE lưu theo userId
 export async function registerForPushAsync() {
   const ok = await requestPushPermission();
   if (!ok) return null;
@@ -25,18 +23,23 @@ export async function registerForPushAsync() {
   return token;
 }
 
-// (tuỳ chọn) listener foreground, muốn hiện noti khi app đang mở
-// => cần @notifee/react-native để tự hiển thị
-// import notifee, { AndroidImportance } from '@notifee/react-native';
-// export function attachForegroundListener() {
-//   notifee.createChannel({ id: 'aptcare', name: 'AptCare', importance: AndroidImportance.HIGH });
-//   const unsub = messaging().onMessage(async rm => {
-//     await notifee.displayNotification({
-//       title: rm.notification?.title ?? 'AptCare',
-//       body: rm.notification?.body ?? '',
-//       android: { channelId: 'aptcare' },
-//       data: rm.data,
-//     });
-//   });
-//   return () => unsub();
-// }
+let channelCreated = false;
+export async function ensureNotificationChannel() {
+  if (channelCreated) return;
+  await notifee.createChannel({ id: 'aptcare', name: 'AptCare', importance: AndroidImportance.HIGH });
+  channelCreated = true;
+}
+
+export function attachForegroundListener() {
+  // đảm bảo channel có trước khi hiển thị
+  ensureNotificationChannel();
+  // lắng nghe tin nhắn khi app đang mở và tự hiển thị
+  return messaging().onMessage(async rm => {
+    await notifee.displayNotification({
+      title: rm.notification?.title ?? 'AptCare',
+      body: rm.notification?.body ?? '',
+      android: { channelId: 'aptcare' },
+      data: rm.data,
+    });
+  });
+}

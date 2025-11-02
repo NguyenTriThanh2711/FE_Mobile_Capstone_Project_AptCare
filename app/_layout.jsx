@@ -11,7 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast, { ErrorToast } from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { startRealtime, stopRealtime } from '@/src/services/realtime';
-import { setOnAuthFail } from '@/src/services/http';
+import http, { setOnAuthFail } from '@/src/services/http';
 import * as Notifications from 'expo-notifications';
 import { registerForPushAsync } from '@/src/services/pushNotifications';
 
@@ -31,11 +31,11 @@ function AuthGate() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const token = await registerForPushAsync();
-      console.log('[Token ->]', token);
-      if (token) {
+      const fcmToken = await registerForPushAsync();
+      console.log('[Token ->] nè', fcmToken);
+      if (fcmToken) {
         // gửi token này lên BE của bạn để lưu theo userId
-        await api.post('/notifications/register', { token });
+        // await http.post('/notifications/register', { token: fcmToken });
       }
     })();
   }, [user]);

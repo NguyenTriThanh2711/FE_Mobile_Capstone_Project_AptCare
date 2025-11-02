@@ -46,7 +46,7 @@ const processQueue = (error, token = null) => {
 // ---- Response interceptor
 http.interceptors.response.use(
   (r) => {
-    console.log('[HTTP Response]', pretty(r?.data));
+    // console.log('[HTTP Response]', pretty(r?.data));
     return r;
   },
   async (error) => {
@@ -107,4 +107,4 @@ export default http;
 
 // Nếu nhận 401, axios thử POST /auth/refresh với refresh token.
 // Trong lúc refresh, các request khác 401 sẽ xếp hàng chờ; khi refresh xong, tự động retry.
-// Nếu refresh fail → xoá token, bạn có thể điều hướng về login.
+// Nếu refresh fail → xoá token, có thể điều hướng về login.
