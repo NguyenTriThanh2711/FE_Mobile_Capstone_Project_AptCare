@@ -23,6 +23,7 @@ import { dotnetArr } from '@/src/helper/dotnetArr';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from 'react-native-paper';
 import { compressMany } from '@/src/utils/imageCompression';
+import { toOffsetISOString } from '@/src/utils/date';
 
 const FOOTER_HEIGHT = 64;
 
@@ -70,7 +71,7 @@ export default function RequestCreate() {
       otherIssue: '',
       shortSummary: '',
       description: '',
-      preferredAt: new Date().toISOString(),
+      preferredAt: toOffsetISOString(new Date()),
     },
   });
   const selectedApartmentId = watch('apartmentId');
@@ -139,7 +140,7 @@ export default function RequestCreate() {
           Description: values.description?.trim() || '',
           Files: filesCompressed,
         };
-        console.log('Submitting emergency maintenance request:', payload);
+        console.log('Submitting emergency repair request:', payload);
         await dispatch(createEmergencyRepairRequest(payload)).unwrap();
       } else {
         const payload = {
@@ -150,7 +151,7 @@ export default function RequestCreate() {
           PreferredAppointment: values.preferredAt, //normal
           Files: filesCompressed,
         };
-        console.log('Submitting maintenance request:', payload);
+        console.log('Submitting repair request:', payload);
         await dispatch(createNormalRepairRequest(payload)).unwrap();
       }
       Toast.show({ type: 'success', text1: 'Thành công', text2: 'Yêu cầu đã được gửi.' });
@@ -362,6 +363,7 @@ export default function RequestCreate() {
               label="Nhập tên thiết bị muốn sửa *"
               placeholder="VD: Rò rỉ vòi nước bếp, ổ cắm phòng ngủ chập..."
               value={value}
+              size='small'
               onChangeText={onChange}
               onBlur={onBlur}
               variant="outlined"
@@ -385,6 +387,7 @@ export default function RequestCreate() {
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
+              size='large'
               variant="outlined"
               multiline
               numberOfLines={4}
@@ -423,7 +426,7 @@ export default function RequestCreate() {
               visible={openPicker}
               onClose={() => setOpenPicker(false)}
               onConfirm={(date) =>
-                setValue('preferredAt', date.toISOString(), { shouldDirty: true })
+                setValue('preferredAt', toOffsetISOString(date), { shouldDirty: true })
               }
               initialDate={new Date(preferredAtISO)}
               daysAhead={45}

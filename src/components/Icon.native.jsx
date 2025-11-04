@@ -142,7 +142,7 @@ const MAP = {
 
  // “square.and.arrow.up” (SF Symbol = Share/Upload). Tuỳ ngữ cảnh, chọn upload:
   "square.and.arrow.up": "cloud-upload-outline",
-
+  "list.number": "list",
   "tray": "tray-outline",
   "tray.fill": "tray",
 

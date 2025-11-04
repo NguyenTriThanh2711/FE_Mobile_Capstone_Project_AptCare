@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Icon } from '@/src/components/Icon.native';
 import { dotnetArr } from '@/src/helper/dotnetArr';
@@ -9,11 +9,16 @@ import {
   selectWorkSlotsRaw,
   selectWorkSlotsLoading,
   selectWorkSlotsError,
+  checkInWorkSlot,
 } from '@/src/features/technician/workSlotsSlice';
 import AppointmentCard from '@/src/components/AppointmentCard';
 import { router } from 'expo-router';
 import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
+import Toast from 'react-native-toast-message';
+import { set } from 'react-hook-form';
+import { toOffsetISOString } from '@/src/utils/date';
+import { allowCheckIn, allowCheckOut, dateAtLocal, minutesFromNow } from '@/src/helper/canShowCheckIn-Out';
 
 /* ========= utils ========= */
 const colors = {
@@ -63,12 +68,11 @@ const atMidnight = (d) => {
 export default function TechnicianSchedule() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   // console.log("const selectedDate", selectedDate);
-
   const dateStr = useMemo(() => ymd(selectedDate), [selectedDate]);
   // console.log("const dateStr", dateStr);
-
   const dispatch = useAppDispatch();
-
+  
+  const [pending, setPending] = useState(null); 
   const slotMap = useAppSelector(selectSlotsMap);
   const slotsLoading = useAppSelector(selectSlotsLoading);
 
@@ -76,9 +80,6 @@ export default function TechnicianSchedule() {
   // console.log("const scheduleRaw", scheduleRaw);
   const schedLoading = useAppSelector(selectWorkSlotsLoading);
   const schedError = useAppSelector(selectWorkSlotsError);
-
-  // checkin/checkout local tạm
-  const [checkState, setCheckState] = useState({});
 
   // fetch danh mục slots 1 lần
   useEffect(() => {
@@ -93,20 +94,44 @@ export default function TechnicianSchedule() {
     to.setDate(to.getDate() + 7);
     dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
   }, [dispatch, selectedDate]);
+  const reloadAroundSelected = useCallback(async () => {
+    const from = new Date(selectedDate); from.setDate(from.getDate() - 7);
+    const to   = new Date(selectedDate); to.setDate(to.getDate() + 7);
+    await dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
+  }, [dispatch, selectedDate]);
+  const isNotStarted = (s) => s?.status === 'NotStarted';
+  const isWorking    = (s) => s?.status === 'Working' || s?.status === 'InProgress';
+  const isCompleted  = (s) => s?.status === 'Completed';
 
-  const canShowCheckout = (shift) => {
-    if (!shift.checkedInAt || shift.checkedOutAt) return false;
-    const end = dateAt(shift.date, shift.toTime);
-    return minutesUntil(end) <= 30;
-  };
+  const handleCheckIn = useCallback(async (shift) => {
+    const slotKey = `${shift.date}-${shift.slotId}`;
+    try {
+      setPending({ type: 'in', slotKey });
+      await dispatch(checkInWorkSlot({ date: shift.date, slotId: shift.slotId })).unwrap();
+      Toast.show({ type: 'success', text1: 'Đã điểm danh' });
+      await reloadAroundSelected(); // lấy lại status mới từ BE
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'Điểm danh thất bại' });
+    } finally {
+      setPending(null);
+    }
+  }, [dispatch, reloadAroundSelected]);
 
-  const handleCheckIn = async (_shift) => {
-    // TODO: gọi API check-in sau
-  };
-
-  const handleCheckOut = async (_shift) => {
-    // TODO: gọi API check-out sau
-  };
+  const handleCheckOut = useCallback(async (shift) => {
+    const slotKey = `${shift.date}-${shift.slotId}`;
+    try {
+      setPending({ type: 'out', slotKey });
+      // await dispatch(checkOutWorkSlot({ date: shift.date, slotId: shift.slotId })).unwrap();
+      // hoặc nếu endpoint là /api/workslots/check-out:
+      // await dispatch(checkOutWorkSlot({ date: shift.date, slotId: shift.slotId })).unwrap();
+      Toast.show({ type: 'success', text1: 'Đã kết thúc ca' });
+      await reloadAroundSelected();
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'Kết ca thất bại' });
+    } finally {
+      setPending(null);
+    }
+  }, [dispatch, reloadAroundSelected]);
 
   // week selector
   const dateListRef = useRef(null);
@@ -150,20 +175,19 @@ export default function TechnicianSchedule() {
         const toTime = info.toTime || '00:00:00';
         const tws = dotnetArr(sl.technicianWorkSlots)?.[0] || null; // 1 kỹ thuật/slot (hiện tại)
         const key = `${dayData.date}-${sl.slotId}`;
+        const status = tws?.status || 'NotStarted';
         return {
           id: key,
           date: dayData.date,
           slotId: sl.slotId,
           fromTime,
           toTime,
-          status: tws?.status || 'NotStarted',
-          checkedInAt: checkState[key]?.checkedInAt || null,
-          checkedOutAt: checkState[key]?.checkedOutAt || null,
+          status,
           appointments: dotnetArr(tws?.appointments) || [],
         };
       })
       .sort((a, b) => (a.fromTime || '').localeCompare(b.fromTime || ''));
-  }, [dayData, slotMap, checkState]);
+  }, [dayData, slotMap]);
 
   const totalAppointments = useMemo(
     () => shifts.reduce((sum, s) => sum + (s.appointments?.length || 0), 0),
@@ -171,7 +195,6 @@ export default function TechnicianSchedule() {
   );
 
   console.log('[Data]: const shifts', pretty(shifts));
-
   return (
     <View style={styles.container}>
       {/* Week selector */}
@@ -247,8 +270,8 @@ export default function TechnicianSchedule() {
         {shifts.map((shift) => {
           const startLabel = (shift.fromTime || '').slice(0, 5);
           const endLabel = (shift.toTime || '').slice(0, 5);
-          const endDate = dateAt(shift.date, shift.toTime);
-          const minsToEnd = minutesUntil(endDate);
+          const endDate = dateAtLocal(shift.date, shift.toTime);
+          const minsToEnd = minutesFromNow(endDate);
 
           return (
             <View key={shift.id} style={styles.card}>
@@ -264,36 +287,34 @@ export default function TechnicianSchedule() {
               </View>
 
               {/* Actions */}
-              {/* <View style={styles.actionsRow}>
-                {!shift.checkedInAt && (
-                  <Pressable
-                    style={[styles.btn, styles.btnPrimary]}
-                    onPress={() => handleCheckIn(shift)}
-                  >
+              <View style={styles.actionsRow}>
+                {isNotStarted(shift) && allowCheckIn(shift) && (
+                  <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => handleCheckIn(shift)}>
                     <Icon name="play.circle" size={16} color="#fff" />
-                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Check-in</Text>
+                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Điểm danh</Text>
                   </Pressable>
                 )}
 
-                {canShowCheckout(shift) && (
-                  <Pressable
-                    style={[styles.btn, styles.btnDanger]}
-                    onPress={() => handleCheckOut(shift)}
-                  >
+                {allowCheckOut(shift) && (
+                  <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleCheckOut(shift)}>
                     <Icon name="stop.circle" size={16} color="#fff" />
-                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Check-out</Text>
+                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Điểm danh kết thúc ca</Text>
                   </Pressable>
                 )}
 
-                {shift.checkedInAt && !canShowCheckout(shift) && !shift.checkedOutAt && (
+                {isWorking(shift) && !allowCheckOut(shift) && (
                   <View style={styles.hint}>
-                    <Icon name="info.circle" size={14} color={colors.warning} />
+                    <Icon name="circle" size={14} color={colors.warning} />
                     <Text style={styles.hintText}>
-                      Check-out khả dụng trong {Math.max(minsToEnd - 30, 0)} phút nữa
+                      {(() => {
+                        const endDate = dateAtLocal(shift.date, shift.toTime);
+                        const minsToEnd = minutesFromNow(endDate);
+                        return `Check-out khả dụng trong ${Math.max(minsToEnd - 30, 0)} phút nữa`;
+                      })()}
                     </Text>
                   </View>
                 )}
-              </View> */}
+              </View> 
 
               {/* Appointments */}
               <View style={styles.apptHeader}>
@@ -361,7 +382,7 @@ const styles = StyleSheet.create({
 
   list: { flex: 1, padding: 16 },
 
-  emptyWrap: { alignItems: 'center', gap: 8, paddingVertical: 28 },
+  emptyWrap: { alignItems: 'center', gap: 8, paddingVertical: 50, paddingHorizontal: 20 },
   emptyText: { color: colors.textSecondary },
 
   card: {

@@ -41,3 +41,20 @@ export const timeDayDate = (s) => { // hh/mm, thứ, dd/mm/yyyy
     return s;
   }
 };
+
+export function toOffsetISOString(date) {// hàm để tắt utc
+  const pad = n => String(n).padStart(2, '0');
+  const tzMin = -date.getTimezoneOffset();       // VN = +420
+  const sign = tzMin >= 0 ? '+' : '-';
+  const hhOff = pad(Math.floor(Math.abs(tzMin) / 60));
+  const mmOff = pad(Math.abs(tzMin) % 60);
+
+  const Y = date.getFullYear();
+  const M = pad(date.getMonth() + 1);
+  const D = pad(date.getDate());
+  const h = pad(date.getHours());
+  const m = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+
+  return `${Y}-${M}-${D}T${h}:${m}:${s}${sign}${hhOff}:${mmOff}`;
+}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,38 +9,45 @@ import {
   Modal,
   FlatList,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { Icon } from '@/src/components/Icon.native';
 import { dotnetArr } from '@/src/helper/dotnetArr';
-import { selectCurrentRequest } from '@/src/features/requests/requestsSlice';
+import { fetchRepairRequests, selectCurrentRequest } from '@/src/features/requests/requestsSlice';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fmtDateTime } from '@/src/utils/date';
 import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
 import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
+import { useAppDispatch } from '@/src/store';
+import { useDebounce } from '@/src/utils/debounce';
 
-const screen = Dimensions.get('window');
-
-function StatusPill({ isEmergency }) {
-  const bg = isEmergency ? '#FEE2E2' : '#E5F6FF';
-  const fg = isEmergency ? '#B91C1C' : '#0C4A6E';
-  const text = isEmergency ? 'Khẩn cấp' : 'Bình thường';
-  return (
-    <View style={[styles.badge, { backgroundColor: bg }]}>
-      <Text style={[styles.badgeText, { color: fg }]}>{text}</Text>
-    </View>
-  );
-}
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
   const data = useSelector(selectCurrentRequest);
-  // console.log('[Data] : request detail', pretty(data));
+  const dispatch = useAppDispatch();
+  const [refreshing, setRefreshing] = useState(false);
+  
+  console.log('[Data] : request detail', data);
   // Nếu user vào trực tiếp mà store chưa có current -> có thể redirect về list
   // hoặc hiển thị một empty state nhẹ.
+  const reload = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await dispatch(fetchRepairRequests({
+        page: 1,
+        size: 10,
+      })).unwrap();
+    } catch (e) {
+      console.log('[request detail refresh error]', e?.normalized || e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [id, dispatch]);
   if (!data || String(data?.repairRequestId) !== String(id)) {
     return (
       <View style={styles.emptyWrap}>
@@ -57,21 +64,11 @@ export default function RequestDetail() {
   const medias = useMemo(() => dotnetArr(data?.medias), [data]);
   const trackings = useMemo(() => dotnetArr(data?.requestTrackings), [data]);
   const appts = useMemo(() => dotnetArr(data?.appointments), [data]);
-
   const createdAt = fmtDateTime(data?.createdAt) || fmtDateTime(trackings?.[0]?.updatedAt) || '';
-
-  // Viewer state
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerIndex, setViewerIndex] = useState(0);
-
-  const openViewer = (idx) => {
-    if (!medias?.length) return;
-    setViewerIndex(idx || 0);
-    setViewerOpen(true);
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.headerLeft} hitSlop={8}>
@@ -82,7 +79,20 @@ export default function RequestDetail() {
         <View style={{ width: 72 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={reload}
+            colors={['#1e88e5']} // Android spinner color
+            tintColor="#1e88e5"  // iOS spinner color
+            title={refreshing ? 'Đang làm mới...' : undefined}
+          />
+        }
+        alwaysBounceVertical
+        overScrollMode="always"
+      >
         {/* Title row */}
         <View style={styles.titleRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
@@ -103,7 +113,7 @@ export default function RequestDetail() {
             <Icon name="wrench.and.screwdriver" size={16} color="#0C4A6E" />
             <Text style={styles.cardLabel}>Vấn đề</Text>
           </View>
-          <Text style={styles.cardValue}>{data?.issue?.name || '—'}</Text>
+          <Text style={styles.cardValue}>{data?.issue?.name || 'Khác'}</Text>
 
           <View style={[styles.row, { marginTop: 12 }]}>
             <Icon name="building.2" size={16} color="#0C4A6E" />
@@ -111,7 +121,7 @@ export default function RequestDetail() {
           </View>
           <Text style={styles.cardValue}>
             {data?.apartment
-              ? `Tầng ${data?.apartment?.floor ?? '-'} - P.${data?.apartment?.room ?? ''}`
+              ? `Tầng ${data?.apartment?.floor ? data?.apartment?.floor : (data?.apartment?.floorId ? data?.apartment?.floorId : '-')} - P.${data?.apartment?.room ?? ''}`
               : '—'}
           </Text>
         </View>
@@ -150,7 +160,7 @@ export default function RequestDetail() {
                   <View style={styles.apptRow}>
                     <Icon name="clock.fill" size={14} color="#2563EB" />
                     <Text style={styles.apptTime}>
-                      {fmtDateTime(ap.startTime)} — {fmtDateTime(ap.endTime)}
+                      {fmtDateTime(ap.startTime)} — {fmtDateTime(ap.endTime ?? ap.startTime)}
                     </Text>
                   </View>
                   {!!techs?.length && (

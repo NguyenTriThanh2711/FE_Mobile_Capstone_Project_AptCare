@@ -47,7 +47,7 @@ function AppointmentCard({ appt, onPress }) {
   const status = appt?.status || 'New';
   const emergency = appt?.repairRequest?.isEmergency ? 'Emergency' : 'Normal';
   const room = appt?.repairRequest?.apartment?.room || '-';
-  const floor = appt?.repairRequest?.apartment?.floor ?? '-';
+  const floor = appt?.repairRequest?.apartment?.floor ? appt?.repairRequest?.apartment?.floor : ( appt?.repairRequest?.apartment?.floorId ? appt?.repairRequest?.apartment?.floorId : '-');
   const resident = appt?.repairRequest?.apartment?.users || {};
   const residentName =
     resident?.firstName || resident?.lastName
@@ -94,7 +94,7 @@ function AppointmentCard({ appt, onPress }) {
         {floor !== undefined && floor !== null ? (
           <Pill icon="list.number">Tầng {String(floor)}</Pill>
         ) : null}
-        {!!appt?.appointmentId && <Pill icon="number">{`IdCH: ${appt.appointmentId}`}</Pill>}
+        {!!appt?.appointmentId && <Pill icon="list.number">{`IdCH: ${appt.appointmentId}`}</Pill>}
       </View>
 
       {/* Resident */}
@@ -114,6 +114,7 @@ function AppointmentCard({ appt, onPress }) {
               <Text style={sx.phoneTxt}>{' '+residentPhone}</Text>
             </View>
           ) : null}
+
         </View>
       )}
 

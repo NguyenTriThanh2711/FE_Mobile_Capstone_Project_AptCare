@@ -21,14 +21,6 @@ import { useAppDispatch, useAppSelector } from '@/src/store';
 import RequestListItem from '@/src/components/RequestListItem';
 import { pretty } from '@/src/helper/prettyLog';
 
-function useDebounce(value, delay = 400) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return v;
-}
 
 export default function ResidentRequests() {
   const dispatch = useAppDispatch();

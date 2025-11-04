@@ -7,11 +7,11 @@ import { router } from 'expo-router';
 import callPhone from '@/src/utils/call-phone';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const StatCard = ({ colors, children }) => (
+const StatCard = ({ colors, children , start, end }) => (
   <LinearGradient
     colors={colors}
-    start={{ x: 0, y: 1 }}
-    end={{ x: 1, y: 1 }}
+    start={start}
+    end={end}
     style={styles.statCard}
   >
     {children}
@@ -112,19 +112,19 @@ export default function TechnicianDashboard() {
 
         {/* Hàng 1: Tổng, Kiểm tra, Sửa chữa */}
         <View style={styles.statsRow}>
-          <StatCard colors={['#ff0000', '#ffc700']}>
+          <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#eb9625', '#9aeb25']}>
             <Icon name="calendar" size={22} color="#1976D2" />
             <Text style={styles.statNumber}>{stats.todayTotal}</Text>
             <Text style={styles.statLabel}>Tổng công việc</Text>
           </StatCard>
 
-          <StatCard colors={['#ffc700', '#1cff00']}>
+          <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#9aeb25', '#1cff00']}>
             <Icon name="checkmark.seal" size={22} color="#0A84FF" />
             <Text style={styles.statNumber}>{stats.inspectionsToday}</Text>
             <Text style={styles.statLabel}>Kiểm tra hôm nay</Text>
           </StatCard>
 
-          <StatCard colors={['#1cff00', '#0085ff']}>
+          <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#1cff00', '#0085ff']}>
             <Icon name="wrench.and.screwdriver" size={22} color="#F57C00" />
             <Text style={styles.statNumber}>{stats.repairsToday}</Text>
             <Text style={styles.statLabel}>Sửa chữa hôm nay</Text>
@@ -133,13 +133,13 @@ export default function TechnicianDashboard() {
 
         {/* Hàng 2: Hoàn thành, Khẩn cấp */}
         <View style={styles.statsRow}>
-          <StatCard colors={['#ff0000', '#ff0063']}>
+          <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} colors={['#eb9625', '#64da12']}>
             <Icon name="checkmark.circle" size={22} color="#388E3C" />
             <Text style={styles.statNumber}>{stats.completedToday}</Text>
             <Text style={styles.statLabel}>Đã hoàn thành</Text>
           </StatCard>
 
-          <StatCard colors={['#ff0063', '#ff00ed']}>
+          <StatCard start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} colors={['#64da12', '#0085ff']}>
             <Icon name="exclamationmark.triangle" size={22} color="#D32F2F" />
             <Text style={styles.statNumber}>{stats.urgentTasks}</Text>
             <Text style={styles.statLabel}>Khẩn cấp</Text>

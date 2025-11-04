@@ -12,6 +12,9 @@ const PALETTE = {
   pending: { bg: '#FF9500', fg: '#FFFFFF' }, // cam
   notStarted: { bg: '#8E8E93', fg: '#FFFFFF' }, // xám
   inProgress: { bg: '#007AFF', fg: '#FFFFFF' }, // xanh dương
+  inVisit : { bg: '#EAFBE7', fg: '#FFFFFF' }, // vô hình
+  working : { bg: '#34C759', fg: '#FFFFFF' }, // xám
+  confirmed: { bg: '#0A84FF', fg: '#FFFFFF' }, // xanh dương đậm
 };
 
 const STATUS_LABEL = {
@@ -27,16 +30,25 @@ const STATUS_LABEL = {
   Normal:      'Thường',
   Emergency:   'Khẩn cấp',
   NotStarted:    'Chưa bắt đầu',
+  InVisit:     'Đã đến',
+  Working:     'Đang trong ca',
+  Confirmed:   'Đã xác nhận',
 };
 
 function mapStatusToTone(status) {
   switch ((status || '').toString()) {
     case 'Normal':
-        return 'normal';
+      return 'normal';
+    case 'InVisit':
+      return 'inVisit';
+    case 'Working':
+      return 'working';
+    case 'Confirmed':
+      return 'confirmed';
     case 'Emergency':
-        return 'emergency';
+      return 'emergency';
     case 'NotStarted':
-        return 'notStarted';
+      return 'notStarted';
     case 'Completed':
     case 'Approved':
       return 'success';

@@ -46,7 +46,7 @@ const processQueue = (error, token = null) => {
 // ---- Response interceptor
 http.interceptors.response.use(
   (r) => {
-    // console.log('[HTTP Response]', pretty(r?.data));
+    console.log('[HTTP Response]', pretty(r?.data));
     return r;
   },
   async (error) => {
@@ -54,6 +54,19 @@ http.interceptors.response.use(
 
     const status = error?.response?.status;
     const isAuthEndpoint = original?.url?.includes('/auth/');
+
+    error.normalized = {
+      status,
+      message:
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.response?.data ||
+        error?.message ||
+        'Lỗi kết nối',
+      isServer: Boolean(error?.response),
+      url: original?.url || null,
+      method: original?.method || null,
+    };
 
     // Nếu 401 và chưa thử refresh, thực hiện refresh
     if (status === 401 && !original._retry && !isAuthEndpoint) {
@@ -67,7 +80,7 @@ http.interceptors.response.use(
       }
 
       isRefreshing = true;
-
+          
       try {
         const refresh = await getRefreshToken();
         if (!refresh) {

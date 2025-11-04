@@ -29,30 +29,34 @@ export const fetchMySchedule = createAsyncThunk(
     }
   }
 );
-export const checkInSlot = createAsyncThunk(
-  'workSlots/checkInSlot',
-  async ({ slotId, lat, lng, method = 'manual' }, { rejectWithValue }) => {
+export const checkInWorkSlot = createAsyncThunk(
+  'workslots/checkIn',
+  async ({ date, slotId }, { rejectWithValue }) => {
     try {
-      const res = await http.post(`/api/technicians/me/slots/${slotId}/check-in`, {
-        lat,
-        lng,
-        method,
+      const res = await http.patch('/api/workslots/check-in', null, {
+        params: { date, slotId },
       });
-      return { slotId, payload: res.data };
+      return { date, slotId, data: res.data }; // server có thể trả time/current status
     } catch (e) {
-      return rejectWithValue(e?.response?.data || e.message);
+      return rejectWithValue(
+        e?.response?.data?.detail || e?.response?.data?.message || 'Điểm danh thất bại'
+      );
     }
   }
 );
 
-export const checkOutSlot = createAsyncThunk(
-  'workSlots/checkOutSlot',
-  async ({ slotId }, { rejectWithValue }) => {
+export const checkOutWorkSlot = createAsyncThunk(
+  'workslots/checkOut',
+  async ({ date, slotId }, { rejectWithValue }) => {
     try {
-      const res = await http.post(`/api/technicians/me/slots/${slotId}/check-out`);
-      return { slotId, payload: res.data };
+      const res = await http.patch('/api/workslots/check-out', null, {
+        params: { date, slotId },
+      });
+      return { date, slotId, data: res.data };
     } catch (e) {
-      return rejectWithValue(e?.response?.data || e.message);
+      return rejectWithValue(
+        e?.response?.data?.detail || e?.response?.data?.message || 'Kết ca thất bại'
+      );
     }
   }
 );

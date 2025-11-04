@@ -23,6 +23,13 @@ export default function TechnicianStackLayout() {
         }}
       />
       <Stack.Screen
+        name="repairReport-create"
+        options={{
+          title: 'Tạo báo cáo sửa chữa',
+          headerShown: false, // vì bạn đã tự render header trong file
+        }}
+      />
+      <Stack.Screen
         name="inspectionReport/[id]"
         options={{
           title: 'Chi tiết báo cáo',

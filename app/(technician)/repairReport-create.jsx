@@ -1,4 +1,3 @@
-// app/(technician)/inspectReport-create.jsx
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -6,54 +5,33 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import Toast from 'react-native-toast-message';
+
 import { Icon } from '@/src/components/Icon.native';
 import MUITextField from '@/src/components/common/MUITextField';
-import ChipRadioGroup from '@/src/components/ChipRadioGroup';
+import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { Colors } from '@/src/utils/colors';
 import http from '@/src/services/http';
 import { compressMany } from '@/src/utils/imageCompression';
-import ImagePickerStrip from '@/src/components/ImagePickerStrip';
-import { markRead } from '@/src/features/chat/chatSlice';
-import { pretty } from '@/src/helper/prettyLog';
-import { generateInspectionReport } from '@/src/features/inspectionReport/inspectionRPSlice';
-import { useAppDispatch } from '@/src/store';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
-// ===== Enums  =====
-const FaultOwner = {
-  BuildingFault: 'BuildingFault',
-  ResidentFault: 'ResidentFault',
-};
-const SolutionType = {
-  Repair: 'Repair',
-  Replacement: 'Replacement',
-  Outsource: 'Outsource',
-};
 
-const FAULT_OWNER_OPTIONS = [
-  { label: 'Lỗi tòa nhà', value: FaultOwner.BuildingFault },
-  { label: 'Lỗi cư dân', value: FaultOwner.ResidentFault },
-];
-const SOLUTION_TYPE_OPTIONS = [
-  { label: 'Sửa chữa', value: SolutionType.Repair },
-  { label: 'Thay thế', value: SolutionType.Replacement },
-  { label: 'Thuê ngoài', value: SolutionType.Outsource },
-];
-
-// ===== Yup schema =====
 const schema = yup.object({
-  appointmentId: yup.number().typeError('AppointmentId phải là số').required('Bắt buộc'),
-  faultOwner: yup.string().oneOf(Object.values(FaultOwner), 'Chọn người chịu lỗi').required('Bắt buộc'),
-  solutionType: yup.string().oneOf(Object.values(SolutionType), 'Chọn giải pháp').required('Bắt buộc'),
-  description: yup.string().max(2000, 'Tối đa 2000 ký tự').default(''),
-  solution: yup.string().max(2000, 'Tối đa 2000 ký tự').default(''),
+  appointmentId: yup
+    .number()
+    .typeError('AppointmentId phải là số')
+    .required('Bắt buộc'),
+  workDescription: yup
+    .string()
+    .trim()
+    .required('Vui lòng mô tả công việc đã thực hiện'),
+  note: yup.string().max(2000).nullable(),
 });
 
-export default function CreateInspectionReportScreen() {
-  const dispatch = useAppDispatch();
-  const [images, setImages] = useState([]);
+export default function CreateRepairReportScreen() {
   const { appointmentId } = useLocalSearchParams();
+  const [images, setImages] = useState([]);
+
   const defaultAppointmentId = useMemo(() => {
     const n = Number(appointmentId);
     return Number.isFinite(n) ? n : '';
@@ -62,16 +40,13 @@ export default function CreateInspectionReportScreen() {
   const {
     control,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       appointmentId: defaultAppointmentId,
-      faultOwner: FaultOwner.BuildingFault,
-      solutionType: SolutionType.Repair,
-      description: '',
-      solution: '',
+      workDescription: '',
+      note: '',
     },
   });
 
@@ -82,24 +57,41 @@ export default function CreateInspectionReportScreen() {
         quality: 0.7,
         format: 'jpeg',
       });
-      const payload = {
-        appointmentId: Number(values.appointmentId),
-        faultOwner: String(values.faultOwner),
-        solutionType: String(values.solutionType),
-        description: values.description?.trim() || '',
-        solution: values.solution?.trim() || '',
-        file: filesCompressed,
+
+      const fd = new FormData();
+      fd.append('AppointmentId', String(values.appointmentId));
+      fd.append('WorkDescription', values.workDescription.trim());
+      if (values.note?.trim()) {
+        fd.append('Note', values.note.trim());
       }
-      // console.log('[req]:' ,pretty(payload))
-      const created = await dispatch(generateInspectionReport(payload)).unwrap();
-      // console.log('[response ->] :', data);
-      Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
+      filesCompressed.forEach((f, idx) => {
+        fd.append('Files', {
+          uri: f.uri,
+          name: f.name ?? `repair-${idx}.jpg`,
+          type: f.type ?? 'image/jpeg',
+        });
+      });
+
+      await http.post('/api/repairreports', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      Toast.show({
+        type: 'success',
+        text1: 'Đã tạo báo cáo sửa chữa',
+      });
       router.back();
     } catch (err) {
-      console.log('[error] :', err);
+      console.log('[repair report err] =>', err);
       const msg =
-        err?.response?.data?.detail || err?.response?.data?.message || 'Tạo báo cáo thất bại';
-      Toast.show({ type: 'error', text1: err });
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        'Tạo báo cáo sửa chữa thất bại';
+      Toast.show({
+        type: 'error',
+        text1: 'Lỗi',
+        text2: msg,
+      });
     }
   };
 
@@ -111,11 +103,11 @@ export default function CreateInspectionReportScreen() {
           <Icon name="chevron.left" size={22} color="#0A66C2" />
         </Pressable>
         <Icon name="doc.text" size={20} color="#0A66C2" />
-        <Text style={styles.headerTitle}>Báo cáo khảo sát</Text>
+        <Text style={styles.headerTitle}>Báo cáo sửa chữa</Text>
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* Appointment Id */}
+        {/* Appointment Id (locked) */}
         <Controller
           control={control}
           name="appointmentId"
@@ -125,7 +117,7 @@ export default function CreateInspectionReportScreen() {
               placeholder="Nhập mã cuộc hẹn"
               keyboardType="numeric"
               disabled={true}
-              size='small'
+              size="small"
               value={String(value ?? '')}
               onBlur={onBlur}
               onChangeText={(txt) => onChange(txt.replace(/\D+/g, ''))}
@@ -134,81 +126,54 @@ export default function CreateInspectionReportScreen() {
           )}
         />
 
-        {/* Fault Owner */}
+        {/* WorkDescription */}
         <Controller
           control={control}
-          name="faultOwner"
-          render={({ field: { value, onChange } }) => (
-            <ChipRadioGroup
-              label="Người chịu lỗi"
-              value={value}
-              onChange={onChange}
-              options={FAULT_OWNER_OPTIONS}
-            />
-          )}
-        />
-        {!!errors.faultOwner?.message && (
-          <Text style={styles.errText}>{errors.faultOwner.message}</Text>
-        )}
-
-        {/* Solution Type */}
-        <Controller
-          control={control}
-          name="solutionType"
-          render={({ field: { value, onChange } }) => (
-            <ChipRadioGroup
-              label="Giải pháp đề xuất"
-              value={value}
-              onChange={onChange}
-              options={SOLUTION_TYPE_OPTIONS}
-            />
-          )}
-        />
-        {!!errors.solutionType?.message && (
-          <Text style={styles.errText}>{errors.solutionType.message}</Text>
-        )}
-
-        {/* Description */}
-        <Controller
-          control={control}
-          name="description"
+          name="workDescription"
           render={({ field: { value, onChange, onBlur } }) => (
             <MUITextField
-              label="Mô tả hiện trạng"
-              placeholder="Mô tả chi tiết tình trạng, vị trí, ghi chú thêm…"
+              label="Công việc đã thực hiện *"
+              placeholder="Ví dụ: tháo bồn cầu, vệ sinh, thay phao, lắp lại và test, bàn giao..."
               multiline
               numberOfLines={4}
               value={value}
               onBlur={onBlur}
               onChangeText={onChange}
-              error={errors.description?.message}
+              error={errors.workDescription?.message}
+              style={{ marginTop: 14 }}
             />
           )}
         />
 
-        {/* Solution */}
+        {/* Note (optional) */}
         <Controller
           control={control}
-          name="solution"
+          name="note"
           render={({ field: { value, onChange, onBlur } }) => (
             <MUITextField
-              label="Phương án xử lý"
-              placeholder="Mô tả cách xử lý/thiết bị thay thế/vật tư dự kiến…"
+              label="Ghi chú thêm"
+              placeholder="Ghi chú vật tư, khuyến nghị bảo dưỡng, tình trạng hiện tại..."
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
               value={value}
-              size='large'
-              style={{marginTop : 14, marginBottom: 14}}
               onBlur={onBlur}
               onChangeText={onChange}
-              error={errors.solution?.message}
+              style={{ marginTop: 14 }}
             />
           )}
         />
-        <ImagePickerStrip mode="update" value={images} onChange={setImages} maxCount={10} title="Ảnh khảo sát" />
+
+        {/* Images */}
+        <ImagePickerStrip
+          mode="update"
+          value={images}
+          onChange={setImages}
+          maxCount={10}
+          title="Ảnh sau sửa / trước & sau"
+        />
       </ScrollView>
 
-      {/* Action bar */}
+      {/* Footer */}
       <View style={styles.actionBar}>
         <Pressable
           onPress={handleSubmit(onSubmit)}
@@ -245,8 +210,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '800', color: THEME.text },
 
   content: { flex: 1, padding: 16 },
-
-  errText: { color: '#B91C1C', fontSize: 12, marginTop: -6, marginBottom: 8 },
 
   actionBar: {
     padding: 16,

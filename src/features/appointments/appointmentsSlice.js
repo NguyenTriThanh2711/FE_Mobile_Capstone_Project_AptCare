@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { transformAppointment } from './transform';
 import { apiGetAppointmentById } from './api';
+import http from '@/src/services/http';
 
 export const fetchAppointmentById = createAsyncThunk(
   'appointments/fetchById',
@@ -16,10 +17,35 @@ export const fetchAppointmentById = createAsyncThunk(
   }
 );
 
+export const checkInAppointment = createAsyncThunk(
+  'appointments/checkIn',
+  async (appointmentId, { rejectWithValue }) => {
+    try {
+      await http.post(`/api/appointments/${appointmentId}/check-in`, {});
+      return appointmentId;
+    } catch (err) {
+      return rejectWithValue(err?.response?.data?.detail || 'Check-in thất bại');
+    }
+  }
+);
+
+export const startAppointmentRepair = createAsyncThunk(
+  'appointments/startRepair',
+  async (appointmentId, { rejectWithValue }) => {
+    try {
+      await http.post(`/api/appointments/${appointmentId}/start-repair`, {});
+      return appointmentId;
+    } catch (err) {
+      return rejectWithValue(err?.response?.data?.detail || 'Bắt đầu sửa chữa thất bại');
+    }
+  }
+);
+
 const initialState = {
   byId: {},
   loadingById: {},
   errorById: {},
+  checkingIn: {},
 };
 
 const appointmentsSlice = createSlice({
@@ -50,6 +76,22 @@ const appointmentsSlice = createSlice({
         const id = String(action.payload?.id || action.meta.arg);
         state.loadingById[id] = false;
         state.errorById[id] = action.payload?.message || 'Failed to fetch appointment';
+      })
+
+      // check-in
+      .addCase(checkInAppointment.pending, (state, action) => {
+        const id = action.meta.arg;
+        state.checkingIn[id] = true;
+      })
+      .addCase(checkInAppointment.fulfilled, (state, action) => {
+        const id = action.payload;
+        state.checkingIn[id] = false;
+        // chưa biết server trả lại appointment mới không,
+        // nên để component tự fetch lại
+      })
+      .addCase(checkInAppointment.rejected, (state, action) => {
+        const id = action.meta.arg;
+        state.checkingIn[id] = false;
       });
   },
 });
@@ -61,5 +103,7 @@ export const selectAppointmentById = (state, id) => state.appointments.byId[Stri
 export const selectAppointmentLoading = (state, id) => !!state.appointments.loadingById[String(id)];
 export const selectAppointmentError = (state, id) =>
   state.appointments.errorById[String(id)] || null;
+
+export const selectAppointmentCheckingIn = (state, id) => state.appointments.checkingIn[id];
 
 export default appointmentsSlice.reducer;

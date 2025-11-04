@@ -12,7 +12,6 @@ import Toast, { ErrorToast } from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { startRealtime, stopRealtime } from '@/src/services/realtime';
 import http, { setOnAuthFail } from '@/src/services/http';
-import * as Notifications from 'expo-notifications';
 import { attachForegroundListener, registerForPushAsync } from '@/src/services/pushNotifications';
 
 function AuthGate() {
@@ -32,7 +31,7 @@ function AuthGate() {
     if (!user) return;
     (async () => {
       const fcmToken = await registerForPushAsync();
-      console.log('[Token ->] nè', fcmToken);
+      console.log('[FCM Token ->]', fcmToken);
       if (fcmToken) {
         const unSubscribe = attachForegroundListener();
         // gửi token này lên BE của bạn để lưu theo userId
@@ -40,12 +39,12 @@ function AuthGate() {
       }
     })();
   }, []);
-  useEffect(() => {
-    console.log('Realtime call')
-    if (user) startRealtime().catch(console.warn);
-    else stopRealtime().catch(console.warn);
-    return () => {};
-  }, [user]);
+  // useEffect(() => {
+  //   console.log('Realtime call')
+  //   if (user) startRealtime().catch(console.warn);
+  //   else stopRealtime().catch(console.warn);
+  //   return () => {};
+  // }, [user]);
   useEffect(() => {
     (async () => {
       if (triedBootstrap.current) return;
