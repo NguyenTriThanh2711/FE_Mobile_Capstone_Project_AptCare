@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
 import { saveTokens, clearTokens } from '@/src/services/secure-store';
 import { getDeviceId } from '@/src/services/device-id';
+import { pretty } from '@/src/helper/prettyLog';
+import Toast from 'react-native-toast-message';
 
 const initialState = {
   user: null,
@@ -42,20 +44,21 @@ export const login = createAsyncThunk(
       return me || true;
     } catch (err) {
       const res = err?.response;
-      if (res?.status === 403 && res?.data?.message === 'PASSWORD_CHANGE_REQUIRED') {
+      if (res?.status === 403 && res?.data?.code === 'PASSWORD_CHANGE_REQUIRED') {
         return rejectWithValue({
           type: 'PASSWORD_CHANGE_REQUIRED',
           accountId: res?.data?.accountId,
           message: res?.data?.message || 'Bạn cần đổi mật khẩu lần đầu!',
         });
       }
-      console.log('login error =', {
+      console.log('login error =', pretty({
         message: err?.message,
         url: err?.config?.baseURL + err?.config?.url,
         status: err?.response?.status,
         data: err?.response?.data,
-      }); //clg
+      })); //clg
       const message = res?.data?.detail || res?.data?.message || 'Đăng nhập thất bại';
+      Toast.show({ type: 'error', text1: 'Đăng nhập thất bại', text2: message });
       return rejectWithValue({ type: 'GENERAL', message });
     }
   }
@@ -69,18 +72,22 @@ export const login = createAsyncThunk(
  */
 export const firstChangePassword = createAsyncThunk(
   'auth/firstChangePassword',
-  async ({ accountId, newPassword }, { rejectWithValue }) => {
+  async ({ accountId, currentPassword, newPassword }, { rejectWithValue, dispatch }) => {
     try {
-      await http.post('/auth/password/first-change', { accountId, newPassword });
-      const accessTK = data?.accessToken;
-      const refreshTK = data?.refreshToken;
+      console.log('[req]', { accountId, currentPassword, newPassword });
+      const data = await http.post('/auth/password/first-change', { accountId, currentPassword, newPassword, deviceInfo: await getDeviceId() });
+      console.log('[res] ', data.data);
+      const accessTK = data?.data.accessToken;
+      const refreshTK = data?.data.refreshToken;
       if (accessTK && refreshTK) {
         await saveTokens({ access: accessTK, refresh: refreshTK });
       }
-      return true;
+      const me = await dispatch(fetchProfile()).unwrap();
+      return me || true;
     } catch (err) {
       const res = err?.response;
-      const message = res?.data?.detail || res?.data?.message || 'Đổi mật khẩu thất bại';
+      const message = res?.data?.detail || res?.data?.message || 'Đổi mật khẩu thất bại ở đây';
+      console.log('firstChangePassword', err);
       return rejectWithValue(message);
     }
   }
@@ -213,6 +220,10 @@ const authSlice = createSlice({
     setUser(state, action) {
       state.user = action.payload;
     },
+    resetFirstChange(s) {
+      s.needsPasswordChange = false;
+      s.pendingAccountId = null;
+    },
   },
   extraReducers: (builder) => {
     // --- LOGIN
@@ -325,15 +336,17 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser } = authSlice.actions;
+export const { setUser, resetFirstChange } = authSlice.actions;
 
 // ---- Selectors gọn gàng cho UI
 export const selectUser = (state) => state.auth.user;
 export const selectRole = (state) => state.auth.user?.role ?? null;
 export const selectAuthStatus = (state) => state.auth.status;
 export const selectAuthError = (state) => state.auth.error;
+
 export const selectNeedsPasswordChange = (state) => state.auth.needsPasswordChange; // <<
 export const selectPendingAccountId = (state) => state.auth.pendingAccountId; // <<
+
 export const selectRegisterAccountId = (state) => state.auth.registerAccountId; // <<
 export const selectOtpState = (state) => ({
   status: state.auth.otpStatus,

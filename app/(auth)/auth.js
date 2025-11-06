@@ -26,16 +26,13 @@ import {
   register as authRegister,
   verifyOtp,
   resendOtp,
+  firstChangePassword,
 } from '@/src/features/auth/authSlice';
 import { useAppDispatch } from '@/src/store';
 import { use, useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 
 const firstChangeSchema = yup.object({
-  accountId: yup
-    .number()
-    .typeError('AccountId phải là số')
-    .required('Thiếu AccountId'),
   currentPassword: yup.string().min(1, 'Nhập mật khẩu hiện tại').required('Bắt buộc'),
   newPassword: yup.string().min(6, 'Tối thiểu 6 ký tự').required('Bắt buộc'),
   confirmNewPassword: yup
@@ -147,6 +144,7 @@ export default function AuthScreen() {
     control: loginControl,
     handleSubmit: handleLoginSubmit,
     formState: { errors: loginErrors, isSubmitting: isLoginSubmitting },
+    reset: resetLogin,
   } = useForm({
     defaultValues: { usernameOrEmail: '', password: '' },
     mode: 'onTouched',
@@ -155,11 +153,23 @@ export default function AuthScreen() {
     try {
       const result = await dispatch(
         authLogin({ usernameOrEmail: values.usernameOrEmail.trim(), password: values.password })
-      ).unwrap();
-
-      if (result?.requiresFirstPasswordChange) {
-        setIdAccount(String(result.accountId ?? ''));
-        setTab('first-change');
+      );
+      if (authLogin.fulfilled.match(result)) {
+        Toast.show({
+          type: 'success',
+          text1: 'Đăng nhập thành công',
+        });
+      }
+      if (authLogin.rejected.match(result)) {
+        // payload có thể là { type: 'PASSWORD_CHANGE_REQUIRED', accountId, message }
+        const p = result.payload;
+        if (p?.type === 'PASSWORD_CHANGE_REQUIRED') {
+          setIdAccount(Number(p.accountId ?? ''));
+          setTab('first-change');
+          Toast.show({ type: 'info', text1: 'Cần đổi mật khẩu', text2: 'Vui lòng đổi mật khẩu lần đầu.' });
+          return;
+        }
+        Toast.show({ type: 'error', text1: 'Đăng nhập thất bại', text2: p?.message || 'Vui lòng thử lại' });
         return;
       }
       router.replace('/role-gateway');
@@ -178,6 +188,7 @@ export default function AuthScreen() {
     handleSubmit: handleRegisterSubmit,
     formState: { errors: registerErrors, isSubmitting: isRegisterSubmitting },
     getValues: getRegisterValues,
+    reset: resetRegister,
   } = useForm({
     defaultValues: { email: '', password: '', confirmPassword: '' },
     resolver: yupResolver(registerSchema),
@@ -211,6 +222,7 @@ export default function AuthScreen() {
     handleSubmit: handleOtpSubmit,
     formState: { errors: otpErrors, isSubmitting: isOtpSubmitting },
     setError: setOtpError,
+    reset: resetOtp,
   } = useForm({
     defaultValues: { otp: '' },
     resolver: yupResolver(otpSchema),
@@ -257,9 +269,9 @@ export default function AuthScreen() {
     handleSubmit: handleFcSubmit,
     formState: { errors: fcErrors, isSubmitting: isFcSubmitting },
     setValue: setFcValue,
+    reset: resetFc,
   } = useForm({
     defaultValues: {
-      accountId: idAccount ,
       currentPassword: '',
       newPassword: '',
       confirmNewPassword: '',
@@ -267,6 +279,33 @@ export default function AuthScreen() {
     resolver: yupResolver(firstChangeSchema),
     mode: 'onTouched',
   });
+  const onFirstChange = async (form) => {
+    try {
+      await dispatch(firstChangePassword({
+        accountId: Number(idAccount),
+        newPassword: form.newPassword,
+        currentPassword: form.currentPassword,
+      })).unwrap();
+      Toast.show({ type: 'success', text1: 'Đổi mật khẩu thành công', text2: 'Chào mừng bạn đến với AptCare' });
+      router.replace('/role-gateway');
+    } catch (e) {
+      setTab('login');
+      Toast.show({ type: 'error', text1: 'Đổi mật khẩu thất bại', text2: e?.message || 'Vui lòng thử lại' });
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'login') {
+      resetLogin({ usernameOrEmail: '', password: '' });
+    } else if (tab === 'register') {
+      resetRegister({ email: '', password: '', confirmPassword: '' });
+    } else if (tab === 'verify') {
+      resetOtp({ otp: '' });
+      setSec(60); // tiện reset countdown
+    } else if (tab === 'first-change') {
+      resetFc({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    }
+  }, [tab]);
   return (
     <ImageBackground
       source={require('@/assets/building.jpg')}
@@ -288,11 +327,13 @@ export default function AuthScreen() {
           </View>
           {/* tabHeader */}
           <View style={{ flex: 1, justifyContent: 'center' }}>
-            <AuthTabsHeader
-              active={tab}
-              onLogin={() => setTab('login')}
-              onRegister={() => setTab('register')}
-            />
+            {(tab === 'register' || tab === 'login') && (
+              <AuthTabsHeader
+                active={tab}
+                onLogin={() => setTab('login')}
+                onRegister={() => setTab('register')}
+              />
+            )}
             {/* card */}
             <Animated.View
               style={[
@@ -430,10 +471,6 @@ export default function AuthScreen() {
                     Bạn cần đổi mật khẩu mặc định trước khi tiếp tục.
                   </Text>
 
-                  <Field control={fcControl} errors={fcErrors} name="accountId" label="Account ID"
-                         placeholder="VD: 1024" keyboardType="number-pad" startIcon="number"
-                         onChangeTransform={(t) => t.replace(/[^0-9]/g, '')} />
-
                   <Field control={fcControl} errors={fcErrors} name="currentPassword"
                          label="Mật khẩu hiện tại" placeholder="••••••••" secure startIcon="lock" />
 
@@ -444,12 +481,11 @@ export default function AuthScreen() {
                          label="Xác nhận mật khẩu mới" placeholder="••••••••" secure startIcon="lock" />
 
                   <GradientButton title={isFcSubmitting ? 'Đang đổi mật khẩu...' : 'Đổi mật khẩu & tiếp tục'}
-                                  loading={isFcSubmitting} disabled={isFcSubmitting}
-                                  from="orange" to="blue" onPress={handleFcSubmit(onFirstChange)} />
-
-                  <Text style={{ marginTop: 10, fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>
+                    loading={isFcSubmitting} disabled={isFcSubmitting}
+                    from="orange" to="blue" onPress={handleFcSubmit(onFirstChange)} />
+                  {/* <Text style={{ marginTop: 10, fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>
                     Thiết bị: {deviceInfo}
-                  </Text>
+                  </Text> */}
                 </View>
               )}
             </Animated.View>

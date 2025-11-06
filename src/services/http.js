@@ -32,11 +32,11 @@ http.interceptors.request.use(async (config) => {
 let isRefreshing = false;
 let queue = []; // mỗi item: {resolve, reject, config}
 
-const processQueue = (error, token = null) => {
+const processQueue = (error, accessToken = null) => {
   queue.forEach((p) => {
     if (error) p.reject(error);
     else {
-      if (token) p.config.headers.Authorization = `Bearer ${token}`;
+      if (accessToken) p.config.headers.Authorization = `Bearer ${accessToken}`;
       p.resolve(http(p.config));
     }
   });

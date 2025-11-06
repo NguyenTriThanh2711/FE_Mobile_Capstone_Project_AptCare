@@ -25,7 +25,7 @@ export default function AuthTabsHeader({
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
-      ['rgba(230,249,255,0.95)', 'rgba(255,255,255,0.65)']
+      ['rgba(230,249,255,0.95)', 'rgba(240,0,255,0.95)']
     ),
     borderTopRightRadius: cornerR,
   }));
@@ -33,7 +33,7 @@ export default function AuthTabsHeader({
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
-      ['rgba(255,255,255,0.65)', 'rgba(230,249,255,0.95)']
+      ['rgba(240,249,255,0.95)', 'rgba(240,249,255,0.95)']
     ),
     borderTopLeftRadius: cornerR,
   }));
@@ -56,7 +56,7 @@ export default function AuthTabsHeader({
         borderBottomLeftRadius: 0,
         borderBottomRightRadius: 0,
         overflow: 'hidden',
-        backgroundColor: 'rgba(255,255,255,0.2)',
+         backgroundColor: 'rgba(240,249,255,0.9)',
         padding: 8,
         borderBottomWidth: 0,
         borderColor: 'rgba(255,255,255,0.35)',

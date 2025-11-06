@@ -37,7 +37,7 @@ export default function ResidentRequests() {
   const [apartmentId, setApartmentId] = useState(apartments?.[0]?.apartmentId);
   const [search, setSearch] = useState('');
   const [emergencyOnly, setEmergencyOnly] = useState(undefined);
-  const debounced = useDebounce(search, 400);
+  // const debounced = useDebounce(search, 400);
 
   const load = useCallback(
     (p = 1) => {
@@ -46,14 +46,17 @@ export default function ResidentRequests() {
         fetchRepairRequests({
           page: p,
           size: 10,
-          search: debounced || undefined,
+          search: null,
+          //debounced || undefined,
           isEmergency: typeof emergencyOnly === 'boolean' ? emergencyOnly : undefined,
           apartmentId,
           sortBy: 'createdAt:desc',
         })
       );
     },
-    [dispatch, debounced, emergencyOnly, apartmentId]
+    [dispatch,
+      // debounced
+      , emergencyOnly, apartmentId]
   );
 
   useEffect(() => {
