@@ -17,8 +17,7 @@ import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
 import Toast from 'react-native-toast-message';
 import { set } from 'react-hook-form';
-import { toOffsetISOString } from '@/src/utils/date';
-import { allowCheckIn, allowCheckOut, dateAtLocal, minutesFromNow } from '@/src/helper/canShowCheckIn-Out';
+import { allowCheckIn, allowCheckOut, dateAtLocal, minutesFromNow, tooLateForCheckIn } from '@/src/helper/canShowCheckIn-Out';
 
 /* ========= utils ========= */
 const colors = {
@@ -294,7 +293,13 @@ export default function TechnicianSchedule() {
                     <Text style={[styles.btnText, styles.btnPrimaryText]}>Điểm danh</Text>
                   </Pressable>
                 )}
-
+                {/* vắng */}
+                {isNotStarted(shift) && tooLateForCheckIn(shift) && (
+                  <View style={[styles.btn, { backgroundColor: '#F3F4F6', opacity: 0.8 }]}>
+                    <Icon name="xmark.circle" size={16} color="#9CA3AF" />
+                    <Text style={[styles.btnText, { color: '#9CA3AF', fontWeight: '800' }]}>Vắng</Text>
+                  </View>
+                )}
                 {allowCheckOut(shift) && (
                   <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleCheckOut(shift)}>
                     <Icon name="stop.circle" size={16} color="#fff" />

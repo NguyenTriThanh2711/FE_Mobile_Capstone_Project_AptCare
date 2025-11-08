@@ -7,13 +7,14 @@ const PALETTE = {
   success: { bg: '#EAFBE7', fg: '#0B6B2E' }, // xanh lá nhạt
   warning: { bg: '#FFF7ED', fg: '#B45309' }, // cam nhạt
   danger:  { bg: '#FEF2F2', fg: '#B91C1C' }, // đỏ nhạt
-  normal:  { bg: '#34C759', fg: '#FFFFFF' }, // xanh lá
+  normal:  { bg: '#bbe00', fg: '#FFFFFF' }, // xanh lá
   emergency: { bg: '#FF3B30', fg: '#FFFFFF' }, // đỏ
   pending: { bg: '#FF9500', fg: '#FFFFFF' }, // cam
   notStarted: { bg: '#8E8E93', fg: '#FFFFFF' }, // xám
   inProgress: { bg: '#007AFF', fg: '#FFFFFF' }, // xanh dương
-  inVisit : { bg: '#EAFBE7', fg: '#FFFFFF' }, // vô hình
+  inVisit : { bg: '#17a100', fg: '#FFFFFF' }, // vô hình
   working : { bg: '#34C759', fg: '#FFFFFF' }, // xám
+  inRepair: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng
   confirmed: { bg: '#0A84FF', fg: '#FFFFFF' }, // xanh dương đậm
 };
 
@@ -30,7 +31,8 @@ const STATUS_LABEL = {
   Normal:      'Thường',
   Emergency:   'Khẩn cấp',
   NotStarted:    'Chưa bắt đầu',
-  InVisit:     'Đã đến',
+  InVisit:     'Đang xem xét',
+  InRepair:   'Đang sửa chữa',
   Working:     'Đang trong ca',
   Confirmed:   'Đã xác nhận',
 };
@@ -45,6 +47,8 @@ function mapStatusToTone(status) {
       return 'working';
     case 'Confirmed':
       return 'confirmed';
+    case 'InRepair':
+      return 'inRepair';
     case 'Emergency':
       return 'emergency';
     case 'NotStarted':

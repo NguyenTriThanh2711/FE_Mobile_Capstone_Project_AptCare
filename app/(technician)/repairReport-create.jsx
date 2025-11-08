@@ -12,6 +12,7 @@ import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { Colors } from '@/src/utils/colors';
 import http from '@/src/services/http';
 import { compressMany } from '@/src/utils/imageCompression';
+import { createRepairReport } from '@/src/features/repairReport/repairReportSlice';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
@@ -72,9 +73,7 @@ export default function CreateRepairReportScreen() {
         });
       });
 
-      await http.post('/api/repairreports', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await dispatch(createRepairReport(fd)).unwrap();
 
       Toast.show({
         type: 'success',
@@ -155,10 +154,11 @@ export default function CreateRepairReportScreen() {
               placeholder="Ghi chú vật tư, khuyến nghị bảo dưỡng, tình trạng hiện tại..."
               multiline
               numberOfLines={3}
+              size="large"
               value={value}
               onBlur={onBlur}
               onChangeText={onChange}
-              style={{ marginTop: 14 }}
+              style={{ marginTop: 14, marginBottom: 14 }}
             />
           )}
         />
@@ -169,7 +169,7 @@ export default function CreateRepairReportScreen() {
           value={images}
           onChange={setImages}
           maxCount={10}
-          title="Ảnh sau sửa / trước & sau"
+          title="Ảnh sửa trước/ sau"
         />
       </ScrollView>
 

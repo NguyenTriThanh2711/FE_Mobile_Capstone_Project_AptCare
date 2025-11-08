@@ -1,6 +1,9 @@
-export const dotnetArr = (o) => {
-  if (!o) return []; // undefined/null -> []
-  if (Array.isArray(o)) return o; // đã là mảng
-  if (o.$values && Array.isArray(o.$values)) return o.$values; // kiểu .NET
-  return []; // fallback
-};
+export function dotnetArr(x) {
+  if (!x) return [];
+  if (Array.isArray(x)) return x;
+  if (Array.isArray(x?.$values)) return x.$values;
+  if (Array.isArray(x?.items)) return x.items;
+  if (Array.isArray(x?.items?.$values)) return x.items.$values;
+  if (x.repairReportId != null || x.appointmentId != null || x.createdAt != null) return [x];
+  return [];
+}

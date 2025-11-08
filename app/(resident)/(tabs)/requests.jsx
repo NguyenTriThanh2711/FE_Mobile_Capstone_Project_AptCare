@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { Icon } from '@/src/components/Icon.native';
 import { dotnetArr } from '@/src/helper/dotnetArr';
@@ -20,6 +21,7 @@ import {
 import { useAppDispatch, useAppSelector } from '@/src/store';
 import RequestListItem from '@/src/components/RequestListItem';
 import { pretty } from '@/src/helper/prettyLog';
+import { useDebounce } from '@/src/utils/debounce';
 
 
 export default function ResidentRequests() {
@@ -37,7 +39,9 @@ export default function ResidentRequests() {
   const [apartmentId, setApartmentId] = useState(apartments?.[0]?.apartmentId);
   const [search, setSearch] = useState('');
   const [emergencyOnly, setEmergencyOnly] = useState(undefined);
-  // const debounced = useDebounce(search, 400);
+
+  const debouncedSearch = useDebounce(search, 100);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(
     (p = 1) => {
@@ -46,7 +50,7 @@ export default function ResidentRequests() {
         fetchRepairRequests({
           page: p,
           size: 10,
-          search: null,
+          search: debouncedSearch || undefined,
           //debounced || undefined,
           isEmergency: typeof emergencyOnly === 'boolean' ? emergencyOnly : undefined,
           apartmentId,
@@ -55,13 +59,32 @@ export default function ResidentRequests() {
       );
     },
     [dispatch,
-      // debounced
+      debouncedSearch
       , emergencyOnly, apartmentId]
   );
 
   useEffect(() => {
     load(1);
   }, [load]);
+
+  const onRefresh = useCallback(async () => { 
+    if (!apartmentId) return;
+    try {
+      setRefreshing(true);
+      await dispatch(
+        fetchRepairRequests({
+          page: 1,
+          size: 10,
+          search: debouncedSearch || undefined,
+          isEmergency: typeof emergencyOnly === 'boolean' ? emergencyOnly : undefined,
+          apartmentId,
+          sortBy: 'createdAt:desc',
+        })
+      ).unwrap();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, apartmentId, debouncedSearch, emergencyOnly]);
 
   const loadMore = () => {
     if (!loading && page < totalPages) load(page + 1);
@@ -95,6 +118,7 @@ export default function ResidentRequests() {
             placeholder="Tìm theo nội dung..."
             style={{ flex: 1, paddingVertical: 6, fontSize: 14 }}
             returnKeyType="search"
+            onSubmitEditing={() => load(1)}
           />
           {search ? (
             <Pressable onPress={() => setSearch('')}>
@@ -150,7 +174,18 @@ export default function ResidentRequests() {
       </Modal>
 
       {/* List */}
-      <ScrollView contentContainerStyle={{ paddingTop: 16 }}>
+      <ScrollView 
+        contentContainerStyle={{ paddingTop: 16 }}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#1e88e5']} 
+            tintColor="#1e88e5"  // này hiển thị cho ios  
+            title={refreshing ? 'Đang làm mới...' : undefined}
+          />
+        }
+      >
         {loading && page === 1 ? <ActivityIndicator style={{ marginTop: 8 }} /> : null}
 
         {Array.isArray(list) &&

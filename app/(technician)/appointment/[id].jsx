@@ -20,6 +20,7 @@ import {
   selectAppointmentError,
   checkInAppointment,
   selectAppointmentCheckingIn,
+  startAppointmentRepair,
 } from '@/src/features/appointments/appointmentsSlice';
 import { pretty } from '@/src/helper/prettyLog';
 import { getConversation } from '@/src/features/chat/chatSlice';
@@ -29,6 +30,7 @@ import { timeDayDate } from '@/src/utils/date';
 import ReportListItem from '@/src/components/ReportListItem';
 import { fetchInspectionReportByAppointmentId, selectReportByAppointment, selectReportIdsByAppointment, selectReportLoadingByAppointment } from '@/src/features/inspectionReport/inspectionRPSlice';
 import Toast from 'react-native-toast-message';
+import { fetchRepairReportByAppointment, selectRepairReportByAppointment, selectRepairReportIdsByAppointment, selectRepairReportLoadingByAppointment } from '@/src/features/repairReport/repairReportSlice';
 
 const THEME = Colors.light;
 
@@ -44,11 +46,16 @@ export default function AppointmentDetailsScreen() {
   const inspectionReportsById = useAppSelector((s) => s.inspectionReports.byId);
   const inspectionReportLoading = useAppSelector((s) => selectReportLoadingByAppointment(s, id));
   const checkingIn = useAppSelector((state) => selectAppointmentCheckingIn(state, id));
+  const repairReportIds = useAppSelector((s) => selectRepairReportIdsByAppointment(s, id));
+  const repairReportLoading = useAppSelector((s) => selectRepairReportLoadingByAppointment(s, id));
+  const repairReportsById = useAppSelector((s) => s.repairReports.byId);// để lấy object nhanh
 
+  console.log('[repairReports]', repairReportsById);
   useEffect(() => {
   if (id) {
     dispatch(fetchAppointmentById(id));
     dispatch(fetchInspectionReportByAppointmentId(id));
+    dispatch(fetchRepairReportByAppointment({ appointmentId: id }));
   }
 }, [id, dispatch]);
   // const allReportsById = useAppSelector((s) => s.inspectionReports.byId);
@@ -165,8 +172,10 @@ export default function AppointmentDetailsScreen() {
   const goInspectionReportDetail = (reportId) => {
     router.push({ pathname: '/(technician)/inspectionReport/[id]', params: { id: String(reportId) } });
   };
+  const goRepairReportDetail = (reportId) => {
+    router.push({ pathname: '/(technician)/repairReport/[id]', params: { id: String(reportId) } });
+  };
 
-  
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -279,23 +288,23 @@ export default function AppointmentDetailsScreen() {
             </View>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Báo cáo sửa chữa</Text>
-                {/* {loadingReports && reportIds.length === 0 ? (
+                {repairReportLoading && repairReportIds.length === 0 ? (
                   <Text style={{ color: zincColors[500] }}>Đang tải danh sách báo cáo…</Text>
-                ) : reportIds.length === 0 ? (
+                ) : repairReportIds.length === 0 ? (
                   <Text style={{ color: zincColors[500] }}>Chưa có báo cáo nào.</Text>
                 ) : ( 
                   <View style={{ gap: 10 }}>
-                    {reportIds.map((rrid, idx) => (
+                    {repairReportIds.map((rrid, idx) => (
                       <ReportListItem
                         key={rrid}
                         index={idx + 1} // "Báo cáo [x]"
-                        report={reportIds[rrid]}
+                        report={repairReportsById[rrid]}
                         type='Repair'
                         onPress={() => goRepairReportDetail(rrid)}
                       />
                     ))}
                   </View>
-                )} */}
+                )}
             </View>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Căn hộ</Text>
@@ -378,14 +387,6 @@ export default function AppointmentDetailsScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        {appointment?.status === 'InVisited' ? (
-          <>
-            <Pressable style={styles.primaryBtn} onPress={handleCreateInspectionReport}>
-              <Icon name="doc.text" size={20} color={THEME.background} />
-              <Text style={styles.primaryBtnText}>Báo cáo khảo sát</Text>
-            </Pressable>
-          </>
-        ) : null}
         {appointment?.status === 'Pending' || appointment?.status === 'InProgress' ? (
           <>
             <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
@@ -412,6 +413,15 @@ export default function AppointmentDetailsScreen() {
             </Pressable>
           </>
         ) : null}
+        {appointment?.status === 'InVisit' ? (
+          <>
+            <Pressable style={styles.primaryBtn} onPress={handleCreateInspectionReport}>
+              <Icon name="doc.text" size={20} color={THEME.background} />
+              <Text style={styles.primaryBtnText}>Báo cáo khảo sát</Text>
+            </Pressable>
+          </>
+        ) : null}
+        
         {appointment?.status === 'InVisit' || appointment?.status === 'AwaitingIRApproval' ? (
           <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
             <Icon name="pencil" size={20} color={appleBlue} />

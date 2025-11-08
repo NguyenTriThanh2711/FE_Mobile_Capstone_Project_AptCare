@@ -42,19 +42,19 @@ export const timeDayDate = (s) => { // hh/mm, thứ, dd/mm/yyyy
   }
 };
 
-export function toOffsetISOString(date) {// hàm để tắt utc
-  const pad = n => String(n).padStart(2, '0');
-  const tzMin = -date.getTimezoneOffset();       // VN = +420
-  const sign = tzMin >= 0 ? '+' : '-';
-  const hhOff = pad(Math.floor(Math.abs(tzMin) / 60));
-  const mmOff = pad(Math.abs(tzMin) % 60);
+export function toLocalIsoNoOffset(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  
+  const pad = (n, len = 2) => String(n).padStart(len, '0');
 
-  const Y = date.getFullYear();
-  const M = pad(date.getMonth() + 1);
-  const D = pad(date.getDate());
-  const h = pad(date.getHours());
-  const m = pad(date.getMinutes());
-  const s = pad(date.getSeconds());
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hour = pad(d.getHours());
+  const minute = pad(d.getMinutes());
+  const second = pad(d.getSeconds());
+  const ms = pad(d.getMilliseconds(), 3);
 
-  return `${Y}-${M}-${D}T${h}:${m}:${s}${sign}${hhOff}:${mmOff}`;
+  // KHÔNG thêm Z, KHÔNG thêm offset
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}.${ms}`;
 }

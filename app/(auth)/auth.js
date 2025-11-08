@@ -157,7 +157,7 @@ export default function AuthScreen() {
       if (authLogin.fulfilled.match(result)) {
         Toast.show({
           type: 'success',
-          text1: 'Đăng nhập thành công',
+          text1: 'Chào mừng bạn trở lại AptCare',
         });
       }
       if (authLogin.rejected.match(result)) {

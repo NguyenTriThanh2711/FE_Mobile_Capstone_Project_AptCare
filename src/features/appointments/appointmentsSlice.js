@@ -40,12 +40,27 @@ export const startAppointmentRepair = createAsyncThunk(
     }
   }
 );
-
+export const fetchRequestsByApartment = createAsyncThunk(
+  'appointments/fetchRequestsByApartment',
+  async (apartmentId, { rejectWithValue }) => {
+    try {
+      const { data } = await http.get(
+        `/api/repairrequests/paginate?apartmentId=${apartmentId}`
+      );
+      // data dạng BE: { size, page, total, items: { $values: [...] } }
+      const items = data?.items?.$values ?? [];
+      return { apartmentId, requests: items };
+    } catch (err) {
+      return rejectWithValue(err?.response?.data || 'Fetch failed');
+    }
+  }
+);
 const initialState = {
   byId: {},
   loadingById: {},
   errorById: {},
   checkingIn: {},
+  requestsByApartment: {}
 };
 
 const appointmentsSlice = createSlice({
@@ -92,6 +107,11 @@ const appointmentsSlice = createSlice({
       .addCase(checkInAppointment.rejected, (state, action) => {
         const id = action.meta.arg;
         state.checkingIn[id] = false;
+      })
+      // lấy đống requests rồi map requestID với appointmentId lấy ra user vì be ko trả
+      .addCase(fetchRequestsByApartment.fulfilled, (state, action) => {
+        const { apartmentId, requests } = action.payload;
+        state.requestsByApartment[apartmentId] = requests;
       });
   },
 });

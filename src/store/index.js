@@ -11,6 +11,7 @@ import slots from '@/src/features/slots/slotsSlice';
 import appointments from '@/src/features/appointments/appointmentsSlice';
 import chat from '@/src/features/chat/chatSlice';
 import inspectionReports from '@/src/features/inspectionReport/inspectionRPSlice';
+import repairReports from '@/src/features/repairReport/repairReportSlice';
 // --- Chỉ persist "user" của auth (KHÔNG persist status/error/token)
 const authTransform = createTransform(
   (inboundState) => ({ user: inboundState.user }),
@@ -34,6 +35,7 @@ const rootReducer = combineReducers({
   appointments,
   chat,
   inspectionReports,
+  repairReports,
 });
 
 const persistConfig = {

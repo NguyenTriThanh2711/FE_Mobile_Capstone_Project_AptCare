@@ -23,7 +23,7 @@ import { dotnetArr } from '@/src/helper/dotnetArr';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from 'react-native-paper';
 import { compressMany } from '@/src/utils/imageCompression';
-import { toOffsetISOString } from '@/src/utils/date';
+import { toLocalIsoNoOffset } from '@/src/utils/date';
 
 const FOOTER_HEIGHT = 64;
 
@@ -71,7 +71,7 @@ export default function RequestCreate() {
       otherIssue: '',
       shortSummary: '',
       description: '',
-      preferredAt: toOffsetISOString(new Date()),
+      preferredAt: toLocalIsoNoOffset(new Date()),
     },
   });
   const selectedApartmentId = watch('apartmentId');
@@ -426,7 +426,7 @@ export default function RequestCreate() {
               visible={openPicker}
               onClose={() => setOpenPicker(false)}
               onConfirm={(date) =>
-                setValue('preferredAt', toOffsetISOString(date), { shouldDirty: true })
+                setValue('preferredAt', toLocalIsoNoOffset(date), { shouldDirty: true })
               }
               initialDate={new Date(preferredAtISO)}
               daysAhead={45}
