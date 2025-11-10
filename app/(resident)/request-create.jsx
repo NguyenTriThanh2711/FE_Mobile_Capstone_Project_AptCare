@@ -24,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from 'react-native-paper';
 import { compressMany } from '@/src/utils/imageCompression';
 import { toLocalIsoNoOffset } from '@/src/utils/date';
+import GradientButton from '@/src/components/common/GradientButton';
 
 const FOOTER_HEIGHT = 64;
 
@@ -74,6 +75,7 @@ export default function RequestCreate() {
       preferredAt: toLocalIsoNoOffset(new Date()),
     },
   });
+  const isBusy = isSubmitting || creating;// ko cho ng dùng táy máy khi đang gửi
   const selectedApartmentId = watch('apartmentId');
   const selectedApartment = useMemo(
     () => apartments.find((apt) => apt.apartmentId === selectedApartmentId),
@@ -448,14 +450,15 @@ export default function RequestCreate() {
 
       {/* Footer cố định */}
       <View style={[styles.footer, { height: FOOTER_HEIGHT + insets.bottom }]}>
-        <Pressable
+        <GradientButton
+          title={isSubmitting || creating ? 'Đang gửi...' : 'Gửi yêu cầu'}
+          loading={isSubmitting || creating}
           disabled={isSubmitting || creating}
+          size="medium"                
+          scheme={isEmergency ? 'emergency' : 'normal'}
           onPress={handleSubmit(onSubmit)}
-          style={[styles.submitBtn, (isSubmitting || creating) && { backgroundColor: '#cfd8dc' }]}>
-          <Text style={styles.submitText}>
-            {isSubmitting || creating ? 'Đang gửi...' : 'Gửi yêu cầu'}
-          </Text>
-        </Pressable>
+          style={{ borderRadius: 14 }} 
+        />
       </View>
     </View>
   );

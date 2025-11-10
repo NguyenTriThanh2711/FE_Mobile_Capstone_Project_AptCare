@@ -32,7 +32,7 @@ export default function RequestDetail() {
   const dispatch = useAppDispatch();
   const [refreshing, setRefreshing] = useState(false);
   
-  console.log('[Data] : request detail', data);
+  console.log('[Data] : request detail',pretty(data));
   // Nếu user vào trực tiếp mà store chưa có current -> có thể redirect về list
   // hoặc hiển thị một empty state nhẹ.
   const reload = useCallback(async () => {

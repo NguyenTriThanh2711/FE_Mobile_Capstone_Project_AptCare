@@ -342,6 +342,7 @@ export default function AuthScreen() {
                   borderBottomStartRadius: 24,
                   padding: 16,
                   shadowOpacity: 0.2,
+                  ...(tab === 'first-change' || tab === 'verify') ? { borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' } : {}
                 },
                 cardStyle,
               ]}>
@@ -466,7 +467,7 @@ export default function AuthScreen() {
                 </View>
               )}
               {tab === 'first-change' && (
-                <View>
+                <View style={{ borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }}>
                   <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 13, marginBottom: 8 }}>
                     Bạn cần đổi mật khẩu mặc định trước khi tiếp tục.
                   </Text>

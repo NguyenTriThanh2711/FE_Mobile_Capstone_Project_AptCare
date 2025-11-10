@@ -54,11 +54,6 @@ export default function ResidentHome() {
     { id: 4, title: "Báo cáo sự cố tòa nhà",icon: "flag.fill", color: "#34C759", action: handleReportIssue },
   ];
 
-  const handleEmergency = () => {
-    console.log("Opening emergency request");
-    Alert.alert("Emergency", "Emergency request feature coming soon!");
-  };
-
   const handleFeedback = () => {
     console.log("Opening feedback form");
     Alert.alert("Feedback", "Feedback feature coming soon!");
@@ -67,15 +62,6 @@ export default function ResidentHome() {
   const handleReportIssue = () => {
     console.log("Opening issue report");
     Alert.alert("Report Issue", "Issue reporting feature coming soon!");
-  };
-
-  
-
-  const getStatusPill = (r) => {
-    const bg = r.isEmergency ? "#FEE2E2" : "#E5F6FF";
-    const fg = r.isEmergency ? "#B91C1C" : "#0C4A6E";
-    const text = r.isEmergency ? "Khẩn cấp" : "Bình thường";
-    return { bg, fg, text };
   };
 
   return (

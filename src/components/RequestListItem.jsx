@@ -12,6 +12,7 @@ import { dotnetArr } from '../helper/dotnetArr';
 import { fmtDateTime, timeDayDate } from '../utils/date';
 import Badge from './Badge';
 import { capitalizeFirst } from '../helper/capitalizeFirst';
+import { pretty } from '../helper/prettyLog';
 
 const C = {
   text: '#0F172A', // slate-900
@@ -72,18 +73,18 @@ function statusTone(statusRaw) {
 export default function RequestListItem({ item }) {
   const swipeRef = useRef(null);
   const dispatch = useAppDispatch();
-
-  // emergency pill
-  const p = pillColors(!!item?.isEmergency);
+  console.log('[Data]',pretty(item.isEmergency));
 
   // media đầu tiên
   const firstMedia = dotnetArr(item?.medias)?.[0] || null;
   const thumbUrl = firstMedia?.filePath || null;
 
   // tracking mới nhất
+  console.log('item?.requestTrackings', item?.requestTrackings);
   const latestTracking = dotnetArr(item?.requestTrackings)?.[0] || null;
-  const tone = statusTone(latestTracking?.status);
-
+  //const tone = statusTone(latestTracking?.status);
+  console.log(latestTracking)
+  console.log('[dieu kien]',(item?.isEmergency == true || item?.issue?.[0]?.isEmergency == true))
   // tầng/phòng
   const floorLabel = item?.apartment?.floor != null ? String(item.apartment.floorId) : '-';
   const roomLabel = item?.apartment?.room || '-';
@@ -151,13 +152,7 @@ export default function RequestListItem({ item }) {
               </Text>
             )}
           </View>
-
-          {/* <View style={s.pillWrap}>
-            <View style={[s.pill, { backgroundColor: p.bg, borderColor: p.fg + '22' }]}>
-              <Text style={[s.pillTxt, { color: p.fg }]}>{p.text}</Text>
-            </View>
-          </View> */}
-          <Badge status={item?.isEmergency == true ? 'Emergency' : 'Normal'} />
+          <Badge status={(item?.isEmergency == true || item?.issue?.[0]?.isEmergency == true) ? 'Emergency' : 'Normal'} />
         </View>
 
         {!!item?.issue?.name && (
@@ -172,11 +167,8 @@ export default function RequestListItem({ item }) {
         <View style={s.divider} />
 
         <View style={s.metaRow}>
-          {/* <View style={[s.statusChip, { backgroundColor: tone.bg, borderColor: tone.bd }]}>
-            <Icon name={tone.icon} size={14} color={tone.fg} />
-            <Text style={[s.statusTxt, { color: tone.fg }]}>{tone.label}</Text>
-          </View> */}
-          <Badge status={latestTracking?.status} />
+          {/* <Badge status={latestTracking?.status} /> */}
+          <Badge status={item?.status || latestTracking?.status}/>
           <View style={s.metaItem}>
             <Icon name="calendar" size={14} color={C.sub} />
             <Text style={s.metaTxt}>Đã tạo: {timeDayDate(item?.createdAt)}</Text>
@@ -185,7 +177,7 @@ export default function RequestListItem({ item }) {
           <View style={s.metaItem}>
             <Icon name="building.2" size={14} color={C.blue} />
             <Text style={[s.metaTxt, s.metaStrong]}>
-              Tầng {floorLabel} • P.{roomLabel}
+              Tầng {floorLabel} • Phòng.{roomLabel}
             </Text>
           </View>
         </View>

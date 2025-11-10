@@ -7,7 +7,7 @@ const PALETTE = {
   success: { bg: '#EAFBE7', fg: '#0B6B2E' }, // xanh lá nhạt
   warning: { bg: '#FFF7ED', fg: '#B45309' }, // cam nhạt
   danger:  { bg: '#FEF2F2', fg: '#B91C1C' }, // đỏ nhạt
-  normal:  { bg: '#bbe00', fg: '#FFFFFF' }, // xanh lá
+  normal:  { bg: '#007AFF', fg: '#FFFFFF' }, // xanh lá
   emergency: { bg: '#FF3B30', fg: '#FFFFFF' }, // đỏ
   pending: { bg: '#FF9500', fg: '#FFFFFF' }, // cam
   notStarted: { bg: '#8E8E93', fg: '#FFFFFF' }, // xám
