@@ -14,7 +14,7 @@ export const toYMD = (d) => { // yyyy-mm-dd
   return `${y}-${m}-${day}`;
 };
 
-export function fmtDateTime(s) { // hh:mm dd/mm/yyyy
+export function timeDate(s) { // hh:mm dd/mm/yyyy
   try {
     return new Date(s).toLocaleString('vi-VN', {
       hour: '2-digit',
@@ -58,3 +58,8 @@ export function toLocalIsoNoOffset(date) {
   // KHÔNG thêm Z, KHÔNG thêm offset
   return `${year}-${month}-${day}T${hour}:${minute}:${second}.${ms}`;
 }
+
+export const dayDate = (ds) => { // thứ, dd/mm/yyyy
+  const [y,m,d] = ds.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
+};

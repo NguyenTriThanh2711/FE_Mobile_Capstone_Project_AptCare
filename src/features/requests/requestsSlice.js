@@ -138,7 +138,7 @@ export const cancelRequest = createAsyncThunk('requests/cancel', async (id) => {
 });
 
 export const getRequest = createAsyncThunk('requests/get', async (id) => {
-  const { data } = await http.get(`/requests/${id}`);
+  const { data } = await http.get(`/api/repairrequests/${id}`);
   return data;
 });
 

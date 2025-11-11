@@ -1,47 +1,53 @@
 // app/(technician)/tabs/_layout.jsx
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppSelector } from '@/src/store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/src/components/Icon.native';
+
 export default function TechnicianTabs() {
-  // const hasUnread = useAppSelector(selectHasAnyUnread);
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-      <Tabs screenOptions={{ headerShown: false, tabBarStyle: { height: 56, paddingBottom: 6 } }}>
-        <Tabs.Screen
-          name="dashboard"
-          options={{
-            title: 'Dashboard',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="speedometer" color={color} size={size} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="schedule"
-          options={{
-            title: 'Schedule',
-            tabBarIcon: ({ color, size }) => <Ionicons name="hammer" color={color} size={size} />,
-          }}
-        />
-        <Tabs.Screen
-          name="chat"
-          options={{
-            title: 'Tin nhắn',
-            tabBarIcon: ({ color, size }) => <Icon name="chat" color={color} size={size} />,
-            // tabBarBadge: hasUnread ? ' ' : undefined,
-            tabBarBadgeStyle: { backgroundColor: '#FF3B30' },
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profile',
-            tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
-          }}
-        />
-      </Tabs>
-    </SafeAreaView>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          height: 56 + insets.bottom,          // đẩy cao lên
+          paddingBottom: insets.bottom || 6,   // chừa chỗ cho thanh điều hướng
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="speedometer" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ color, size }) => <Ionicons name="hammer" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Tin nhắn',
+          tabBarIcon: ({ color, size }) => <Icon name="chat" color={color} size={size} />,
+          tabBarBadgeStyle: { backgroundColor: '#FF3B30' },
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
+        }}
+      />
+    </Tabs>
   );
 }

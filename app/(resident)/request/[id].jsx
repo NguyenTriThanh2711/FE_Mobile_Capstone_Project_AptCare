@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {  useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,27 +14,33 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { Icon } from '@/src/components/Icon.native';
-import { dotnetArr } from '@/src/helper/dotnetArr';
-import { fetchRepairRequests, selectCurrentRequest } from '@/src/features/requests/requestsSlice';
+import { dotnetArr, unwrapDotNetValuesDeep } from '@/src/helper/dotnetArr';
+import { fetchRepairRequests, getRequest, selectCurrentRequest } from '@/src/features/requests/requestsSlice';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fmtDateTime } from '@/src/utils/date';
 import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
 import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
 import { useAppDispatch } from '@/src/store';
+import { timeDate } from '@/src/utils/date';
 // import { useDebounce } from '@/src/utils/debounce';
 
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
-  const data = useSelector(selectCurrentRequest);
+  const data = unwrapDotNetValuesDeep(useSelector(selectCurrentRequest));
   const dispatch = useAppDispatch();
   const [refreshing, setRefreshing] = useState(false);
-  
-  console.log('[Data] : request detail',pretty(data));
-  // Nếu user vào trực tiếp mà store chưa có current -> có thể redirect về list
-  // hoặc hiển thị một empty state nhẹ.
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      try {
+        await dispatch(getRequest(id)).unwrap?.();
+      } catch (e) {
+        console.log('[getRequest error]', e);
+      }
+    })();
+  }, [id, dispatch]);
   const reload = useCallback(async () => {
     try {
       setRefreshing(true);
@@ -42,6 +48,7 @@ export default function RequestDetail() {
         page: 1,
         size: 10,
       })).unwrap();
+      await dispatch(getRequest(id)).unwrap();
     } catch (e) {
       console.log('[request detail refresh error]', e?.normalized || e);
     } finally {
@@ -62,9 +69,14 @@ export default function RequestDetail() {
   }
 
   const medias = useMemo(() => dotnetArr(data?.medias), [data]);
-  const trackings = useMemo(() => dotnetArr(data?.requestTrackings), [data]);
+  const trackings = useMemo(() => {
+  const arr = dotnetArr(data?.requestTrackings);
+    return [...arr].sort(
+      (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+    );
+  }, [data]);
   const appts = useMemo(() => dotnetArr(data?.appointments), [data]);
-  const createdAt = fmtDateTime(data?.createdAt) || fmtDateTime(trackings?.[0]?.updatedAt) || '';
+  const createdAt = timeDate(data?.createdAt) || timeDate(trackings?.[0]?.updatedAt) || '';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -104,7 +116,10 @@ export default function RequestDetail() {
               <Text style={styles.metaText}>{'Ngày tạo: ' + createdAt || '—'}</Text>
             </View>
           </View>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}> 
+          <Badge status={ data?.appointments?.[0]?.status} styles={{ flex: 1, marginLeft: 4 }} />
           <Badge status={data?.isEmergency == true ? 'Emergency' : 'Normal'} styles={{ flex: 1, marginLeft: 12 }} />
+          </View>
         </View>
 
         {/* Issue & Apartment */}
@@ -160,7 +175,7 @@ export default function RequestDetail() {
                   <View style={styles.apptRow}>
                     <Icon name="clock.fill" size={14} color="#2563EB" />
                     <Text style={styles.apptTime}>
-                      {fmtDateTime(ap.startTime)} — {fmtDateTime(ap.endTime ?? ap.startTime)}
+                      {timeDate(ap.startTime)} — {timeDate(ap.endTime ?? ap.startTime)}
                     </Text>
                   </View>
                   {!!techs?.length && (
@@ -189,13 +204,15 @@ export default function RequestDetail() {
             <Text style={styles.emptyLine}>Chưa có cập nhật.</Text>
           ) : (
             <View style={{ marginTop: 8 }}>
-              {trackings.map((t) => (
-                <View key={t.requestTrackingId} style={styles.trackRow}>
+              {trackings.map((t, idx) => {
+                const isLatest = idx === trackings.length - 1;// phan tu cuoi
+                return(
+                <View key={t.requestTrackingId} style={[styles.trackRow, !isLatest && { opacity: 0.4 }]}>
                   <View style={styles.trackDot} />
                   <View style={{ flex: 1 }}>
                     {/* <Text style={styles.trackStatus}>{t.status}</Text> */}
                     <Badge status={t.status} style={{fontSize: 14, fontWeight: '700'}} />
-                    <Text style={styles.trackTime}>{fmtDateTime(t.updatedAt)}</Text>
+                    <Text style={styles.trackTime}>{timeDate(t.updatedAt)}</Text>
                     {t.updatedByUser ? (
                       <Text style={styles.trackBy}>
                         bởi {t.updatedByUser.firstName} {t.updatedByUser.lastName}
@@ -203,35 +220,36 @@ export default function RequestDetail() {
                     ) : null}
                   </View>
                 </View>
-              ))}
+                )
+              })}
             </View>
           )}
         </View>
 
         {/* Requester */}
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <Icon name="person.fill" size={16} color="#6B7280" />
-            <Text style={styles.cardLabel}>Người yêu cầu</Text>
+        {data?.user && (
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Icon name="person.fill" size={16} color="#6B7280" />
+              <Text style={styles.cardLabel}>Người gửi đơn</Text>
+            </View>
+            <Text style={styles.cardValue}>
+              {(data?.user?.firstName || '') + ' ' + (data?.user?.lastName || '')}
+            </Text>
+            <View style={[styles.row, { marginTop: 6 }]}>
+              <Icon name="phone.fill" size={16} color="#16A34A" />
+              <Text style={styles.smallValue}>{data?.user?.phoneNumber || '—'}</Text>
+            </View>
+            <View style={[styles.row, { marginTop: 6 }]}>
+              <Icon name="envelope.fill" size={16} color="#2563EB" />
+              <Text style={styles.smallValue}>{data?.user?.email || '—'}</Text>
+            </View>
           </View>
-          <Text style={styles.cardValue}>
-            {(data?.user?.firstName || '') + ' ' + (data?.user?.lastName || '')}
-          </Text>
-          <View style={[styles.row, { marginTop: 6 }]}>
-            <Icon name="phone.fill" size={16} color="#16A34A" />
-            <Text style={styles.smallValue}>{data?.user?.phoneNumber || '—'}</Text>
-          </View>
-          <View style={[styles.row, { marginTop: 6 }]}>
-            <Icon name="envelope.fill" size={16} color="#2563EB" />
-            <Text style={styles.smallValue}>{data?.user?.email || '—'}</Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const THUMB = 96;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FA' },
@@ -257,7 +275,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
     marginLeft: 8,
-    marginRight: 8,
+    marginRight: 5,
   },
   titleText: { fontSize: 18, fontWeight: '700', color: '#111827', lineHeight: 22 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },

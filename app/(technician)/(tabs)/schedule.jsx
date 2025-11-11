@@ -18,6 +18,7 @@ import Badge from '@/src/components/Badge';
 import Toast from 'react-native-toast-message';
 import { set } from 'react-hook-form';
 import { allowCheckIn, allowCheckOut, dateAtLocal, minutesFromNow, tooLateForCheckIn } from '@/src/helper/canShowCheckIn-Out';
+import { pad2 } from '@/src/helper/appointResident';
 
 /* ========= utils ========= */
 const colors = {
@@ -32,9 +33,6 @@ const colors = {
   border: '#e5e5e5',
 };
 
-const pad2 = (n) => String(n).padStart(2, '0');
-
-// Local YYYY-MM-DD (theo local time, tránh lệch UTC)
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 function formatViDate(d) {

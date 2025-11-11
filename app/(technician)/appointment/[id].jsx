@@ -289,9 +289,9 @@ export default function AppointmentDetailsScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Báo cáo sửa chữa</Text>
                 {repairReportLoading && repairReportIds.length === 0 ? (
-                  <Text style={{ color: zincColors[500] }}>Đang tải danh sách báo cáo…</Text>
+                  <Text style={{ color: zincColors[500], marginLeft: 40}}>Đang tải danh sách báo cáo…</Text>
                 ) : repairReportIds.length === 0 ? (
-                  <Text style={{ color: zincColors[500] }}>Chưa có báo cáo nào.</Text>
+                  <Text style={{ color: zincColors[500], marginLeft: 40 }}>Chưa có báo cáo nào.</Text>
                 ) : ( 
                   <View style={{ gap: 10 }}>
                     {repairReportIds.map((rrid, idx) => (

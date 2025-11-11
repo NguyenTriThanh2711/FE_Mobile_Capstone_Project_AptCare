@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { useAppDispatch } from '@/src/store';
 import { setCurrentRequest } from '../features/requests/requestsSlice';
 import { dotnetArr } from '../helper/dotnetArr';
-import { fmtDateTime, timeDayDate } from '../utils/date';
+import { timeDayDate } from '../utils/date';
 import Badge from './Badge';
 import { capitalizeFirst } from '../helper/capitalizeFirst';
 import { pretty } from '../helper/prettyLog';
@@ -73,18 +73,15 @@ function statusTone(statusRaw) {
 export default function RequestListItem({ item }) {
   const swipeRef = useRef(null);
   const dispatch = useAppDispatch();
-  console.log('[Data]',pretty(item.isEmergency));
 
   // media đầu tiên
   const firstMedia = dotnetArr(item?.medias)?.[0] || null;
   const thumbUrl = firstMedia?.filePath || null;
 
   // tracking mới nhất
-  console.log('item?.requestTrackings', item?.requestTrackings);
   const latestTracking = dotnetArr(item?.requestTrackings)?.[0] || null;
   //const tone = statusTone(latestTracking?.status);
-  console.log(latestTracking)
-  console.log('[dieu kien]',(item?.isEmergency == true || item?.issue?.[0]?.isEmergency == true))
+
   // tầng/phòng
   const floorLabel = item?.apartment?.floor != null ? String(item.apartment.floorId) : '-';
   const roomLabel = item?.apartment?.room || '-';

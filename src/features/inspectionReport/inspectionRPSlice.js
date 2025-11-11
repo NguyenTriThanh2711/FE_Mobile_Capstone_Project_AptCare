@@ -22,7 +22,7 @@ export const fetchInspectionReportByAppointmentId = createAsyncThunk(
   async (appointmentId, { rejectWithValue }) => {
     try {
       const { data } = await http.get(
-        `/api/inspectionreports/get-inspection-report-by-appointment-id/${appointmentId}`
+        `/api/inspectionreports/inspection-report/by-appointment-id/${appointmentId}`
       );
       return data; 
     } catch (error) {
@@ -60,10 +60,11 @@ export const generateInspectionReport = createAsyncThunk(
           });
         });
       }
-      const { data, status } = await http.post('/api/inspectionreports/generate-inspection-report', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return data;
+      console.log('[sdfsdfsdf]',)
+      // const { data, status } = await http.post('/api/inspectionreports/inspection-report', fd, {
+      //   headers: { 'Content-Type': 'multipart/form-data' },
+      // });
+      // return data;
     } catch (error) {
       return rejectWithValue(
         error?.response?.data?.detail || 'Tạo báo cáo khảo sát thất bại'

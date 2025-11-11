@@ -184,12 +184,11 @@ export default function ResidentProfile() {
     user: s.auth.user,
     status: s.auth.status,
     error:  s.auth.error,
-  }));//mocked // cứ để vậy, để sau này còn xài lazy
+  }));
   React.useEffect(() => {
    if (!user) dispatch(fetchProfile());
   }, [user, dispatch]);
   const [isLogOut, setIsLogOut] = useState(false);
-
   const [notifications, setNotifications] = useState({
     pushNotifications: true,
     emailNotifications: true,
@@ -302,8 +301,7 @@ export default function ResidentProfile() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.profileImage}>
-          {/* <Icon name="person.fill" size={40} color="white" /> */}
-          <Image alt="profile" source={require('@/assets/profile.png')} style={{ width: 80, height: 80, borderRadius: 40 }} />
+          {user?.profileUrl ? <Image alt="profile" source={{ uri: user.profileUrl }} style={{ width: 80, height: 80, borderRadius: 40 }} /> : (<Icon name="person.fill" size={40} color="white" />)}
         </View>
         <Text style={styles.profileName}>{(user?.firstName ?? '') + ' ' + (user?.lastName ?? '')?? "Unknown User"}</Text>
         <Text style={styles.profileApartment}>Căn hộ {getRoomsLabel(user)}</Text>

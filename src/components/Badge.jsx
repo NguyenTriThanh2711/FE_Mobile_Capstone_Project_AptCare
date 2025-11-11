@@ -16,6 +16,7 @@ const PALETTE = {
   working : { bg: '#34C759', fg: '#FFFFFF' }, // xám
   inRepair: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng
   confirmed: { bg: '#0A84FF', fg: '#FFFFFF' }, // xanh dương đậm
+  awaitingIRApproval: { bg: '#ffcc00', fg: '#FFFFF' }, // cam đậm
 };
 
 const STATUS_LABEL = {
@@ -35,6 +36,7 @@ const STATUS_LABEL = {
   InRepair:   'Đang sửa chữa',
   Working:     'Đang trong ca',
   Confirmed:   'Đã xác nhận',
+  AwaitingIRApproval: 'Chờ duyệt báo cáo',
 };
 
 function mapStatusToTone(status) {
@@ -43,6 +45,8 @@ function mapStatusToTone(status) {
       return 'normal';
     case 'InVisit':
       return 'inVisit';
+    case 'AwaitingIRApproval':
+      return 'awaitingIRApproval';
     case 'Working':
       return 'working';
     case 'Confirmed':

@@ -7,6 +7,7 @@ import ResidentRequests from './requests';
 import ResidentProfile from './profile';
 import ResidentDevices from './devices';
 import ResidentChat from './chat';
+import ResidentScheduleScreen from './appointment';
 // import ResidentPayments from "./payments";
 // import ResidentChat from "./chat";
 
@@ -30,8 +31,10 @@ export default function ResidentTabsLayout() {
             iconName = focused ? 'chat.fill' : 'chat';
           } else if (route.name === 'profile') {
             iconName = focused ? 'profile.fill' : 'profile';
+          } else if (route.name === 'schedule') {
+            iconName = focused ? 'calendar' : 'calendar';
           }
-          return <Icon name={iconName} size={size} color={color} />;
+            return <Icon name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#8E8E93',
@@ -75,6 +78,11 @@ export default function ResidentTabsLayout() {
         name="requests"
         component={ResidentRequests}
         options={{ title: 'Yêu cầu', headerTitle: 'AptCare - Tower' }}
+      />
+      <Tab.Screen
+        name="schedule"
+        component={ResidentScheduleScreen}
+        options={{ title: 'Lịch', headerTitle: 'Lịch của tôi' }}
       />
       {/*<Tab.Screen name="devices" component={ResidentDevices} options={{ title: "Thiết bị", headerTitle: "AptCare - Thiết bị" }} />
        <Tab.Screen name="payments" component={ResidentPayments} options={{ title: "Payments", headerTitle: "Payments" }} />*/}
