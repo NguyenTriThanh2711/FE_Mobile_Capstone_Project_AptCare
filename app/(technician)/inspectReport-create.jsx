@@ -88,13 +88,13 @@ export default function CreateInspectionReportScreen() {
         solutionType: String(values.solutionType),
         description: values.description?.trim() || '',
         solution: values.solution?.trim() || '',
-        file: filesCompressed,
+        Files: filesCompressed,
       }
-      // console.log('[req]:' ,pretty(payload))
+      console.log('[req]:' ,pretty(payload))
       const created = await dispatch(generateInspectionReport(payload)).unwrap();
       // console.log('[response ->] :', data);
-      Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
-      router.back();
+      // Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
+      // router.back();
     } catch (err) {
       console.log('[error] :', err);
       const msg =

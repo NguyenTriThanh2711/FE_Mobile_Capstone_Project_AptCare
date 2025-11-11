@@ -98,7 +98,7 @@ function AppointmentCard({ appt, onPress }) {
       </View>
 
       {/* Resident */}
-      {(residentName || residentPhone) && (
+      {/* {(residentName || residentPhone) && (
         <View style={sx.residentBlock}>
           
           {residentName ? (
@@ -116,14 +116,14 @@ function AppointmentCard({ appt, onPress }) {
           ) : null}
 
         </View>
-      )}
+      )} */}
 
       {/* Note */}
       {!!appt?.note && (
         <View style={sx.noteRow}>
           <Icon name="doc.text" size={14} color={colors.textSecondary} />
           <Text style={sx.noteTxt} numberOfLines={2}>
-            {appt.note}
+            Ghi chú: {" " + appt.note}
           </Text>
         </View>
       )}

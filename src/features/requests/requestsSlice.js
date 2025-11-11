@@ -35,6 +35,7 @@ export const createNormalRepairRequest = createAsyncThunk(
           });
         });
       }
+      console.log('[req create]', fd)
       const { data, status } = await http.post('/api/repairrequests/normal', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

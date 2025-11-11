@@ -33,6 +33,20 @@ import Toast from 'react-native-toast-message';
 import { fetchRepairReportByAppointment, selectRepairReportByAppointment, selectRepairReportIdsByAppointment, selectRepairReportLoadingByAppointment } from '@/src/features/repairReport/repairReportSlice';
 
 const THEME = Colors.light;
+const OWNER_LABEL = {
+  BuildingFault: 'Lỗi tòa nhà',
+  ResidentFault: 'Lỗi cư dân',
+  1: 'Lỗi tòa nhà',
+  2: 'Lỗi cư dân',
+};
+const SOLUTION_LABEL = {
+  Repair: 'Sửa chữa',
+  Replacement: 'Thay thế',
+  Outsource: 'Thuê ngoài',
+  1: 'Sửa chữa',
+  2: 'Thay thế',
+  3: 'Thuê ngoài',
+};// sau ròi để vô helper sau
 
 export default function AppointmentDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -50,23 +64,33 @@ export default function AppointmentDetailsScreen() {
   const repairReportLoading = useAppSelector((s) => selectRepairReportLoadingByAppointment(s, id));
   const repairReportsById = useAppSelector((s) => s.repairReports.byId);// để lấy object nhanh
 
-  console.log('[repairReports]', repairReportsById);
+  console.log('[repairReports]', appointment);
   useEffect(() => {
-  if (id) {
-    dispatch(fetchAppointmentById(id));
-    dispatch(fetchInspectionReportByAppointmentId(id));
-    dispatch(fetchRepairReportByAppointment({ appointmentId: id }));
-  }
-}, [id, dispatch]);
+    if (id) {
+      dispatch(fetchAppointmentById(id));
+      dispatch(fetchInspectionReportByAppointmentId(id));
+      dispatch(fetchRepairReportByAppointment({ appointmentId: id }));
+    }
+  }, [id, dispatch]);
   // const allReportsById = useAppSelector((s) => s.inspectionReports.byId);
-
+  const lastInspectionReport = useMemo(() => {
+  if (!inspectionReportIds || inspectionReportIds.length === 0) return null;
+    const list = inspectionReportIds
+      .map((rid) => inspectionReportsById[rid])
+      .filter(Boolean);
+    if (list.length === 0) return null;
+    return list.reduce((latest, cur) => {
+      const t1 = new Date(latest?.createdAt || 0).getTime();
+      const t2 = new Date(cur?.createdAt || 0).getTime();
+      return t2 > t1 ? cur : latest;
+    }, list[0]);
+  }, [inspectionReportIds, inspectionReportsById]);
   useEffect(() => {
     if (id) {
       dispatch(fetchAppointmentById(id));
     }
   }, [id, dispatch]);
-  console.log('appointment = useAppSelector', pretty(appointment));
-
+  // console.log('appointment = useAppSelector', pretty(appointment));
   const handleStartRepair = async () => {
     if (!id) return;
     try {
@@ -250,18 +274,29 @@ export default function AppointmentDetailsScreen() {
                   label="ID cuộc hẹn"
                   value={appointment?.appointmentId || '-'}
                 />
-                <Item icon="flag" label="Lỗi của chủ nhà" value={appointment?.faultOwner || '-'} />
+                <Item icon="flag" label="Người chịu lỗi" value={
+                  lastInspectionReport
+                  ? (OWNER_LABEL[lastInspectionReport.faultOwner] ?? String(lastInspectionReport.faultOwner))
+                  : '-'} />
                 <Item
                   icon="wrench"
                   label="Loại giải pháp"
-                  value={appointment?.solutionType || '-'}
+                  value={
+                  lastInspectionReport
+                    ? (SOLUTION_LABEL[lastInspectionReport.solutionType] ?? String(lastInspectionReport.solutionType))
+                    : '-'}
                 />
                 <Item
                   icon="clock"
                   label="Ngày tạo"
                   value={timeDayDate(appointment?.createdAt) || '-'}
                 />
-                <Item icon="list.bullet" label="Giải pháp" value={appointment?.solution || '-'} />
+                <Item
+                  icon="text.justify"
+                  label="Mô tả hiện trạng"
+                  value={lastInspectionReport?.description || '-'}
+                />
+                <Item icon="list.bullet" label="Giải pháp" value={lastInspectionReport?.solution || '-'} />
               </View>
             </View>
 
@@ -387,7 +422,7 @@ export default function AppointmentDetailsScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        {appointment?.status === 'Pending' || appointment?.status === 'InProgress' ? (
+        {appointment?.status === 'Completed' ? (
           <>
             <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
               <Icon name="doc.text" size={20} color={THEME.background} />
@@ -413,7 +448,7 @@ export default function AppointmentDetailsScreen() {
             </Pressable>
           </>
         ) : null}
-        {appointment?.status === 'InVisit' ? (
+        {appointment?.status === 'AwaitingIRApproval' || appointment?.status === 'InVisit' ? (
           <>
             <Pressable style={styles.primaryBtn} onPress={handleCreateInspectionReport}>
               <Icon name="doc.text" size={20} color={THEME.background} />
@@ -422,7 +457,7 @@ export default function AppointmentDetailsScreen() {
           </>
         ) : null}
         
-        {appointment?.status === 'InVisit' || appointment?.status === 'AwaitingIRApproval' ? (
+        { appointment?.status === 'AwaitingIRApproval' ? (
           <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
             <Icon name="pencil" size={20} color={appleBlue} />
             <Text style={styles.secondaryBtnText}>Bắt đầu sửa chữa</Text>

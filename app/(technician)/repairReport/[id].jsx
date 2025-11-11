@@ -29,7 +29,6 @@ export default function RepairReportDetailScreen() {
 
   const createdAt = report?.createdAt ? timeDayDate(report.createdAt) : '-';
 
-  // unwrap medias & approvals (.NET $values)
   const medias = useMemo(() => dotnetArr(report?.medias), [report]);
   const approvals = useMemo(() => dotnetArr(report?.reportApprovals), [report]);
 

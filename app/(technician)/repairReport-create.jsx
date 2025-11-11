@@ -13,6 +13,7 @@ import { Colors } from '@/src/utils/colors';
 import http from '@/src/services/http';
 import { compressMany } from '@/src/utils/imageCompression';
 import { createRepairReport } from '@/src/features/repairReport/repairReportSlice';
+import { useAppDispatch } from '@/src/store';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
@@ -32,7 +33,7 @@ const schema = yup.object({
 export default function CreateRepairReportScreen() {
   const { appointmentId } = useLocalSearchParams();
   const [images, setImages] = useState([]);
-
+  const dispatch = useAppDispatch();
   const defaultAppointmentId = useMemo(() => {
     const n = Number(appointmentId);
     return Number.isFinite(n) ? n : '';

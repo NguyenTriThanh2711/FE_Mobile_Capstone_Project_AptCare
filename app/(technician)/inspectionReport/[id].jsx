@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '@/src/store';
@@ -10,6 +10,8 @@ import {
 } from '@/src/features/inspectionReport/inspectionRPSlice';
 import { Colors, zincColors, appleBlue, borderColor } from '@/src/utils/colors';
 import { timeDayDate } from '@/src/utils/date';
+import { dotnetArr } from '@/src/helper/dotnetArr';
+import { pretty } from '@/src/helper/prettyLog';
 
 const THEME = Colors.light;
 
@@ -36,13 +38,13 @@ export default function InspectReportDetailScreen() {
 
   const loading = useAppSelector((s) => selectReportLoadingById(s, reportId));
   const report = useAppSelector((s) => selectReportById(s, reportId));
-
+  console.log('[data => report]', pretty(report))
   useEffect(() => {
     if (reportId) dispatch(fetchInspectionReportById(reportId));
   }, [reportId, dispatch]);
 
   const dt = report?.createdAt ? timeDayDate(report.createdAt) : '-';
-
+  const medias = useMemo(() => dotnetArr(report?.medias), [report]);
   return (
     <View style={{ flex: 1, backgroundColor: THEME.background, paddingTop: 40 }}>
       {/* Header */}
@@ -95,6 +97,20 @@ export default function InspectReportDetailScreen() {
                 ? `KTV. ${report.technican?.firstName || ''} ${report.technican?.lastName || ''} (${report.technican?.phoneNumber || '-'})`
                 : '-'}
             </Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Hình ảnh đính kèm</Text>
+            {medias.length === 0 ? (
+              <Text style={{ color: zincColors[500] }}>Không có hình ảnh.</Text>
+            ) : (
+              <ImagePickerStrip
+                mode="view"
+                title=""
+                items={medias}
+                mapUri={(m) => m.filePath}
+                mapKey={(m, i) => String(m.mediaId ?? i)}
+              />
+            )}
           </View>
         </ScrollView>
       )}

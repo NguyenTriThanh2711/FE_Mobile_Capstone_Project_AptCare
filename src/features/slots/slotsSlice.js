@@ -11,7 +11,7 @@ export const fetchSlots = createAsyncThunk(
   async (_payload, { rejectWithValue }) => {
     try {
       const { data } = await http.get('/api/slots', { params: { size: 5, page: 1 } });
-      console.log('fetchSlots data http.get(/api/slots,{params:{size:5,page:1}})', data);
+      // console.log('fetchSlots data http.get(/api/slots,{params:{size:5,page:1}})', data);
       return data;
     } catch (err) {
       const message =

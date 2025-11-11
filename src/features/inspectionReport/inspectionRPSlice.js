@@ -1,3 +1,4 @@
+import { unwrapDotNetValuesDeep } from "@/src/helper/dotnetArr";
 import http from "@/src/services/http";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
@@ -24,7 +25,8 @@ export const fetchInspectionReportByAppointmentId = createAsyncThunk(
       const { data } = await http.get(
         `/api/inspectionreports/inspection-report/by-appointment-id/${appointmentId}`
       );
-      return data; 
+      const list = unwrapDotNetValuesDeep(data);
+      return { appointmentId: Number(appointmentId), list };
     } catch (error) {
       const msg = error?.response?.status === 404
         ? 'Chưa có báo cáo khảo sát cho cuộc hẹn này'
@@ -40,7 +42,7 @@ export const generateInspectionReport = createAsyncThunk(
     try {
       const fd = new FormData();
       // required fields
-      fd.append('AppointmentId', String(payload.appointmentId));
+      fd.append('AppointmentId', Number(payload.appointmentId));
       fd.append('FaultOwner', String(payload.faultOwner));
       fd.append('SolutionType', String(payload.solutionType));
       // optional fields
@@ -60,14 +62,20 @@ export const generateInspectionReport = createAsyncThunk(
           });
         });
       }
-      console.log('[sdfsdfsdf]',)
-      // const { data, status } = await http.post('/api/inspectionreports/inspection-report', fd, {
-      //   headers: { 'Content-Type': 'multipart/form-data' },
-      // });
-      // return data;
+      console.log('[req inspection report]',fd)
+      const { data, status } = await http.post('/api/inspectionreports/inspection-report', fd,{
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        transformRequest: (formData, headers) => {
+          return formData;
+        },
+      }
+    );
+      return data;
     } catch (error) {
       return rejectWithValue(
-        error?.response?.data?.detail || 'Tạo báo cáo khảo sát thất bại'
+        error?.response?.detail || 'Tạo báo cáo khảo sát thất bại'
       );
     }
   }
@@ -114,17 +122,16 @@ const slice = createSlice({
       state.loadingByAppointmentId[appointmentId] = true;
     });
     b.addCase(fetchInspectionReportByAppointmentId.fulfilled, (state, action) => {
-      const inspectionReport = action.payload;
-      const inspectionReportId = inspectionReport?.inspectionReportId ?? inspectionReport?.id;
-      const appointmentId = inspectionReport?.appointmentId;
-      if (inspectionReportId != null) state.byId[inspectionReportId] = inspectionReport;
-      // gắn vào map appointmentId -> [inspectionReportId]
-      if (appointmentId != null) {
-        const arr = state.byAppointmentId[appointmentId] || [];
-        if (!arr.includes(inspectionReportId)) {
-          state.byAppointmentId[appointmentId] = [...arr, inspectionReportId];
+      const { appointmentId, list } = action.payload;
+      const ids = [];
+      for (const r of list) {
+        const id = r?.inspectionReportId ?? r?.id;
+        if (id != null) {
+          state.byId[id] = r;
+          ids.push(id);
         }
       }
+      state.byAppointmentId[appointmentId] = ids;
       state.loadingByAppointmentId[appointmentId] = false;
     });
     b.addCase(fetchInspectionReportByAppointmentId.rejected, (state, action) => {

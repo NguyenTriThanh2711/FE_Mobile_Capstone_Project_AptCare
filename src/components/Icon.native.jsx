@@ -120,7 +120,7 @@ const MAP = {
   // Thời gian & cảnh báo (đã có ở trên nhưng thêm alias nếu cần)
   "clock.badge.exclamationmark": "alert-circle-outline",
   "clock.badge.checkmark": "checkmark-done-circle-outline",
-
+  "text.justify": "document-text-outline",
   // Thiết bị
   "magnifyingglass": "search-outline",
   "flashlight.off.fill": "flashlight-outline",

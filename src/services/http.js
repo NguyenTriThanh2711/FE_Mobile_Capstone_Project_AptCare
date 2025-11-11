@@ -20,9 +20,9 @@ export function setOnAuthFail(fn) { onAuthFail = fn; } //handler khi logout do a
 http.interceptors.request.use(async (config) => {
   const { method, url, baseURL } = config;
   // endpoint chính là `url` trong axios config
-  console.log(`[HTTP ->] ${method?.toUpperCase()} ${baseURL}${url}`);
-  if (config.params) console.log("[HTTP ->] params:", JSON.stringify(config.params));
-  if (config.data)   console.log("[HTTP ->] body:",   JSON.stringify(config.data));
+  // console.log(`[HTTP ->] ${method?.toUpperCase()} ${baseURL}${url}`);
+  // if (config.params) console.log("[HTTP ->] params:", JSON.stringify(config.params));
+  // if (config.data)   console.log("[HTTP ->] body:",   JSON.stringify(config.data));
   const access = await getAccessToken();
   if (access) config.headers.Authorization = `Bearer ${access}`;
   return config;

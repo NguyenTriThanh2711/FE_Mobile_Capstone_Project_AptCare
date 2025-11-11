@@ -191,7 +191,7 @@ export default function TechnicianSchedule() {
     [shifts]
   );
 
-  console.log('[Data]: const shifts', pretty(shifts));
+  // console.log('[Data]: const shifts', pretty(shifts));
   return (
     <View style={styles.container}>
       {/* Week selector */}
