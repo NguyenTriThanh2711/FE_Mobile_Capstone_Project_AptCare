@@ -50,6 +50,13 @@ export default function TechnicianStackLayout() {
           headerShown: false, // vì bạn đã tự render header trong file
         }}
       />
+      <Stack.Screen
+        name="invoice-payment"
+        options={{
+          title: 'Tạo hóa đơn',
+          headerShown: false, // vì bạn đã tự render header trong file
+        }}
+      />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
     </Stack>
   );

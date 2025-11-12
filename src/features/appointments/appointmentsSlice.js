@@ -1,6 +1,4 @@
-//src/features/appointments/appointmentsSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { transformAppointment } from './transform';
 import { apiGetAppointmentById } from './api';
 import http from '@/src/services/http';
 import { monthFromTo, monthKeyOf, pad2 } from '@/src/helper/appointResident';
@@ -11,7 +9,7 @@ export const fetchAppointmentById = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const raw = await apiGetAppointmentById(id);
-      const data = transformAppointment(raw);
+      const data = unwrapDotNetValuesDeep(raw);
       return { id, data };
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Request failed';

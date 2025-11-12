@@ -44,7 +44,6 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.se170542.aptcare"
     },
     "android": {
       "package": "com.aptcare.app",

@@ -285,19 +285,20 @@ export default function TechnicianSchedule() {
 
               {/* Actions */}
               <View style={styles.actionsRow}>
-                {isNotStarted(shift) && allowCheckIn(shift) && (
+                {/* {isNotStarted(shift) && allowCheckIn(shift) && ( */}
+                {isNotStarted(shift) && (
                   <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => handleCheckIn(shift)}>
                     <Icon name="play.circle" size={16} color="#fff" />
                     <Text style={[styles.btnText, styles.btnPrimaryText]}>Điểm danh</Text>
                   </Pressable>
                 )}
                 {/* vắng */}
-                {isNotStarted(shift) && tooLateForCheckIn(shift) && (
+                {/* {isNotStarted(shift) && tooLateForCheckIn(shift) && (
                   <View style={[styles.btn, { backgroundColor: '#F3F4F6', opacity: 0.8 }]}>
                     <Icon name="xmark.circle" size={16} color="#9CA3AF" />
                     <Text style={[styles.btnText, { color: '#9CA3AF', fontWeight: '800' }]}>Vắng</Text>
                   </View>
-                )}
+                )} */}
                 {allowCheckOut(shift) && (
                   <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleCheckOut(shift)}>
                     <Icon name="stop.circle" size={16} color="#fff" />

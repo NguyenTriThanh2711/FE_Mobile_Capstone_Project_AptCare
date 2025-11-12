@@ -31,6 +31,7 @@ import ReportListItem from '@/src/components/ReportListItem';
 import { fetchInspectionReportByAppointmentId, selectReportByAppointment, selectReportIdsByAppointment, selectReportLoadingByAppointment } from '@/src/features/inspectionReport/inspectionRPSlice';
 import Toast from 'react-native-toast-message';
 import { fetchRepairReportByAppointment, selectRepairReportByAppointment, selectRepairReportIdsByAppointment, selectRepairReportLoadingByAppointment } from '@/src/features/repairReport/repairReportSlice';
+import ProgressStepper from '@/src/components/ProgressStepper';
 
 const THEME = Colors.light;
 const OWNER_LABEL = {
@@ -64,7 +65,7 @@ export default function AppointmentDetailsScreen() {
   const repairReportLoading = useAppSelector((s) => selectRepairReportLoadingByAppointment(s, id));
   const repairReportsById = useAppSelector((s) => s.repairReports.byId);// để lấy object nhanh
 
-  console.log('[repairReports]', appointment);
+  console.log('[appointmentss]', appointment);
   useEffect(() => {
     if (id) {
       dispatch(fetchAppointmentById(id));
@@ -185,7 +186,7 @@ export default function AppointmentDetailsScreen() {
       return;
     }
     router.push({
-      pathname: '/(technician)/invoice-create',
+      pathname: '/(technician)/invoice-payment',
       params: { repairRequestId: Number(appointment?.repairRequest?.repairRequestId) },
     });
   };
@@ -199,7 +200,50 @@ export default function AppointmentDetailsScreen() {
   const goRepairReportDetail = (reportId) => {
     router.push({ pathname: '/(technician)/repairReport/[id]', params: { id: String(reportId) } });
   };
+  const PIPELINE = [
+    'Pending',
+    'Assigned',
+    'Confirmed',
+    'InVisit',
+    'AwaitingIRApproval',
+    'InRepair',
+    'Completed',
+  ];
 
+  const STATUS_DISPLAY = {
+    Pending: 'Chờ phân công',
+    Assigned: 'Đã phân công',
+    Confirmed: 'Đã xác nhận',
+    InVisit: 'Đã check-in',
+    AwaitingIRApproval: 'Chờ duyệt báo cáo kiểm tra',
+    InRepair: 'Đang sửa chữa',
+    Completed: 'Hoàn tất',
+  };
+
+  function normalizeTrackings(appointment) {
+    const raw = appointment?.appointmentTrackings;
+    const arr = (raw?.$values ?? raw ?? []);
+    return arr
+      .map(x => ({
+        trackingId: x.trackingId,
+        status: x.status,
+        note: x.note,
+        at: x.updatedAt,
+        by: x.updatedByUser
+          ? `${x.updatedByUser.firstName || ''} ${x.updatedByUser.lastName || ''}`.trim()
+          : '',
+      }))
+      .sort((a, b) => new Date(a.at) - new Date(b.at));
+  }
+
+  function computeCurrentIndex(trackings) {
+    let max = -1;
+    for (const t of trackings) {
+      const idx = PIPELINE.indexOf(t.status);
+      if (idx > max) max = idx;
+    }
+    return max;
+  }
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -379,31 +423,40 @@ export default function AppointmentDetailsScreen() {
 
         {activeTab === 'updates' && (
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>Dòng thời gian</Text>
-            <View style={styles.timeline}>
-              <TimelineItem
-                icon="plus.circle"
-                title="Tạo yêu cầu / Inspection"
-                date={timeDayDate(appointment?.createdAt)}
-                desc={`Tạo bởi ${appointment?.repairRequest?.apartment?.users?.residentName || 'Cư dân'}`}
-              />
-              {(appointment?.status === 'in_progress' || appointment?.status === 'completed') && (
-                <TimelineItem
-                  icon="play.circle"
-                  title="Đã bắt đầu sửa"
-                  date={timeDayDate(appointment?.updatedAt)}
-                  desc="Kỹ thuật viên bắt đầu xử lý"
-                />
-              )}
-              {appointment?.status === 'completed' && (
-                <TimelineItem
-                  icon="checkmark.circle"
-                  title="Hoàn tất"
-                  date={timeDayDate(appointment?.updatedAt)}
-                  desc="Đã đánh dấu hoàn tất"
-                />
-              )}
-            </View>
+            {(() => {
+              const trackings = normalizeTrackings(appointment);
+              console.log('[trackings]', trackings)
+              const currentIndex = computeCurrentIndex(trackings);
+              
+              return (
+                <View>
+                  <Text style={styles.sectionTitle}>Tiến độ</Text>
+
+                  <ProgressStepper
+                    steps={PIPELINE.map(k => STATUS_DISPLAY[k] || k)}
+                    currentIndex={currentIndex}
+                    showPercent
+                  />
+
+                  <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Dòng thời gian</Text>
+                  <View style={styles.timeline}>
+                    {trackings.length === 0 ? (
+                      <Text style={{ color: '#64748B', marginLeft: 8 }}>Chưa có cập nhật tiến độ.</Text>
+                    ) : (
+                      trackings.map((t) => (
+                        <TimelineItem
+                          key={t.trackingId}
+                          icon="clock"
+                          title={STATUS_DISPLAY[t.status] || t.status}
+                          date={timeDayDate(t.at)}
+                          desc={[t.note, t.by ? `Bởi ${t.by}` : ''].filter(Boolean).join(' • ')}
+                        />
+                      ))
+                    )}
+                  </View>
+                </View>
+              );
+            })()}
           </View>
         )}
 
@@ -422,7 +475,7 @@ export default function AppointmentDetailsScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        {appointment?.status === 'Completed' ? (
+        {appointment?.status === 'Completed'? (
           <>
             <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
               <Icon name="doc.text" size={20} color={THEME.background} />
