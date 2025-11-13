@@ -1,378 +1,551 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Image, Modal,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import Toast from 'react-native-toast-message';
-import http from '@/src/services/http';
 import { Icon } from '@/src/components/Icon.native';
-import { Colors, zincColors, appleBlue, appleGreen, borderColor } from '@/src/utils/colors';
-
-// ==== ĐỔI CHO PHÙ HỢP VỚI BE CỦA BẠN ====
-const INVOICE_GET_ENDPOINT = (id) => `/api/invoices/${id}`;
-const INVOICE_CREATE_INTERNAL = '/api/invoices/internal';           // POST
-const INVOICE_MARK_PAID = (id) => `/api/invoices/${id}/pay`;        // POST
-const PAYMENT_QR_ENDPOINT = '/api/payments/qr';                     // POST {invoiceId, amount} -> {qrCodeUrl|qrDataUrl|imageBase64, checkoutUrl?}
+import { Colors, zincColors, appleBlue, borderColor } from '@/src/utils/colors';
+import http from '@/src/services/http';
+import { dotnetArr } from '@/src/helper/dotnetArr';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
-const METHODS = [
-  { key: 'CASH', label: 'Tiền mặt', icon: 'banknote' },
-  { key: 'TRANSFER', label: 'Chuyển khoản', icon: 'arrow.right.arrow.left' },
-  { key: 'CARD', label: 'Thẻ', icon: 'creditcard' },
-  { key: 'QR', label: 'QR (PayOS/VNPay)', icon: 'qrcode' },
-];
+// Đúng theo swagger: /api/invoices/internal
+const INVOICE_ENDPOINT = '/api/invoices/internal';
+const ACCESSORY_LIST_ENDPOINT = '/api/accessorys/list';
 
-export default function InvoicePaymentScreen() {
-  const params = useLocalSearchParams();
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [paying, setPaying] = useState(false);
-  const [qrLoading, setQrLoading] = useState(false);
+const schema = yup.object({
+  repairRequestId: yup
+    .number()
+    .typeError('Id yêu cầu phải là số')
+    .required('Thiếu repairRequestId'),
+  isChargeable: yup.boolean().required(),
+  accessories: yup
+    .array()
+    .of(
+      yup.object({
+        accessoryId: yup
+          .number()
+          .typeError('accessoryId phải là số')
+          .required('Nhập accessoryId'),
+        quantity: yup
+          .number()
+          .typeError('quantity phải là số')
+          .min(1, 'Tối thiểu 1')
+          .required('Nhập quantity'),
+      })
+    )
+    .default([]),
+  services: yup
+    .array()
+    .of(
+      yup.object({
+        name: yup.string().trim().required('Nhập tên dịch vụ'),
+        price: yup
+          .number()
+          .typeError('price phải là số')
+          .min(0, 'Không âm')
+          .required('Nhập giá'),
+      })
+    )
+    .default([]),
+});
 
-  const [invoice, setInvoice] = useState(null);
-  const [method, setMethod] = useState('CASH');
-  const [given, setGiven] = useState('');
-  const [note, setNote] = useState('');
-  const [qrData, setQrData] = useState(null); // {image, url}
-  const [qrOpen, setQrOpen] = useState(false);
+export default function CreateInvoiceScreen() {
+  const { repairRequestId } = useLocalSearchParams();
 
-  const invoiceIdParam = params?.invoiceId ? Number(params.invoiceId) : null;
-  const rrIdParam = params?.repairRequestId ? Number(params.repairRequestId) : null;
+  const defaultRRId = useMemo(() => {
+    const n = Number(repairRequestId);
+    return Number.isFinite(n) ? n : '';
+  }, [repairRequestId]);
 
-  // ---- Helpers để tính tổng nếu BE không gửi totalAmount
-  const services = Array.isArray(invoice?.services) ? invoice.services : [];
-  const accessories = Array.isArray(invoice?.accessories) ? invoice.accessories : [];
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    watch,
+    setValue,
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      repairRequestId: defaultRRId,
+      isChargeable: true,
+      accessories: [],
+      services: [],
+    },
+  });
 
-  // Nếu BE có totalAmount thì ưu tiên dùng
-  const fallbackTotal = useMemo(() => {
-    const svc = services.reduce((s, x) => s + (Number(x?.price) || 0), 0);
-    const acc = accessories.reduce((s, x) => {
-      // nếu BE trả unitPrice -> tính unitPrice*quantity; nếu không -> 0
-      const unit = Number(x?.unitPrice ?? 0);
-      const q = Number(x?.quantity ?? 0);
-      return s + (unit * q);
-    }, 0);
-    return svc + acc;
-  }, [services, accessories]);
+  const isChargeable = watch('isChargeable');
+  const services = watch('services');
+  const accessoriesForm = watch('accessories');
 
-  const total = Number(invoice?.totalAmount ? invoice.totalAmount : fallbackTotal || 0);
-  const givenAmount = Number((given || '').toString().replace(/[^\d.]/g, '')) || 0;
-  const change = Math.max(givenAmount - total, 0);
+  // ====== STATE: danh sách phụ kiện từ API ======
+  const [accessoriesMaster, setAccessoriesMaster] = useState([]);
+  const [accLoading, setAccLoading] = useState(true);
+  const [accError, setAccError] = useState(null);
 
-  // ---- Load invoice (hoặc tạo nhanh nếu chỉ có rrId)
+  const [accSearch, setAccSearch] = useState('');
+
+  // fetch accessories list
   useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
-        setLoading(true);
-        let inv = null;
-
-        if (invoiceIdParam) {
-          const { data } = await http.get(INVOICE_GET_ENDPOINT(invoiceIdParam));
-          inv = data;
-        } else if (rrIdParam) {
-          // tạo nhanh 1 invoice nội bộ isChargeable: true, chưa có phụ kiện/dịch vụ
-          setCreating(true);
-          const payload = {
-            repairRequestId: rrIdParam,
-            isChargeable: true,
-            accessories: [],
-            services: [],
-          };
-          const { data: created } = await http.post(INVOICE_CREATE_INTERNAL, payload);
-          inv = created;
-        }
-
-        if (!inv) {
-          Toast.show({ type: 'error', text1: 'Không tìm thấy hóa đơn' });
-          router.back();
-          return;
-        }
-
-        setInvoice(inv);
+        setAccLoading(true);
+        const res = await http.get(ACCESSORY_LIST_ENDPOINT);
+        const list = dotnetArr(res?.data); // unwrap $values
+        if (!mounted) return;
+        setAccessoriesMaster(
+          (list || []).filter((x) => x.status === 'Active' || !x.status)
+        );
+        setAccError(null);
       } catch (e) {
-        const msg = e?.response?.data?.detail || e?.message || 'Không tải được hoá đơn';
-        Toast.show({ type: 'error', text1: msg });
-        router.back();
+        if (!mounted) return;
+        setAccError(e?.response?.data?.detail || e?.message || 'Lỗi tải phụ kiện');
       } finally {
-        setCreating(false);
-        setLoading(false);
+        if (mounted) setAccLoading(false);
       }
     })();
-  }, [invoiceIdParam, rrIdParam]);
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  const buildCustomerTitle = () => {
-    const apt = invoice?.repairRequest?.apartment;
-    return (apt?.residentName && apt?.room) ? `${apt.residentName} (${apt.room})` : (apt?.room || '--');
-  };
-
-  const handleCreateQR = async () => {
-    if (!invoice?.invoiceId) return;
-    try {
-      setQrLoading(true);
-      setQrData(null);
-
-      const payload = { invoiceId: Number(invoice.invoiceId), amount: Number(total) };
-      const { data } = await http.post(PAYMENT_QR_ENDPOINT, payload);
-
-      const image =
-        data?.qrDataUrl || data?.qrCodeUrl || data?.imageBase64
-          ? (data?.qrDataUrl || data?.qrCodeUrl || `data:image/png;base64,${data?.imageBase64}`)
-          : null;
-      const url = data?.checkoutUrl || data?.deeplink || null;
-
-      if (!image && !url) {
-        Toast.show({ type: 'info', text1: 'Không nhận được QR từ máy chủ' });
-        return;
-      }
-      setQrData({ image, url });
-      setQrOpen(true);
-    } catch (e) {
-      const msg = e?.response?.data?.detail || e?.message || 'Không tạo được QR';
-      Toast.show({ type: 'error', text1: msg });
-    } finally {
-      setQrLoading(false);
-    }
-  };
-
-  const handleMarkPaid = async () => {
-    if (!invoice?.invoiceId) return;
-    try {
-      setPaying(true);
-      const payload = {
-        method,                      
-        amount: Number(total),       
-        givenAmount: givenAmount || undefined,
-        note: note?.trim() || undefined,
-      };
-      await http.post(INVOICE_MARK_PAID(invoice.invoiceId), payload);
-      Toast.show({ type: 'success', text1: 'Đã ghi nhận thanh toán' });
-      router.back();
-    } catch (e) {
-      const msg = e?.response?.data?.detail || e?.message || 'Ghi nhận thanh toán thất bại';
-      Toast.show({ type: 'error', text1: msg });
-    } finally {
-      setPaying(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-        <Text style={{ color: zincColors[500], marginTop: 6 }}>{creating ? 'Đang tạo hóa đơn…' : 'Đang tải hoá đơn…'}</Text>
-      </View>
+  // danh sách gợi ý theo tên
+  const filteredAccessories = useMemo(() => {
+    const keyword = accSearch.trim().toLowerCase();
+    if (!keyword) return [];
+    return accessoriesMaster.filter((a) =>
+      String(a.name || '').toLowerCase().includes(keyword)
     );
-  }
+  }, [accSearch, accessoriesMaster]);
+
+  const onToggleChargeable = (val) => {
+    setValue('isChargeable', val, { shouldValidate: true, shouldDirty: true });
+    if (!val) {
+      // nếu miễn phí: clear accessories + services
+      setValue('accessories', []);
+      setValue('services', []);
+    }
+  };
+
+  const {
+    fields: accFields,
+    append: accAppend,
+    remove: accRemove,
+  } = useFieldArray({ control, name: 'accessories' });
+
+  const {
+    fields: svcFields,
+    append: svcAppend,
+    remove: svcRemove,
+  } = useFieldArray({ control, name: 'services' });
+
+  // Tổng dịch vụ
+  const servicesTotal = (services || []).reduce(
+    (sum, s) => sum + (Number(s?.price) || 0),
+    0
+  );
+
+  // Tổng phụ kiện (dựa vào price trong accessoriesMaster * quantity)
+  const accessoriesTotal = (accessoriesForm || []).reduce((sum, row) => {
+    const currentId = row?.accessoryId;
+    const found = accessoriesMaster.find(
+      (a) => String(a.accessoryId) === String(currentId)
+    );
+    const price = Number(found?.price || 0);
+    const qty = Number(row?.quantity || 0);
+    return sum + price * qty;
+  }, 0);
+
+  const onSubmit = async (values) => {
+    try {
+      const payload = {
+        repairRequestId: Number(values.repairRequestId),
+        isChargeable: !!values.isChargeable,
+        accessories: (values.accessories || []).map((a) => ({
+          accessoryId: Number(a.accessoryId),
+          quantity: Number(a.quantity),
+        })),
+        services: (values.services || []).map((s) => ({
+          name: String(s.name).trim(),
+          price: Number(s.price),
+        })),
+      };
+
+      await http.post(INVOICE_ENDPOINT, payload);
+
+      Toast.show({ type: 'success', text1: 'Đã tạo hóa đơn' });
+      router.back();
+    } catch (err) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Tạo hóa đơn thất bại';
+      Toast.show({ type: 'error', text1: msg });
+    }
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: THEME.background, paddingTop: 20 }}>
+    <View style={{ flex: 1, backgroundColor: THEME.background, paddingTop: 40 }}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
           <Icon name="chevron.left" size={22} color={appleBlue} />
         </Pressable>
         <Icon name="creditcard" size={20} color={appleBlue} />
-        <Text style={styles.headerTitle}>Thanh toán hoá đơn</Text>
+        <Text style={styles.headerTitle}>Tạo hóa đơn</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
-        {/* Thông tin chung */}
-        <View style={styles.card}>
-          <Row label="Mã hóa đơn" value={invoice?.invoiceId ?? '--'} />
-          <Row label="Yêu cầu sửa" value={invoice?.repairRequestId ?? '--'} />
-          <Row label="Khách/Căn hộ" value={buildCustomerTitle()} />
+        {/* repairRequestId */}
+        <Controller
+          control={control}
+          name="repairRequestId"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <View style={styles.field}>
+              <Text style={styles.label}>ID yêu cầu</Text>
+              <TextInput
+                value={String(value ?? '')}
+                onBlur={onBlur}
+                editable={false}
+                onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                keyboardType="numeric"
+                placeholder="Nhập repairRequestId"
+                style={[styles.input, { backgroundColor: '#F3F4F6' }]}
+              />
+              {!!errors.repairRequestId?.message && (
+                <Text style={styles.err}>{errors.repairRequestId.message}</Text>
+              )}
+            </View>
+          )}
+        />
+
+        {/* isChargeable */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ fontWeight: '700', fontSize: 16 }}>Tính phí (isChargeable)</Text>
+          <Controller
+            control={control}
+            name="isChargeable"
+            render={({ field: { value } }) => (
+              <Switch value={!!value} onValueChange={onToggleChargeable} />
+            )}
+          />
         </View>
 
-        {/* Dịch vụ */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Icon name="hammer" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Dịch vụ</Text>
-          </View>
-          {services.length === 0 ? (
-            <Text style={{ color: zincColors[500] }}>Không có dịch vụ.</Text>
-          ) : services.map((s, i) => (
-            <LineItemRow
-              key={`${s?.name}-${i}`}
-              name={s?.name || `Dịch vụ #${i + 1}`}
-              right={(Number(s?.price) || 0).toLocaleString('vi-VN') + ' đ'}
-            />
-          ))}
-        </View>
-
-        {/* Phụ kiện */}
+        {/* Accessories Section */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="wrench" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Phụ kiện</Text>
+            <Text style={styles.cardTitle}>Phụ kiện (Accessories)</Text>
+            <Pressable
+              onPress={() => accAppend({ accessoryId: '', quantity: 1 })}
+              style={styles.addBtn}
+            >
+              <Icon name="plus.circle" size={18} color={appleBlue} />
+              <Text style={styles.addTxt}>Thêm dòng trống</Text>
+            </Pressable>
           </View>
-          {accessories.length === 0 ? (
-            <Text style={{ color: zincColors[500] }}>Không có phụ kiện.</Text>
-          ) : accessories.map((a, i) => {
-            const unit = Number(a?.unitPrice ?? 0);
-            const qty = Number(a?.quantity ?? 0);
-            const line = unit * qty;
+
+          {/* Tìm kiếm phụ kiện */}
+          <View style={{ marginBottom: 10 }}>
+            <Text style={styles.smallLabel}>Tìm phụ kiện theo tên</Text>
+            <TextInput
+              value={accSearch}
+              onChangeText={setAccSearch}
+              placeholder="Nhập tên phụ kiện..."
+              style={styles.input}
+            />
+            {accLoading && (
+              <Text style={{ fontSize: 12, color: zincColors[500], marginTop: 4 }}>
+                Đang tải danh sách phụ kiện...
+              </Text>
+            )}
+            {accError && (
+              <Text style={{ fontSize: 12, color: '#B91C1C', marginTop: 4 }}>
+                {String(accError)}
+              </Text>
+            )}
+
+            {accSearch.length > 0 && filteredAccessories.length > 0 && (
+              <View style={styles.suggestionBox}>
+                {filteredAccessories.slice(0, 5).map((acc) => (
+                  <Pressable
+                    key={acc.accessoryId}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      accAppend({
+                        accessoryId: String(acc.accessoryId),
+                        quantity: 1,
+                      });
+                      setAccSearch('');
+                    }}
+                  >
+                    <Text style={styles.suggestionName}>{acc.name}</Text>
+                    <Text style={styles.suggestionMeta}>
+                      #{acc.accessoryId} ·{' '}
+                      {Number(acc.price || 0).toLocaleString('vi-VN')} đ · tồn{' '}
+                      {acc.quantity}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {accFields.length === 0 ? (
+            <Text style={{ color: zincColors[500] }}>Chưa có dòng phụ kiện nào.</Text>
+          ) : null}
+
+          {accFields.map((row, idx) => {
+            const formRow = accessoriesForm?.[idx];
+            const currentAccessoryId = formRow?.accessoryId;
+            const matchedAcc = accessoriesMaster.find(
+              (a) => String(a.accessoryId) === String(currentAccessoryId)
+            );
+
             return (
-              <LineItemRow
-                key={`${a?.accessoryId}-${i}`}
-                name={`#${a?.accessoryId} x${qty}`}
-                right={(line || 0).toLocaleString('vi-VN') + ' đ'}
-                sub={unit ? `đơn giá ${unit.toLocaleString('vi-VN')} đ` : undefined}
-              />
+              <View key={row.id} style={[styles.rowBlock]}>
+                {/* Thông tin phụ kiện (tên + giá) nếu đã match */}
+                {matchedAcc && (
+                  <View style={styles.accInfoLine}>
+                    <Text style={styles.accName}>{matchedAcc.name}</Text>
+                    <Text style={styles.accMeta}>
+                      #{matchedAcc.accessoryId} ·{' '}
+                      {Number(matchedAcc.price || 0).toLocaleString('vi-VN')} đ · tồn{' '}
+                      {matchedAcc.quantity}
+                    </Text>
+                  </View>
+                )}
+
+                {/* accessoryId */}
+                <Controller
+                  control={control}
+                  name={`accessories.${idx}.accessoryId`}
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.smallLabel}>Accessory ID</Text>
+                      <TextInput
+                        value={String(value ?? '')}
+                        onBlur={onBlur}
+                        onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                        keyboardType="numeric"
+                        placeholder="ID"
+                        style={styles.input}
+                      />
+                      {!!errors?.accessories?.[idx]?.accessoryId?.message && (
+                        <Text style={styles.err}>
+                          {errors.accessories[idx].accessoryId.message}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                />
+
+                {/* quantity */}
+                <Controller
+                  control={control}
+                  name={`accessories.${idx}.quantity`}
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <View style={{ width: 110 }}>
+                      <Text style={styles.smallLabel}>Số lượng</Text>
+                      <TextInput
+                        value={String(value ?? '')}
+                        onBlur={onBlur}
+                        onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                        keyboardType="numeric"
+                        placeholder="1"
+                        style={styles.input}
+                      />
+                      {!!errors?.accessories?.[idx]?.quantity?.message && (
+                        <Text style={styles.err}>
+                          {errors.accessories[idx].quantity.message}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                />
+
+                <Pressable onPress={() => accRemove(idx)} style={styles.delBtn}>
+                  <Icon name="trash" size={18} color="#B91C1C" />
+                </Pressable>
+              </View>
             );
           })}
         </View>
 
+        {/* Services Section */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Icon name="hammer" size={18} color={appleBlue} />
+            <Text style={styles.cardTitle}>Dịch vụ (Services)</Text>
+            <Pressable
+              onPress={() => svcAppend({ name: '', price: '' })}
+              style={styles.addBtn}
+            >
+              <Icon name="plus.circle" size={18} color={appleBlue} />
+              <Text style={styles.addTxt}>Thêm dòng</Text>
+            </Pressable>
+          </View>
+
+          {svcFields.length === 0 ? (
+            <Text style={{ color: zincColors[500] }}>Chưa có dòng dịch vụ nào.</Text>
+          ) : null}
+
+          {svcFields.map((row, idx) => (
+            <View key={row.id} style={[styles.rowBlock]}>
+              {/* name */}
+              <Controller
+                control={control}
+                name={`services.${idx}.name`}
+                render={({ field: { value, onChange, onBlur } }) => (
+                  <View style={{ flex: 1.2 }}>
+                    <Text style={styles.smallLabel}>Tên dịch vụ</Text>
+                    <TextInput
+                      value={value}
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      placeholder="VD: Sửa khóa cửa"
+                      style={styles.input}
+                    />
+                    {!!errors?.services?.[idx]?.name?.message && (
+                      <Text style={styles.err}>
+                        {errors.services[idx].name.message}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              />
+
+              {/* price */}
+              <Controller
+                control={control}
+                name={`services.${idx}.price`}
+                render={({ field: { value, onChange, onBlur } }) => (
+                  <View style={{ width: 140 }}>
+                    <Text style={styles.smallLabel}>Giá</Text>
+                    <TextInput
+                      value={String(value ?? '')}
+                      onBlur={onBlur}
+                      onChangeText={(t) => onChange(t.replace(/[^\d.]/g, ''))}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      style={styles.input}
+                    />
+                    {!!errors?.services?.[idx]?.price?.message && (
+                      <Text style={styles.err}>
+                        {errors.services[idx].price.message}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              />
+
+              <Pressable onPress={() => svcRemove(idx)} style={styles.delBtn}>
+                <Icon name="trash" size={18} color="#B91C1C" />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
         {/* Tổng tiền */}
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Tổng thanh toán</Text>
-          <Text style={styles.totalValue}>{total.toLocaleString('vi-VN')} đ</Text>
-        </View>
+          <Text style={styles.totalLabel}>Tổng phụ kiện (nháp)</Text>
+          <Text style={styles.totalValue}>
+            {accessoriesTotal.toLocaleString('vi-VN')} đ
+          </Text>
 
-        {/* Phương thức */}
-        <View style={styles.card}>
-          <Text style={[styles.cardTitle, { marginBottom: 10 }]}>Phương thức thanh toán</Text>
-          <View style={{ gap: 8 }}>
-            {METHODS.map((m) => (
-              <Pressable
-                key={m.key}
-                onPress={() => setMethod(m.key)}
-                style={[
-                  styles.methodRow,
-                  method === m.key && { borderColor: appleBlue, backgroundColor: '#F0F7FF' },
-                ]}
-              >
-                <Icon name={m.icon} size={18} color={method === m.key ? appleBlue : zincColors[600]} />
-                <Text style={[styles.methodText, method === m.key && { color: appleBlue }]}>{m.label}</Text>
-                {method === m.key && <Icon name="checkmark.circle.fill" size={18} color={appleBlue} />}
-              </Pressable>
-            ))}
+          <View style={{ height: 8 }} />
+
+          <Text style={styles.totalLabel}>Tổng dịch vụ (nháp)</Text>
+          <Text style={styles.totalValue}>
+            {servicesTotal.toLocaleString('vi-VN')} đ
+          </Text>
+
+          <View
+            style={{
+              marginTop: 10,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: borderColor,
+              paddingTop: 8,
+            }}
+          >
+            <Text style={styles.totalLabel}>Tổng tạm tính</Text>
+            <Text style={styles.totalValue}>
+              {(accessoriesTotal + servicesTotal).toLocaleString('vi-VN')} đ
+            </Text>
           </View>
         </View>
-
-        {/* Tiền khách đưa (chỉ hiện khi tiền mặt) */}
-        {method === 'CASH' && (
-          <View style={styles.card}>
-            <Text style={styles.smallLabel}>Khách đưa (VND)</Text>
-            <TextInput
-              value={given}
-              onChangeText={(t) => setGiven(t.replace(/[^\d.]/g, ''))}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              style={styles.input}
-            />
-            <View style={styles.changeRow}>
-              <Text style={{ color: zincColors[600], fontWeight: '700' }}>Tiền thừa</Text>
-              <Text style={{ fontWeight: '800', color: THEME.text }}>
-                {change.toLocaleString('vi-VN')} đ
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Ghi chú */}
-        <View style={styles.card}>
-          <Text style={styles.smallLabel}>Ghi chú</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Ví dụ: khách chuyển khoản lúc 14:35"
-            style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
-            multiline
-          />
-        </View>
-
-        {/* QR */}
-        {method === 'QR' && (
-          <View style={[styles.card, { alignItems: 'flex-start', gap: 10 }]}>
-            <Pressable onPress={handleCreateQR} style={[styles.qrBtn, qrLoading && { opacity: 0.6 }]} disabled={qrLoading}>
-              {qrLoading ? <ActivityIndicator /> : (
-                <>
-                  <Icon name="qrcode" size={18} color={appleBlue} />
-                  <Text style={{ color: appleBlue, fontWeight: '800' }}>Tạo mã QR</Text>
-                </>
-              )}
-            </Pressable>
-            {qrData?.url ? (
-              <Text style={{ color: zincColors[600] }}>Link thanh toán: {qrData.url}</Text>
-            ) : null}
-          </View>
-        )}
       </ScrollView>
 
       {/* Action bar */}
       <View style={styles.actionBar}>
         <Pressable
-          onPress={handleMarkPaid}
-          style={[styles.primaryBtn, (paying) && { opacity: 0.6 }]}
-          disabled={paying}
+          onPress={handleSubmit(onSubmit)}
+          style={[styles.primaryBtn, isSubmitting && { opacity: 0.6 }]}
+          disabled={isSubmitting}
         >
-          {paying ? <ActivityIndicator color="#fff" /> : (
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
             <>
               <Icon name="checkmark.circle" size={18} color="#fff" />
-              <Text style={styles.primaryText}>Xác nhận đã thanh toán</Text>
+              <Text style={styles.primaryText}>Tạo hóa đơn</Text>
             </>
           )}
         </Pressable>
       </View>
-
-      {/* QR Modal */}
-      <Modal visible={qrOpen} transparent animationType="fade" onRequestClose={() => setQrOpen(false)}>
-        <View style={styles.modalWrap}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Quét để thanh toán</Text>
-            {qrData?.image ? (
-              <Image source={{ uri: qrData.image }} style={{ width: 240, height: 240, alignSelf: 'center' }} />
-            ) : (
-              <Text style={{ color: zincColors[600], marginVertical: 20 }}>Không có ảnh QR.</Text>
-            )}
-            {qrData?.url ? (
-              <Text style={{ color: zincColors[600], marginTop: 10 }}>
-                Hoặc mở link: {qrData.url}
-              </Text>
-            ) : null}
-            <Pressable onPress={() => setQrOpen(false)} style={styles.closeBtn}>
-              <Text style={styles.closeTxt}>Đóng</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue} numberOfLines={1}>{value ?? '-'}</Text>
-    </View>
-  );
-}
-
-function LineItemRow({ name, right, sub }) {
-  return (
-    <View style={styles.lineItem}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.lineName}>{name}</Text>
-        {!!sub && <Text style={styles.lineSub}>{sub}</Text>}
-      </View>
-      <Text style={styles.lineRight}>{right}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-
   header: {
-    paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: borderColor, backgroundColor: '#fff',
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: borderColor,
+    backgroundColor: '#fff',
   },
   backBtn: { padding: 6, marginRight: 2, borderRadius: 999 },
   headerTitle: { fontSize: 18, fontWeight: '800', color: THEME.text },
+
+  field: { marginBottom: 14 },
+  label: { fontSize: 14, fontWeight: '700', color: THEME.text, marginBottom: 6 },
+  smallLabel: { fontSize: 12, fontWeight: '700', color: zincColors[700], marginBottom: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    color: THEME.text,
+  },
+  err: { color: '#B91C1C', fontSize: 12, marginTop: 4 },
 
   card: {
     backgroundColor: '#fff',
@@ -382,66 +555,82 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: borderColor,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: THEME.text },
-
-  row: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: borderColor,
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
   },
-  rowLabel: { flex: 1, color: zincColors[600], fontWeight: '700' },
-  rowValue: { flex: 1.2, textAlign: 'right', color: THEME.text, fontWeight: '800' },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: THEME.text, flex: 1 },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: appleBlue,
+  },
+  addTxt: { color: appleBlue, fontWeight: '700' },
+
+  rowBlock: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginBottom: 10 },
+  delBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    backgroundColor: '#FEF2F2',
+  },
+
+  accInfoLine: { marginBottom: 4, flex: 1 },
+  accName: { fontSize: 13, fontWeight: '700', color: THEME.text },
+  accMeta: { fontSize: 11, color: zincColors[600] },
+
+  suggestionBox: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    backgroundColor: '#FFF',
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  suggestionName: { fontSize: 13, fontWeight: '700', color: THEME.text },
+  suggestionMeta: { fontSize: 11, color: zincColors[600], marginTop: 2 },
 
   totalCard: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 14,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: borderColor, marginBottom: 14,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: borderColor,
   },
   totalLabel: { color: zincColors[600], fontWeight: '700', fontSize: 14 },
-  totalValue: { marginTop: 6, fontSize: 22, fontWeight: '900', color: THEME.text },
-
-  input: {
-    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff', color: THEME.text,
-  },
-  smallLabel: { fontSize: 12, fontWeight: '700', color: zincColors[700], marginBottom: 6 },
-
-  methodRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 10,
-  },
-  methodText: { flex: 1, color: THEME.text, fontWeight: '700' },
-
-  lineItem: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 10 },
-  lineName: { fontWeight: '700', color: THEME.text },
-  lineSub: { marginTop: 2, color: zincColors[500], fontSize: 12 },
-  lineRight: { fontWeight: '800', color: THEME.text },
-
-  changeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  totalValue: { marginTop: 4, fontSize: 18, fontWeight: '800', color: THEME.text },
 
   actionBar: {
-    padding: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB', backgroundColor: '#fff',
+    padding: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#fff',
   },
   primaryBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: appleGreen, paddingVertical: 14, borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#0A66C2',
+    paddingVertical: 14,
+    borderRadius: 12,
   },
-  primaryText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-
-  // QR modal
-  qrBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderColor: appleBlue, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
-  },
-  modalWrap: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: { width: '100%', maxWidth: 360, backgroundColor: '#fff', borderRadius: 14, padding: 16 },
-  modalTitle: { fontSize: 16, fontWeight: '900', color: THEME.text, textAlign: 'center', marginBottom: 12 },
-  closeBtn: {
-    marginTop: 16, alignSelf: 'center',
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: borderColor,
-  },
-  closeTxt: { fontWeight: '800', color: THEME.text },
+  primaryText: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
 });

@@ -74,6 +74,7 @@ export const generateInspectionReport = createAsyncThunk(
     );
       return data;
     } catch (error) {
+      console.log('[]]',error)
       return rejectWithValue(
         error?.response?.detail || 'Tạo báo cáo khảo sát thất bại'
       );

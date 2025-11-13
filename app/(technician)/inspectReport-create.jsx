@@ -92,9 +92,9 @@ export default function CreateInspectionReportScreen() {
       }
       console.log('[req]:' ,pretty(payload))
       const created = await dispatch(generateInspectionReport(payload)).unwrap();
-      // console.log('[response ->] :', data);
-      // Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
-      // router.back();
+      console.log('[response ->] :', created);
+      Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
+      router.back();
     } catch (err) {
       console.log('[error] :', err);
       const msg =
