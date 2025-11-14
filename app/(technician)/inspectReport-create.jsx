@@ -46,8 +46,8 @@ const schema = yup.object({
   appointmentId: yup.number().typeError('AppointmentId phải là số').required('Bắt buộc'),
   faultOwner: yup.string().oneOf(Object.values(FaultOwner), 'Chọn người chịu lỗi').required('Bắt buộc'),
   solutionType: yup.string().oneOf(Object.values(SolutionType), 'Chọn giải pháp').required('Bắt buộc'),
-  description: yup.string().max(2000, 'Tối đa 2000 ký tự').default(''),
-  solution: yup.string().max(2000, 'Tối đa 2000 ký tự').default(''),
+  description: yup.string().trim().required('Vui lòng nhập mô tả hiện trạng').max(2000, 'Tối đa 2000 ký tự').default(''),
+  solution: yup.string().trim().required('Vui lòng nhập phương án xử lý').min(10, ({ min }) => `Phương án xử lý tối thiểu ${min} ký tự`).max(2000, 'Tối đa 2000 ký tự').default(''),
 });
 
 export default function CreateInspectionReportScreen() {
@@ -185,7 +185,9 @@ export default function CreateInspectionReportScreen() {
             />
           )}
         />
-
+        {!!errors.description?.message && (
+          <Text style={styles.errText}>{errors.description.message}</Text>
+        )}
         {/* Solution */}
         <Controller
           control={control}
@@ -198,14 +200,17 @@ export default function CreateInspectionReportScreen() {
               numberOfLines={4}
               value={value}
               size='large'
-              style={{marginTop : 14, marginBottom: 14}}
+              style={{marginTop : 14}}
               onBlur={onBlur}
               onChangeText={onChange}
               error={errors.solution?.message}
             />
           )}
         />
-        <ImagePickerStrip mode="update" value={images} onChange={setImages} maxCount={10} title="Ảnh khảo sát" />
+        {!!errors.solution?.message && (
+          <Text style={styles.errText}>{errors.solution.message}</Text>
+        )}
+        <ImagePickerStrip style= {{marginTop: 14}} mode="update" value={images} onChange={setImages} maxCount={10} title="Ảnh khảo sát" />
       </ScrollView>
 
       {/* Action bar */}
@@ -246,7 +251,7 @@ const styles = StyleSheet.create({
 
   content: { flex: 1, padding: 16 },
 
-  errText: { color: '#B91C1C', fontSize: 12, marginTop: -6, marginBottom: 8 },
+  errText: { color: '#B91C1C', fontSize: 12, marginTop: 0, marginBottom: 0, marginLeft: 4 },
 
   actionBar: {
     padding: 16,

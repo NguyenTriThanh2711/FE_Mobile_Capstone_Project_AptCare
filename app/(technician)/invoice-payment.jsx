@@ -21,46 +21,69 @@ import { dotnetArr } from '@/src/helper/dotnetArr';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
-// Đúng theo swagger: /api/invoices/internal
 const INVOICE_ENDPOINT = '/api/invoices/internal';
 const ACCESSORY_LIST_ENDPOINT = '/api/accessorys/list';
 
-const schema = yup.object({
-  repairRequestId: yup
+const toNumber = () =>
+  yup
     .number()
+    .transform((value, originalValue) => {
+      if (typeof originalValue === 'string') {
+        const v = originalValue.replace(/[^\d.-]/g, '');
+        return v === '' || isNaN(Number(v)) ? undefined : Number(v);
+      }
+      return isNaN(value) ? undefined : value;
+    });
+
+const intPos = () => toNumber().integer('Phải là số nguyên').positive('Phải > 0');
+
+const schema = yup
+.object({
+  repairRequestId: intPos()
     .typeError('Id yêu cầu phải là số')
     .required('Thiếu repairRequestId'),
+
   isChargeable: yup.boolean().required(),
+
   accessories: yup
     .array()
     .of(
       yup.object({
-        accessoryId: yup
-          .number()
+        accessoryId: intPos()
           .typeError('accessoryId phải là số')
           .required('Nhập accessoryId'),
-        quantity: yup
-          .number()
-          .typeError('quantity phải là số')
+        quantity: intPos()
           .min(1, 'Tối thiểu 1')
+          .typeError('quantity phải là số')
           .required('Nhập quantity'),
       })
     )
     .default([]),
+
   services: yup
     .array()
     .of(
       yup.object({
         name: yup.string().trim().required('Nhập tên dịch vụ'),
-        price: yup
-          .number()
+        price: toNumber()
           .typeError('price phải là số')
           .min(0, 'Không âm')
           .required('Nhập giá'),
       })
     )
     .default([]),
-});
+})
+.test(
+  'chargeable-has-something',
+  'Khi tính phí, cần thêm ít nhất 1 dòng phụ kiện hoặc dịch vụ',
+  (values) => {
+    if (!values) return false;
+    if (!values.isChargeable) return true;
+    const hasAcc = Array.isArray(values.accessories) && values.accessories.length > 0;
+    const hasSvc = Array.isArray(values.services) && values.services.length > 0;
+    return hasAcc || hasSvc;
+  }
+);
 
 export default function CreateInvoiceScreen() {
   const { repairRequestId } = useLocalSearchParams();
@@ -84,6 +107,9 @@ export default function CreateInvoiceScreen() {
       accessories: [],
       services: [],
     },
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    criteriaMode: 'firstError',
   });
 
   const isChargeable = watch('isChargeable');
@@ -97,7 +123,6 @@ export default function CreateInvoiceScreen() {
 
   const [accSearch, setAccSearch] = useState('');
 
-  // fetch accessories list
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -122,7 +147,19 @@ export default function CreateInvoiceScreen() {
     };
   }, []);
 
-  // danh sách gợi ý theo tên
+  const onInvalid = (formErrors) => {
+    const formLevelError = formErrors?.['']?.message || formErrors?.root?.message;
+    const first =
+      formLevelError ||
+      formErrors?.repairRequestId?.message ||
+      formErrors?.accessories?.[0]?.accessoryId?.message ||
+      formErrors?.accessories?.[0]?.quantity?.message ||
+      formErrors?.services?.[0]?.name?.message ||
+      formErrors?.services?.[0]?.price?.message ||
+      'Vui lòng kiểm tra lại các trường bắt buộc';
+
+    Toast.show({ type: 'error', text1: first });
+  };
   const filteredAccessories = useMemo(() => {
     const keyword = accSearch.trim().toLowerCase();
     if (!keyword) return [];
@@ -134,9 +171,8 @@ export default function CreateInvoiceScreen() {
   const onToggleChargeable = (val) => {
     setValue('isChargeable', val, { shouldValidate: true, shouldDirty: true });
     if (!val) {
-      // nếu miễn phí: clear accessories + services
-      setValue('accessories', []);
-      setValue('services', []);
+      setValue('accessories', [], { shouldValidate: true });
+      setValue('services', [], { shouldValidate: true });
     }
   };
 
@@ -500,7 +536,7 @@ export default function CreateInvoiceScreen() {
       {/* Action bar */}
       <View style={styles.actionBar}>
         <Pressable
-          onPress={handleSubmit(onSubmit)}
+          onPress={handleSubmit(onSubmit, onInvalid)}
           style={[styles.primaryBtn, isSubmitting && { opacity: 0.6 }]}
           disabled={isSubmitting}
         >

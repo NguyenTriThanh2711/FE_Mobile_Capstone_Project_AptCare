@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { Icon } from '@/src/components/Icon.native';
 import { WeatherCard } from '@/src/components/WeatherCard';
@@ -6,6 +6,10 @@ import { useWeather } from '@/src/hooks/useWeather';
 import { router } from 'expo-router';
 import callPhone from '@/src/utils/call-phone';
 import { LinearGradient } from 'expo-linear-gradient';
+import { fetchSlots, selectSlotsLoading, selectSlotsMap } from '@/src/features/slots/slotsSlice';
+import { fetchMySchedule, selectWorkSlotsError, selectWorkSlotsLoading, selectWorkSlotsRaw } from '@/src/features/technician/workSlotsSlice';
+import { useAppDispatch, useAppSelector } from '@/src/store';
+import { pad2 } from '@/src/helper/appointResident';
 
 const StatCard = ({ colors, children , start, end }) => (
   <LinearGradient
@@ -17,8 +21,25 @@ const StatCard = ({ colors, children , start, end }) => (
     {children}
   </LinearGradient>
 );
-
+const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 export default function TechnicianDashboard() {
+  const dispatch = useAppDispatch();
+
+  const slotMap = useAppSelector(selectSlotsMap);
+  const slotsLoading = useAppSelector(selectSlotsLoading);
+  const scheduleRaw = useAppSelector(selectWorkSlotsRaw);
+  const schedLoading = useAppSelector(selectWorkSlotsLoading);
+  const schedError = useAppSelector(selectWorkSlotsError);
+
+  useEffect(() => {
+    dispatch(fetchSlots());
+    const today = new Date();
+    const from = new Date(today);
+    const to = new Date(today);
+    from.setDate(from.getDate() - 1); // chỉ cần -1, +1 cho dashboard
+    to.setDate(to.getDate() + 1);
+    dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
+  }, [dispatch]);
   // ===== Mock data hôm nay =====
   const [stats, setStats] = useState({
     todayTotal: 10,

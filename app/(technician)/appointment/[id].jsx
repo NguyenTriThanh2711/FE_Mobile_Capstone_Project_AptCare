@@ -1,5 +1,5 @@
-import React, { use, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import {
@@ -33,6 +33,8 @@ import Toast from 'react-native-toast-message';
 import { fetchRepairReportByAppointment, selectRepairReportByAppointment, selectRepairReportIdsByAppointment, selectRepairReportLoadingByAppointment } from '@/src/features/repairReport/repairReportSlice';
 import ProgressStepper from '@/src/components/ProgressStepper';
 import { unwrapDotNetValuesDeep } from '@/src/helper/dotnetArr';
+import { fetchInvoicesByRepairRequestId, selectInvoicesByRepairRequest, selectInvoicesErrorByRepairRequest, selectInvoicesLoadingByRepairRequest } from '@/src/features/invoices/invoiceSlice';
+import InvoiceListItem from '@/src/components/InvoiceListItem';
 
 const THEME = Colors.light;
 const OWNER_LABEL = {
@@ -53,6 +55,8 @@ const SOLUTION_LABEL = {
 export default function AppointmentDetailsScreen() {
   const { id } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState('details');
+  const [refreshing, setRefreshing] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const dispatch = useAppDispatch();
 
   const appointment = useAppSelector((state) => selectAppointmentById(state, id));
@@ -65,6 +69,10 @@ export default function AppointmentDetailsScreen() {
   const repairReportIds = useAppSelector((s) => selectRepairReportIdsByAppointment(s, id));
   const repairReportLoading = useAppSelector((s) => selectRepairReportLoadingByAppointment(s, id));
   const repairReportsById = (useAppSelector((s) => s.repairReports.byId));// để lấy object nhanh
+  const repairRequestId = appointment?.repairRequest?.repairRequestId;
+  const invoices = useAppSelector((state) =>repairRequestId ? selectInvoicesByRepairRequest(state, repairRequestId) : []);
+  const invoicesLoading = useAppSelector((state) =>repairRequestId ? selectInvoicesLoadingByRepairRequest(state, repairRequestId) : false);
+  const invoicesError = useAppSelector((state) =>repairRequestId ? selectInvoicesErrorByRepairRequest(state, repairRequestId) : null);
 
   console.log('[appointmentss]', appointment);
   useEffect(() => {
@@ -74,6 +82,12 @@ export default function AppointmentDetailsScreen() {
       dispatch(fetchRepairReportByAppointment({ appointmentId: id }));
     }
   }, [id, dispatch]);
+   useEffect(() => {
+    if (repairRequestId) {
+      dispatch(fetchInvoicesByRepairRequestId(repairRequestId));
+    }
+  }, [repairRequestId, dispatch]);
+
   // const allReportsById = useAppSelector((s) => s.inspectionReports.byId);
   console.log('[repair report]',pretty(appointment));
   const lastInspectionReport = useMemo(() => {
@@ -88,11 +102,6 @@ export default function AppointmentDetailsScreen() {
       return t2 > t1 ? cur : latest;
     }, list[0]);
   }, [inspectionReportIds, inspectionReportsById]);
-  useEffect(() => {
-    if (id) {
-      dispatch(fetchAppointmentById(id));
-    }
-  }, [id, dispatch]);
   // console.log('appointment = useAppSelector', pretty(appointment));
   const handleStartRepair = async () => {
     if (!id) return;
@@ -192,7 +201,16 @@ export default function AppointmentDetailsScreen() {
       params: { repairRequestId: Number(appointment?.repairRequest?.repairRequestId) },
     });
   };
-
+  const goInvoiceDetail = (invoiceId) => {
+    if (!invoiceId) return;
+    router.push({
+      pathname: '/(technician)/invoice/[id]',
+      params: {
+        id: String(invoiceId),
+        repairRequestId: String(appointment?.repairRequest?.repairRequestId ?? ''),
+      },
+    });
+  };
   const handleCreateChatWithResident = () => {
     router.push({ pathname: '/(technician)/chat/[id]', params: { userId: String(appointment?.repairRequest?.apartment?.residentId) } });
   };
@@ -246,6 +264,65 @@ export default function AppointmentDetailsScreen() {
     }
     return max;
   }
+  const onRefresh = async () => {
+    if (!id) return;
+    setRefreshing(true);
+    try {
+      const promises = [];
+
+      promises.push(dispatch(fetchAppointmentById(id)).unwrap());
+      promises.push(dispatch(fetchInspectionReportByAppointmentId(id)).unwrap());
+      promises.push(dispatch(fetchRepairReportByAppointment({ appointmentId: id })).unwrap());
+
+
+      if (repairRequestId) {
+        promises.push(dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap());
+      }
+
+      await Promise.all(promises);
+    } catch (e) {
+      console.log('Refresh error', e);
+      Toast.show({
+        type: 'error',
+        text1: 'Làm mới thất bại',
+        text2: 'Vui lòng thử lại.',
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  // mục đích là để loadxong hết mới hiện data
+  useEffect(() => {
+    if (initialLoaded) return;
+
+    const hasAppointmentOrError = !!appointment || !!error;
+    const inspectionDone = !inspectionReportLoading;
+    const repairDone = !repairReportLoading;
+    const invoiceDone =
+      !repairRequestId || !invoicesLoading || !!invoicesError;
+
+    if (hasAppointmentOrError && inspectionDone && repairDone && invoiceDone) {
+      setInitialLoaded(true);
+    }
+  }, [
+    initialLoaded,
+    appointment,
+    error,
+    inspectionReportLoading,
+    repairReportLoading,
+    invoicesLoading,
+    repairRequestId,
+    invoicesError,
+  ]);
+
+  if (!initialLoaded) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={appleBlue} />
+        <Text style={{ marginTop: 8, color: zincColors[600] }}>Đang tải dữ liệu cuộc hẹn…</Text>
+      </View>
+    );
+  }
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -298,7 +375,7 @@ export default function AppointmentDetailsScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {activeTab === 'details' && (
           <View style={styles.sectionWrap}>
             <View style={styles.section}>
@@ -386,6 +463,33 @@ export default function AppointmentDetailsScreen() {
                     ))}
                   </View>
                 )}
+            </View>
+            {/* invoice */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Hóa đơn</Text>
+
+              {invoicesLoading ? (
+                <Text style={{ color: zincColors[500], marginLeft: 40 }}>
+                  Đang tải danh sách hóa đơn…
+                </Text>
+              ) : invoicesError ? (
+                <Text style={styles.invoiceError}>{invoicesError}</Text>
+              ) : invoices.length === 0 ? (
+                <Text style={{ color: zincColors[500], marginLeft: 40 }}>
+                  Chưa có hóa đơn nào.
+                </Text>
+              ) : (
+                <View style={{ gap: 10 }}>
+                  {invoices.map((inv, idx) => (
+                    <InvoiceListItem
+                      key={inv.invoiceId}
+                      index={idx + 1}
+                      invoice={inv}
+                      onPress={() => goInvoiceDetail(inv.invoiceId)}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Căn hộ</Text>

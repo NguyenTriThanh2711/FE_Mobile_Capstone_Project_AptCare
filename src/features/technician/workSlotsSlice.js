@@ -4,10 +4,6 @@ import { toYMD } from '@/src/utils/date';
 import { mockMySchedule } from '@/src/utils/mockdata';
 import { pretty } from '@/src/helper/prettyLog';
 
-/* --------------- Thunks ----------------- */
-/** GET /workslots/my-schedule?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD
- *  Response: { $id, $values: [ { date, slots:{ $values:[ { slotId, technicianWorkSlots:{ $values:[{ workSlotId, status, technician:{} }]} } ] } } ] }
- */
 export const fetchMySchedule = createAsyncThunk(
   'workslots/fetchMySchedule',
   async ({ fromDate, toDate }, { rejectWithValue }) => {
@@ -16,7 +12,6 @@ export const fetchMySchedule = createAsyncThunk(
       const { data } = await http.get('/api/workslots/my-schedule', {
         params: { fromDate, toDate },
       });
-
       // console.log('[Data]:res fetchmychedule data', pretty(data));
       return data;
     } catch (err) {

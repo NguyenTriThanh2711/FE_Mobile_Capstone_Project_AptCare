@@ -164,7 +164,7 @@ export default function RequestCreate() {
         text1: 'Gửi thất bại',
         text2: e?.message || 'Vui lòng thử lại.',
       });
-      // console.error('Error in onSubmit:', e);
+      console.error('Error in onSubmit:', e);
     }
   };
 

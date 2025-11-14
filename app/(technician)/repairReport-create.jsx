@@ -144,7 +144,9 @@ export default function CreateRepairReportScreen() {
             />
           )}
         />
-
+        {!!errors.workDescription?.message && (
+          <Text style={styles.errText}>{errors.workDescription.message}</Text>
+        )}
         {/* Note (optional) */}
         <Controller
           control={control}
@@ -211,7 +213,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '800', color: THEME.text },
 
   content: { flex: 1, padding: 16 },
-
+  errText: { color: '#B91C1C', fontSize: 12, marginTop: 0, marginBottom: 0, marginLeft: 5 },
   actionBar: {
     padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
