@@ -57,6 +57,13 @@ export default function TechnicianStackLayout() {
           headerShown: false, // vì bạn đã tự render header trong file
         }}
       />
+      <Stack.Screen
+        name="check-in-qr"
+        options={{
+          title: 'Quét mã QR điểm danh',
+          headerShown: false, // vì bạn đã tự render header trong file
+        }}
+      />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
     </Stack>
   );

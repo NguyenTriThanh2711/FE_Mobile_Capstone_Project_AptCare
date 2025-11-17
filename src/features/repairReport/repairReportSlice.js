@@ -5,9 +5,11 @@ export const createRepairReport = createAsyncThunk(
   'repairReports/create',
   async (formData, { rejectWithValue }) => {
     try {
+      console.log('[req] --> ', formData)
       const { data } = await http.post('/api/repairreports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      console.log('[res] <-- ', data)
       return data; // object report
     } catch (err) {
       const res = err?.response;
@@ -73,10 +75,10 @@ export const fetchRepairReportById = createAsyncThunk(
 const slice = createSlice({
   name: 'repairReports',
   initialState: {
-    byId: {},                    // [reportId]: report
-    byAppointmentId: {},         // [appointmentId]: [reportId, ...]
-    loadingByAppointmentId: {},  // [appointmentId]: boolean
-    loadingById: {},             // [reportId]: boolean
+    byId: {},                   
+    byAppointmentId: {},      
+    loadingByAppointmentId: {}, 
+    loadingById: {},            
     error: null,
 
     creating: false,
@@ -105,7 +107,7 @@ const slice = createSlice({
       s.createError = a.payload || a.error;
     });
 
-    // BY APPOINTMENT
+
     b.addCase(fetchRepairReportByAppointment.pending, (s, a) => {
       const apptId = Number(a.meta?.arg?.appointmentId);
       if (Number.isFinite(apptId)) s.loadingByAppointmentId[apptId] = true;
@@ -116,18 +118,15 @@ const slice = createSlice({
       if (!Number.isFinite(apptId)) return;
       s.loadingByAppointmentId[apptId] = false;
 
-      // upsert entities
       Object.entries(entities).forEach(([rid, obj]) => {
         s.byId[rid] = obj;
       });
 
-      // vì 1 appointment hiện tại chỉ có 1 repair report -> vẫn lưu dạng mảng để thống nhất
       s.byAppointmentId[apptId] = ids;
     });
     b.addCase(fetchRepairReportByAppointment.rejected, (s, a) => {
       const apptId = Number(a.payload?.appointmentId ?? a.meta?.arg?.appointmentId);
       if (Number.isFinite(apptId)) s.loadingByAppointmentId[apptId] = false;
-      // 404 đã xử lý ở fulfilled -> không set error; còn lại set error chung
       if ((a.payload?.status || 0) !== 404) {
         s.error = a.payload?.message || a.error?.message || null;
       }

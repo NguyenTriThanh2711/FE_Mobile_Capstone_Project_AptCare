@@ -16,6 +16,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-camera",
       "expo-secure-store",
       "@react-native-firebase/app",
       [
@@ -43,7 +44,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": true
     },
     "android": {
       "package": "com.aptcare.app",

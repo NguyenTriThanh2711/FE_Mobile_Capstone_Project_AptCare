@@ -12,7 +12,7 @@ import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { Colors } from '@/src/utils/colors';
 import http from '@/src/services/http';
 import { compressMany } from '@/src/utils/imageCompression';
-import { createRepairReport } from '@/src/features/repairReport/repairReportSlice';
+import { createRepairReport, fetchRepairReportByAppointment } from '@/src/features/repairReport/repairReportSlice';
 import { useAppDispatch } from '@/src/store';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
@@ -80,6 +80,7 @@ export default function CreateRepairReportScreen() {
         type: 'success',
         text1: 'Đã tạo báo cáo sửa chữa',
       });
+      await dispatch(fetchRepairReportByAppointment({ appointmentId: values.appointmentId }));
       router.back();
     } catch (err) {
       console.log('[repair report err] =>', err);

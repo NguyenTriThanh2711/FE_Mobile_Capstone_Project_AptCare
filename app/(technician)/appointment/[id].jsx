@@ -74,7 +74,7 @@ export default function AppointmentDetailsScreen() {
   const invoicesLoading = useAppSelector((state) =>repairRequestId ? selectInvoicesLoadingByRepairRequest(state, repairRequestId) : false);
   const invoicesError = useAppSelector((state) =>repairRequestId ? selectInvoicesErrorByRepairRequest(state, repairRequestId) : null);
 
-  console.log('[appointmentss]', appointment);
+  // console.log('[appointmentss]', appointment);
   useEffect(() => {
     if (id) {
       dispatch(fetchAppointmentById(id));
@@ -89,7 +89,7 @@ export default function AppointmentDetailsScreen() {
   }, [repairRequestId, dispatch]);
 
   // const allReportsById = useAppSelector((s) => s.inspectionReports.byId);
-  console.log('[repair report]',pretty(appointment));
+  // console.log('[repair report]',pretty(appointment));
   const lastInspectionReport = useMemo(() => {
   if (!inspectionReportIds || inspectionReportIds.length === 0) return null;
     const list = inspectionReportIds

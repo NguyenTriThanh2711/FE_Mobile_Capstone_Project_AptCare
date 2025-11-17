@@ -173,7 +173,7 @@ export default function TechnicianDashboard() {
         <View style={styles.quickActions}>
           <Pressable
             style={styles.quickActionButton}
-            onPress={() => handleQuickAction('Bắt đầu ca')}>
+            onPress={() => router.push('/(technician)/check-in-qr')}>
             <Icon name="play.circle.fill" size={26} color="#34C759" />
             <Text style={styles.quickActionText}>Bắt đầu ca</Text>
           </Pressable>
