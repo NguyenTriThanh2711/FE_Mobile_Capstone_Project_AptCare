@@ -52,14 +52,14 @@ export default function TechCheckInScreen() {
 
       try {
         const { slotId, date } = parseCheckinUrl(data);
-
+        console.log('[slot id, date]',slotId, date)
         setCheckingIn(true);
         await dispatch(checkInWorkSlot({ slotId, date })).unwrap();
 
         Toast.show({
           type: 'success',
           text1: 'Điểm danh thành công',
-          text2: `Ca làm ngày ${date}, slot #${slotId}`,
+          text2: `Ca làm ngày ${date}, slot ${slotId}`,
         });
 
         setTimeout(() => {
@@ -70,7 +70,7 @@ export default function TechCheckInScreen() {
         Toast.show({
           type: 'error',
           text1: 'Điểm danh thất bại',
-          text2: err?.message || 'Vui lòng thử lại hoặc liên hệ lễ tân',
+          text2: err || 'Vui lòng kiểm tra lịch làm việc hoặc liên hệ lễ tân',
         });
         setScanned(false);
       } finally {
@@ -80,7 +80,6 @@ export default function TechCheckInScreen() {
     [dispatch, scanned, checkingIn]
   );
 
-  // ================== UI theo trạng thái permission ==================
 
   if (!permission) {
     return (
@@ -107,7 +106,6 @@ export default function TechCheckInScreen() {
     );
   }
 
-  // ================== UI chính: Camera + khung quét ==================
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
