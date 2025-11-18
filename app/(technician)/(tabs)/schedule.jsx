@@ -77,13 +77,19 @@ export default function TechnicianSchedule() {
   // console.log("const scheduleRaw", scheduleRaw);
   const schedLoading = useAppSelector(selectWorkSlotsLoading);
   const schedError = useAppSelector(selectWorkSlotsError);
+  useEffect(() => {
+    if (!schedError) return;
 
-  // fetch danh mục slots 1 lần
+    Toast.show({
+      type: 'error',
+      text1: 'Không tải được lịch làm việc',
+      text2: String(schedError),
+    });
+  }, [schedError]);
   useEffect(() => {
     dispatch(fetchSlots());
   }, [dispatch]);
 
-  // fetch lịch theo khung ±7 ngày quanh selectedDate
   useEffect(() => {
     const from = new Date(selectedDate);
     const to = new Date(selectedDate);
@@ -247,11 +253,6 @@ export default function TechnicianSchedule() {
       {(slotsLoading || schedLoading) && (
         <View style={{ paddingVertical: 16 }}>
           <ActivityIndicator color={colors.primary} />
-        </View>
-      )}
-      {!!schedError && (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-          <Text style={{ color: colors.danger, fontWeight: '600' }}>{String(schedError)}</Text>
         </View>
       )}
 
@@ -447,7 +448,6 @@ const styles = StyleSheet.create({
 
   empty: { fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' },
 
-  // Box riêng cho mỗi appointment (tách bạch)
   apptBox: {
     backgroundColor: '#fff',
     borderRadius: 12,

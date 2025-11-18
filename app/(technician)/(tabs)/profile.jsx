@@ -1,8 +1,3 @@
-import GradientButton from '@/src/components/common/GradientButton';
-import { Icon } from '@/src/components/Icon.native';
-import { logout } from '@/src/features/auth/authSlice';
-import { persistor } from '@/src/store';
-import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   View,
@@ -14,8 +9,17 @@ import {
   TextInput,
   Alert,
   Switch,
+  Image,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
+import * as DocumentPicker from 'expo-document-picker';
+import { router } from 'expo-router';
+import Toast from 'react-native-toast-message';
+
+import GradientButton from '@/src/components/common/GradientButton';
+import { Icon } from '@/src/components/Icon.native';
+import { logout } from '@/src/features/auth/authSlice';
+import { persistor, useAppDispatch, useAppSelector } from '@/src/store';
+import http from '@/src/services/http';
 
 const styles = StyleSheet.create({
   container: {
@@ -37,6 +41,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  profileImageImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   profileName: {
     fontSize: 24,
@@ -191,33 +201,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  logoutButton: {
+    margin: 20,
+    borderRadius: 12,
+  },
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  logoutButton: {
-    margin: 20,
-    borderRadius: 12,
-  },
-  logoutButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
 });
 
 export default function TechnicianProfile() {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector((s) => s.auth.user);
+
+  const displayName =
+    `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() ||
+    authUser?.fullName ||
+    authUser?.userName ||
+    'Kỹ thuật viên';
+
+  const employeeId = authUser?.employeeCode || authUser?.userId || '—';
+  const roleName = authUser?.roleName || 'Kỹ thuật viên';
+
+  const [avatarUrl, setAvatarUrl] = useState(
+    authUser?.imageProfileUrl || authUser?.avatarUrl || ''
+  );
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
   const [profile, setProfile] = useState({
-    name: 'Mike Johnson',
-    email: 'mike.johnson@aptcare.com',
-    phone: '+1 (555) 234-5678',
-    employeeId: 'TECH-001',
-    department: 'Maintenance',
-    specialties: 'Plumbing, HVAC, Electrical',
-    yearsExperience: '8 years',
-    certifications: 'EPA 608, OSHA 10, Electrical License',
+    name: displayName,
+    email: authUser?.email || '',
+    phone: authUser?.phoneNumber || '',
+    employeeId,
+    department: authUser?.departmentName || 'Maintenance',
+    specialties: '',
+    yearsExperience: '',
+    certifications: '',
   });
 
   const [stats] = useState({
@@ -245,6 +266,80 @@ export default function TechnicianProfile() {
     confirmPassword: '',
   });
   const [isLogOut, setIsLogOut] = useState(false);
+
+  // ========== Đổi avatar: PUT /api/usermanagements/update-user-profile-image ==========
+  const handleChangeAvatar = async () => {
+    if (!authUser?.userId) {
+      Toast.show({
+        type: 'error',
+        text1: 'Không xác định được user hiện tại',
+      });
+      return;
+    }
+
+    const res = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      type: ['image/*'],
+    });
+
+    if (res.canceled || !res.assets?.length) return;
+
+    const file = res.assets[0];
+
+    const form = new FormData();
+    form.append('userId', String(authUser.userId));
+    form.append('imageProfileUrl', {
+      uri: file.uri,
+      name: file.name || 'avatar.jpg',
+      type: file.mimeType || 'image/jpeg',
+    });
+
+    try {
+      setUploadingAvatar(true);
+
+      const { data } = await http.put(
+        '/api/usermanagements/update-user-profile-image',
+        form,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      const newUrl =
+        (data && (data.imageProfileUrl || data.profileImageUrl)) || avatarUrl;
+
+      setAvatarUrl(newUrl);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Cập nhật ảnh đại diện thành công',
+      });
+
+      // TODO: nếu có slice auth hỗ trợ update avatar, có thể dispatch ở đây
+      // dispatch(updateUserAvatar(newUrl));
+    } catch (e) {
+      console.log('Update avatar error', e?.response || e?.message || e);
+      const msg =
+        (e &&
+          e.response &&
+          (e.response.data?.detail ||
+            e.response.data?.title ||
+            e.response.data)) ||
+        e?.message ||
+        'Vui lòng thử lại.';
+
+      Toast.show({
+        type: 'error',
+        text1: 'Cập nhật ảnh đại diện thất bại',
+        text2: String(msg),
+      });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleEditProfile = () => {
     setEditingProfile({ ...profile });
     setShowEditModal(true);
@@ -256,6 +351,7 @@ export default function TechnicianProfile() {
       return;
     }
 
+    // TODO: call API update profile nếu BE có endpoint
     setProfile({ ...editingProfile });
     setShowEditModal(false);
     Alert.alert('Thành công', 'Cập nhật hồ sơ thành công!');
@@ -281,7 +377,7 @@ export default function TechnicianProfile() {
       return;
     }
 
-    // Simulate password change
+    // TODO: call API đổi mật khẩu (nếu có)
     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setShowPasswordModal(false);
     Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
@@ -318,15 +414,25 @@ export default function TechnicianProfile() {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.profileImage}>
-          <Icon name="person.fill" size={40} color="white" />
-        </View>
+        <Pressable
+          style={styles.profileImage}
+          onPress={handleChangeAvatar}
+          disabled={uploadingAvatar}
+        >
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.profileImageImg} />
+          ) : (
+            <Icon name="person.fill" size={40} color="white" />
+          )}
+        </Pressable>
         <Text style={styles.profileName}>{profile.name}</Text>
-        <Text style={styles.profileRole}>Kỹ thuật viên điện</Text>
+        <Text style={styles.profileRole}>{roleName}</Text>
         <Text style={styles.profileId}>ID: {profile.employeeId}</Text>
       </View>
 
+      {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.completedRequests}</Text>
@@ -347,6 +453,7 @@ export default function TechnicianProfile() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Thông tin cá nhân */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
 
@@ -378,6 +485,7 @@ export default function TechnicianProfile() {
           </Pressable>
         </View>
 
+        {/* Thông báo */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông báo</Text>
 
@@ -457,6 +565,7 @@ export default function TechnicianProfile() {
           </View>
         </View>
 
+        {/* Công cụ */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Công cụ</Text>
 
@@ -488,6 +597,7 @@ export default function TechnicianProfile() {
           </Pressable>
         </View>
 
+        {/* Hỗ trợ */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hỗ trợ</Text>
 
@@ -531,9 +641,10 @@ export default function TechnicianProfile() {
       {/* Edit Profile Modal */}
       <Modal
         visible={showEditModal}
-        transparent={true}
+        transparent
         animationType="fade"
-        onRequestClose={() => setShowEditModal(false)}>
+        onRequestClose={() => setShowEditModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
@@ -543,7 +654,9 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.name}
-                onChangeText={(text) => setEditingProfile({ ...editingProfile, name: text })}
+                onChangeText={(text) =>
+                  setEditingProfile({ ...editingProfile, name: text })
+                }
                 placeholder="Enter your full name"
               />
             </View>
@@ -553,7 +666,9 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.email}
-                onChangeText={(text) => setEditingProfile({ ...editingProfile, email: text })}
+                onChangeText={(text) =>
+                  setEditingProfile({ ...editingProfile, email: text })
+                }
                 placeholder="Enter your email"
                 keyboardType="email-address"
               />
@@ -564,7 +679,9 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.phone}
-                onChangeText={(text) => setEditingProfile({ ...editingProfile, phone: text })}
+                onChangeText={(text) =>
+                  setEditingProfile({ ...editingProfile, phone: text })
+                }
                 placeholder="Enter your phone number"
                 keyboardType="phone-pad"
               />
@@ -575,7 +692,9 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.specialties}
-                onChangeText={(text) => setEditingProfile({ ...editingProfile, specialties: text })}
+                onChangeText={(text) =>
+                  setEditingProfile({ ...editingProfile, specialties: text })
+                }
                 placeholder="Your areas of expertise"
               />
             </View>
@@ -589,13 +708,16 @@ export default function TechnicianProfile() {
                   setEditingProfile({ ...editingProfile, certifications: text })
                 }
                 placeholder="List your certifications"
-                multiline={true}
+                multiline
                 numberOfLines={3}
               />
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setShowEditModal(false)}
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
               <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
@@ -609,9 +731,10 @@ export default function TechnicianProfile() {
       {/* Change Password Modal */}
       <Modal
         visible={showPasswordModal}
-        transparent={true}
+        transparent
         animationType="fade"
-        onRequestClose={() => setShowPasswordModal(false)}>
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Change Password</Text>
@@ -621,9 +744,11 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={passwordData.currentPassword}
-                onChangeText={(text) => setPasswordData({ ...passwordData, currentPassword: text })}
+                onChangeText={(text) =>
+                  setPasswordData({ ...passwordData, currentPassword: text })
+                }
                 placeholder="Enter current password"
-                secureTextEntry={true}
+                secureTextEntry
               />
             </View>
 
@@ -632,9 +757,11 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={passwordData.newPassword}
-                onChangeText={(text) => setPasswordData({ ...passwordData, newPassword: text })}
+                onChangeText={(text) =>
+                  setPasswordData({ ...passwordData, newPassword: text })
+                }
                 placeholder="Enter new password"
-                secureTextEntry={true}
+                secureTextEntry
               />
             </View>
 
@@ -643,17 +770,25 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={passwordData.confirmPassword}
-                onChangeText={(text) => setPasswordData({ ...passwordData, confirmPassword: text })}
+                onChangeText={(text) =>
+                  setPasswordData({ ...passwordData, confirmPassword: text })
+                }
                 placeholder="Confirm new password"
-                secureTextEntry={true}
+                secureTextEntry
               />
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable style={styles.cancelButton} onPress={() => setShowPasswordModal(false)}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setShowPasswordModal(false)}
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.submitButton} onPress={handleChangePassword}>
+              <Pressable
+                style={styles.submitButton}
+                onPress={handleChangePassword}
+              >
                 <Text style={styles.submitButtonText}>Change</Text>
               </Pressable>
             </View>

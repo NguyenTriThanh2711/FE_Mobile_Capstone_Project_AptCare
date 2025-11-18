@@ -109,10 +109,9 @@ export default function TechCheckInScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Icon name="chevron.left" size={20} color="#111827" />
+          <Icon name="chevron.left" size={20} color="#ffffff` " />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Quét QR điểm danh</Text>
@@ -120,7 +119,6 @@ export default function TechCheckInScreen() {
         </View>
       </View>
 
-      {/* CameraView */}
       <View style={styles.scannerWrapper}>
         <CameraView
           style={StyleSheet.absoluteFillObject}
@@ -135,7 +133,6 @@ export default function TechCheckInScreen() {
         </View>
       </View>
 
-      {/* Footer */}
       <View style={styles.footer}>
         {checkingIn ? (
           <View style={styles.rowCenter}>

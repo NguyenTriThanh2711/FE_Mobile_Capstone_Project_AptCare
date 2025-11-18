@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 
 const PALETTE = {
   muted:   { bg: '#F3F4F6', fg: '#374151' }, // zinc-100 / zinc-700
-  info:    { bg: '#F0F9FF', fg: '#0A84FF' }, // xanh dương nhạt
+  assigned:    { bg: '#007AFF', fg: '#FFFFFF' }, // xanh dương nhạt
   success: { bg: '#EAFBE7', fg: '#0B6B2E' }, // xanh lá nhạt
   warning: { bg: '#FFF7ED', fg: '#B45309' }, // cam nhạt
   danger:  { bg: '#FEF2F2', fg: '#B91C1C' }, // đỏ nhạt
@@ -18,6 +18,7 @@ const PALETTE = {
   confirmed: { bg: '#0A84FF', fg: '#FFFFFF' }, // xanh dương đậm
   awaitingIRApproval: { bg: '#ffcc00', fg: '#FFFFF' }, // cam đậm
   draft: { bg: '#D1D5DB', fg: '#374151' }, // xám nhạt
+  internalRepair: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
 };
 
 const STATUS_LABEL = {
@@ -34,6 +35,7 @@ const STATUS_LABEL = {
   Emergency:   'Khẩn cấp',
   NotStarted:    'Chưa bắt đầu',
   InVisit:     'Đang xem xét',
+  InternalRepair: 'Sửa chữa nội bộ',
   InRepair:   'Đang sửa chữa',
   Working:     'Đang trong ca',
   Confirmed:   'Đã xác nhận',
@@ -65,9 +67,11 @@ function mapStatusToTone(status) {
     case 'InProgress':
       return 'inProgress';
     case 'Assigned':
-      return 'info';
+      return 'assigned';
     case 'Pending':
       return 'pending';
+    case 'InternalRepair':
+      return 'internalRepair';
     case 'New':
       return 'muted';
     case 'Cancelled':

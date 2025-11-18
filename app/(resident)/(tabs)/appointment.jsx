@@ -28,44 +28,65 @@ import Badge from '@/src/components/Badge';
 export default function ResidentScheduleScreen() {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+
+  // ngày hôm nay
   const today = useMemo(() => new Date(), []);
-  const [cursor, setCursor] = useState(today);
+
+  // ngày đang chọn (YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = today;
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   });
 
-  const year = cursor.getFullYear();
-  const monthIndex = cursor.getMonth();
-  const key = useAppSelector((s) => selectResidentMonthKey(s, year, monthIndex));
+  // năm/tháng hiện tại của lịch để fetch data
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(today.getMonth());
 
-  const eventsByDate = useAppSelector((s) => selectResidentEventsByDate(s, key));
-  const dayAppointments = useAppSelector((s) => selectResidentDayAppointments(s, key, selectedDate));
-  const loadingMonth = useAppSelector((s) => selectResidentMonthLoading(s, key));
-  console.log('[data] day appointment',pretty(dayAppointments));
-  useEffect(() => {
-    dispatch(fetchResidentScheduleByMonth({ year, monthIndex }));
-  }, [dispatch, year, monthIndex]);
-
-  const handleMonthChange = useCallback(
-    (y, mIdx) => {
-      const d = new Date(cursor);
-      d.setFullYear(y);
-      d.setMonth(mIdx);
-      setCursor(d);
-    },
-    [cursor]
+  // key tháng
+  const key = useAppSelector((s) =>
+    selectResidentMonthKey(s, currentYear, currentMonthIndex)
   );
 
+  // data từ Redux
+  const eventsByDate = useAppSelector((s) => selectResidentEventsByDate(s, key));
+  const dayAppointments = useAppSelector((s) =>
+    selectResidentDayAppointments(s, key, selectedDate)
+  );
+  const loadingMonth = useAppSelector((s) => selectResidentMonthLoading(s, key));
+
+  console.log('[data] day appointment', pretty(dayAppointments));
+
+  // fetch lịch theo tháng khi currentYear/currentMonthIndex đổi
+  useEffect(() => {
+    dispatch(
+      fetchResidentScheduleByMonth({
+        year: currentYear,
+        monthIndex: currentMonthIndex,
+      })
+    );
+  }, [dispatch, currentYear, currentMonthIndex]);
+
+  // MonthCalendar báo về khi đổi tháng
+  const handleMonthChange = useCallback((y, mIdx) => {
+    setCurrentYear(y);
+    setCurrentMonthIndex(mIdx);
+  }, []);
+
+  // pull-to-refresh: dùng currentYear/currentMonthIndex
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      await dispatch(fetchResidentScheduleByMonth({ year, monthIndex })).unwrap();
+      await dispatch(
+        fetchResidentScheduleByMonth({
+          year: currentYear,
+          monthIndex: currentMonthIndex,
+        })
+      ).unwrap();
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch, year, monthIndex]);
+  }, [dispatch, currentYear, currentMonthIndex]);
 
   return (
     <View style={styles.screen}>
@@ -74,7 +95,7 @@ export default function ResidentScheduleScreen() {
         contentContainerStyle={{
           paddingTop: 36,
           paddingHorizontal: 16,
-          paddingBottom: 24 + insets.bottom + 56, // chừa đáy
+          paddingBottom: 24 + insets.bottom + 56,
           gap: 12,
         }}
         refreshControl={
@@ -89,7 +110,7 @@ export default function ResidentScheduleScreen() {
         {/* Calendar card */}
         <View style={styles.card}>
           <MonthCalendar
-            initialDate={cursor}
+            initialDate={today}
             eventsByDate={eventsByDate}
             onSelectDate={setSelectedDate}
             onMonthChange={handleMonthChange}
@@ -125,74 +146,80 @@ export default function ResidentScheduleScreen() {
               const isEmergency = appt?.repairRequest?.isEmergency === true;
               const issueName = appt?.repairRequest?.issue?.name;
               const technician = appt?.technicians?.[0]
-              ? `${appt.technicians[0].firstName} ${appt.technicians[0].lastName}`.trim()
-              : null;
-              return(
-               <Pressable
-                key={appt.appointmentId}
-                style={styles.item}
-                // onPress={() =>
-                //     router.push({
-                //         pathname: '/appointment/[id]',
-                //         params: { id: String(appt.appointmentId) },
-                //     })
-                // }
+                ? `${appt.technicians[0].firstName} ${appt.technicians[0].lastName}`.trim()
+                : null;
+
+              return (
+                <Pressable
+                  key={appt.appointmentId}
+                  style={styles.item}
+                  // onPress={() =>
+                  //   router.push({
+                  //     pathname: '/appointment/[id]',
+                  //     params: { id: String(appt.appointmentId) },
+                  //   })
+                  // }
                 >
-                {/* dòng giờ */}
-                <View style={styles.itemRow}>
-                <Icon name="clock" size={14} color="#6B7280" />
-                <Text style={styles.itemTime}>
-                    {new Date(appt.startTime).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    })}
-                    {' – '}
-                    {new Date(appt.endTime || appt.startTime).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    })}
-                </Text>
+                  {/* dòng giờ */}
+                  <View style={styles.itemRow}>
+                    <Icon name="clock" size={14} color="#6B7280" />
+                    <Text style={styles.itemTime}>
+                      {new Date(appt.startTime).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {' – '}
+                      {new Date(appt.endTime || appt.startTime).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
 
-                {/* trạng thái */}
-                <Badge status={appt.status} style={styles.statusPill} textStyle={styles.statusText} />
-                </View>
+                    {/* trạng thái */}
+                    <Badge
+                      status={appt.status}
+                      style={styles.statusPill}
+                      textStyle={styles.statusText}
+                    />
+                  </View>
 
-                {/* tiêu đề yêu cầu */}
-                <Text style={styles.itemTitle} numberOfLines={2}>
-                {appt?.repairRequest?.object || 'Lịch hẹn'}
-                </Text>
+                  {/* tiêu đề yêu cầu */}
+                  <Text style={styles.itemTitle} numberOfLines={2}>
+                    {appt?.repairRequest?.object || 'Lịch hẹn'}
+                  </Text>
 
-                {/* tên issue */}
-                {issueName ? (
-                <View style={[styles.itemRow, { marginTop: 4 }]}>
-                    <Icon name="wrench.and.screwdriver" size={14} color="#6B7280" />
-                    <Text style={styles.meta}>{issueName}</Text>
-                </View>
-                ) : null}
-
-                {/* emergency + căn hộ */}
-                <View style={[styles.itemRow, { marginTop: 4 }]}>
-                <Icon name="building.2" size={14} color="#6B7280" />
-                <Text style={styles.meta}>
-                    Căn hộ {appt?.repairRequest?.apartment?.room ?? '-'}
-                </Text>
-
-                {isEmergency ? (
-                    <View style={styles.emergencyTag}>
-                    <Text style={styles.emergencyText}>Khẩn</Text>
+                  {/* tên issue */}
+                  {issueName ? (
+                    <View style={[styles.itemRow, { marginTop: 4 }]}>
+                      <Icon name="wrench.and.screwdriver" size={14} color="#6B7280" />
+                      <Text style={styles.meta}>{issueName}</Text>
                     </View>
-                ) : null}
-                </View>
+                  ) : null}
 
-                {/* kỹ thuật viên */}
-                {technician ? (
-                <View style={[styles.itemRow, { marginTop: 4 }]}>
-                    <Icon name="person.fill" size={14} color="#6B7280" />
-                    <Text style={styles.meta}>{technician}</Text>
-                </View>
-                ) : null}
-            </Pressable>
-            )})
+                  {/* emergency + căn hộ */}
+                  <View style={[styles.itemRow, { marginTop: 4 }]}>
+                    <Icon name="building.2" size={14} color="#6B7280" />
+                    <Text style={styles.meta}>
+                      Căn hộ {appt?.repairRequest?.apartment?.room ?? '-'}
+                    </Text>
+
+                    {isEmergency ? (
+                      <View style={styles.emergencyTag}>
+                        <Text style={styles.emergencyText}>Khẩn</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* kỹ thuật viên */}
+                  {technician ? (
+                    <View style={[styles.itemRow, { marginTop: 4 }]}>
+                      <Icon name="person.fill" size={14} color="#6B7280" />
+                      <Text style={styles.meta}>{technician}</Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })
         )}
       </ScrollView>
     </View>
@@ -237,19 +264,18 @@ const styles = StyleSheet.create({
   meta: { color: '#374151', fontSize: 13 },
 
   statusPill: {
-  marginLeft: 'auto'
-},
-emergencyTag: {
-  marginLeft: 8,
-  backgroundColor: '#FEE2E2',
-  borderRadius: 999,
-  paddingHorizontal: 8,
-  paddingVertical: 2,
-},
-emergencyText: {
-  fontSize: 11,
-  fontWeight: '700',
-  color: '#B91C1C',
-},
-
+    marginLeft: 'auto',
+  },
+  emergencyTag: {
+    marginLeft: 8,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  emergencyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B91C1C',
+  },
 });

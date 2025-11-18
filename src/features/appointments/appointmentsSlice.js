@@ -94,14 +94,40 @@ export const fetchResidentScheduleByMonth = createAsyncThunk(
     }
   }
 );
-
+export const completeAppointment = createAsyncThunk(
+  'appointments/complete',
+  async ({ id, note = '', hasNextAppointment = false }, { rejectWithValue }) => {
+    try {
+      const res = await http.post(
+        `/api/appointments/${id}/complete`,
+        null, 
+        {
+          params: {
+            note: note || undefined,
+            hasNextAppointment,
+          },
+        }
+      );
+      return { id, message: res?.data };
+    } catch (err) {
+      const res = err?.response;
+      const message =
+        res?.data?.detail ||
+        res?.data?.message ||
+        res?.data ||
+        err?.message ||
+        'Hoàn tất lịch hẹn thất bại';
+      return rejectWithValue({ id, status: res?.status, message });
+    }
+  }
+);
 const initialState = {
   byId: {},
   loadingById: {},
   errorById: {},
   checkingIn: {},
   requestsByApartment: {},
-
+  completingById: {},
   residentSchedule: {
     byMonth: {},
     loadingByMonth: {},
@@ -196,11 +222,31 @@ const appointmentsSlice = createSlice({
         const key = monthKeyOf(year, monthIndex);
         state.residentSchedule.loadingByMonth[key] = false;
         state.residentSchedule.errorByMonth[key] = action.payload || action.error?.message || 'Error';
+      })
+      // complete appointment
+      .addCase(completeAppointment.pending, (s, a) => {
+        const id = Number(a.meta?.arg?.id);
+        if (Number.isFinite(id)) s.completingById[id] = true;
+      })
+      .addCase(completeAppointment.fulfilled, (s, a) => {
+        const id = Number(a.payload?.id);
+        if (Number.isFinite(id)) {
+          s.completingById[id] = false;
+          const appt = s.byId[id];
+          if (appt) {
+            appt.status = 'Completed';
+          }
+        }
+      })
+      .addCase(completeAppointment.rejected, (s, a) => {
+        const id = Number(a.payload?.id ?? a.meta?.arg?.id);
+        if (Number.isFinite(id)) s.completingById[id] = false;
+        s.error = a.payload?.message || a.error?.message || null;
       });
   },
 });
 
-export const { clearAppointment, clearResidentMonth, setResidentScheduleForceRefresh } = appointmentsSlice.actions;
+export const { clearAppointment, clearResidentMonth, setResidentScheduleForceRefetch } = appointmentsSlice.actions;
 // selectors
 export const selectAppointmentById = (state, id) => state.appointments.byId[String(id)] || null;
 export const selectAppointmentLoading = (state, id) => !!state.appointments.loadingById[String(id)];
@@ -229,5 +275,7 @@ export const selectResidentAppointmentsByDate = (state, key) =>
   selectResidentMonthBucket(state, key).appointmentsByDate;
 export const selectResidentDayAppointments = (state, key, dateStr) =>
   (selectResidentAppointmentsByDate(state, key)[dateStr] || []);
-
+// completing
+export const selectAppointmentCompleting = (s, id) =>
+  !!s.appointments?.completingById?.[Number(id)];
 export default appointmentsSlice.reducer;

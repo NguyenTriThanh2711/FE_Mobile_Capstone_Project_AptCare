@@ -57,7 +57,7 @@ export const login = createAsyncThunk(
         status: err?.response?.status,
         data: err?.response?.data,
       })); //clg
-      const message = res?.data?.detail || res?.data?.message || 'Đăng nhập thất bại';
+      const message = res?.data?.detail || err?.message || 'Đăng nhập thất bại';
       Toast.show({ type: 'error', text1: 'Đăng nhập thất bại', text2: message });
       return rejectWithValue({ type: 'GENERAL', message });
     }

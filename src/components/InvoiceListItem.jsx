@@ -19,6 +19,7 @@ export default function InvoiceListItem({ index, invoice, onPress }) {
     <Pressable style={styles.container} onPress={onPress}>
       <View style={styles.left}>
         <View style={styles.titleRow}>
+          <Icon name="doc.text" size={18} color={appleBlue} />
           <Text style={styles.title}>Hóa đơn {index}</Text>
           {invoice.status && (
             <Badge style={styles.statusText} status={invoice.status} />

@@ -21,6 +21,8 @@ import {
   checkInAppointment,
   selectAppointmentCheckingIn,
   startAppointmentRepair,
+  selectAppointmentCompleting,
+  completeAppointment,
 } from '@/src/features/appointments/appointmentsSlice';
 import { pretty } from '@/src/helper/prettyLog';
 import { getConversation } from '@/src/features/chat/chatSlice';
@@ -73,7 +75,7 @@ export default function AppointmentDetailsScreen() {
   const invoices = useAppSelector((state) =>repairRequestId ? selectInvoicesByRepairRequest(state, repairRequestId) : []);
   const invoicesLoading = useAppSelector((state) =>repairRequestId ? selectInvoicesLoadingByRepairRequest(state, repairRequestId) : false);
   const invoicesError = useAppSelector((state) =>repairRequestId ? selectInvoicesErrorByRepairRequest(state, repairRequestId) : null);
-
+  const completing = useAppSelector((state) => selectAppointmentCompleting(state, id));
   // console.log('[appointmentss]', appointment);
   useEffect(() => {
     if (id) {
@@ -151,21 +153,70 @@ export default function AppointmentDetailsScreen() {
   };
 
   const handleMarkCompleted = () => {
-    Alert.alert('Thanh toán', 'Khách đã thanh toán?', [
-      {
-        text: 'Chưa',
-        onPress: () => router.push(`/payment?appointmentId=${inspection.appointmentId}`),
-      },
-      {
-        text: 'Rồi',
-        onPress: () => {
-          console.log('Paid -> Mark completed');
-          router.push(
-            `/reports/create?inspectionId=${inspection.id}&appointmentId=${inspection.appointmentId}`
-          );
+    if (!id) return;
+    Alert.alert(
+      'Hoàn tất lịch hẹn',
+      'Bạn đã hoàn thành công việc tại lịch hẹn này chứ?',
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: 'Không, còn lịch hẹn tiếp',
+          onPress: async () => {
+            try {
+              await dispatch(
+                completeAppointment({
+                  id: Number(id),
+                  note: 'Còn lịch hẹn tiếp theo',
+                  hasNextAppointment: true,
+                })
+              ).unwrap();
+
+              Toast.show({
+                type: 'success',
+                text1: 'Đã cập nhật hoàn tất (có lịch hẹn tiếp)',
+              });
+
+              // reload lại appointment để thấy status mới
+              dispatch(fetchAppointmentById(id));
+            } catch (e) {
+              Toast.show({
+                type: 'error',
+                text1: 'Hoàn tất thất bại',
+                text2: e?.message || 'Vui lòng thử lại.',
+              });
+            }
+          },
         },
-      },
-    ]);
+        {
+          text: 'Đã hoàn tất',
+          style: 'default',
+          onPress: async () => {
+            try {
+              await dispatch(
+                completeAppointment({
+                  id: Number(id),
+                  note: 'Kỹ thuật viên xác nhận đã hoàn thành công việc.',
+                  hasNextAppointment: false,
+                })
+              ).unwrap();
+
+              Toast.show({
+                type: 'success',
+                text1: 'Đã hoàn tất lịch hẹn',
+              });
+
+              dispatch(fetchAppointmentById(id));
+            } catch (e) {
+              Toast.show({
+                type: 'error',
+                text1: 'Hoàn tất thất bại',
+                text2: e?.message || 'Vui lòng thử lại.',
+              });
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCreateInspectionReport = () => {
@@ -323,6 +374,10 @@ export default function AppointmentDetailsScreen() {
       </View>
     );
   }
+
+  const hasRepairReport = repairReportIds && repairReportIds.length > 0;
+  const hasInspectionReport = inspectionReportIds && inspectionReportIds.length > 0;
+  const hasInvoice = invoices && invoices.length > 0;
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -581,14 +636,16 @@ export default function AppointmentDetailsScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        {appointment?.status === 'InRepair'? (
+        {(appointment?.status === 'InRepair')
+        && hasRepairReport
+        && !hasInvoice &&  (
           <>
             <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
               <Icon name="doc.text" size={20} color={THEME.background} />
               <Text style={styles.primaryBtnText}>Tạo hóa đơn</Text>
             </Pressable>
           </>
-        ) : null}
+        )}
         {appointment?.status === 'Confirmed' ? (
           <>
             <Pressable
@@ -624,18 +681,24 @@ export default function AppointmentDetailsScreen() {
             <Text style={styles.secondaryBtnText}>Bắt đầu sửa chữa</Text>
           </Pressable>
         ) : null}
-        {appointment?.status === 'InRepair' ? (
+        {(appointment?.status === 'InRepair' )
+        && !hasRepairReport
+        && !hasInvoice && 
+        (
           <Pressable style={styles.primaryBtn} onPress={handleCreateRepairReport}>
             <Icon name="pencil" size={20} color={appleBlue} />
             <Text style={styles.primaryBtnText}>Báo cáo sữa chữa</Text>
           </Pressable>
-        ) : null}
-        {/* {appointment?.status === 'InRepair' ? (
-          <Pressable style={styles.secondaryBtn} onPress={handleMarkCompleted}>
-            <Icon name="checkmark.circle" size={20} color={appleGreen} />
-            <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
-          </Pressable>
-        ) : null}   */}
+        )}
+        {appointment?.status === 'InRepair'
+          && hasInspectionReport
+          && hasRepairReport
+          && hasInvoice && (
+            <Pressable style={styles.secondaryBtn} onPress={handleMarkCompleted}>
+              <Icon name="checkmark.circle" size={20} color={appleGreen} />
+              <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
+            </Pressable>
+        )}
         
       </View>
     </View>

@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
 import { toYMD } from '@/src/utils/date';
-import { mockMySchedule } from '@/src/utils/mockdata';
 import { pretty } from '@/src/helper/prettyLog';
 
 export const fetchMySchedule = createAsyncThunk(

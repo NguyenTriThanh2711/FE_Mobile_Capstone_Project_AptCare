@@ -1,63 +1,83 @@
-// src/components/MonthCalendar.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { pad2 } from '../helper/appointResident';
 
-const VN_WEEK = ['CN','Th 2','Th 3','Th 4','Th 5','Th 6','Th 7'];
-const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const VN_WEEK = ['CN', 'Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7'];
+
+const ymd = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 function startOfCalendarGrid(date) {
-  // Bắt đầu từ Chủ nhật của tuần chứa ngày mùng 1
   const first = new Date(date.getFullYear(), date.getMonth(), 1);
   const dow = first.getDay(); // 0 = CN
-  const start = new Date(first);
-  start.setDate(first.getDate() - dow);
-  return start;
+  return new Date(first.getFullYear(), first.getMonth(), 1 - dow);
 }
 
 function buildMonthMatrix(cursorDate) {
   const start = startOfCalendarGrid(cursorDate);
   const cells = [];
   for (let i = 0; i < 42; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    cells.push(d);
+    cells.push(
+      new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate() + i
+      )
+    );
   }
-  return cells; // 6 tuần x 7 ngày
+  return cells; // 6 x 7
+}
+
+function chunkWeeks(days) {
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+  return weeks;
 }
 
 export default function MonthCalendar({
   initialDate = new Date(),
-  eventsByDate = {},      
-  onSelectDate,          
-  onMonthChange
+  eventsByDate = {},
+  onSelectDate,
+  onMonthChange,
 }) {
   const todayStr = ymd(new Date());
   const [cursor, setCursor] = useState(new Date(initialDate));
   const [selected, setSelected] = useState(ymd(initialDate));
 
   const matrix = useMemo(() => buildMonthMatrix(cursor), [cursor]);
-  const month = cursor.getMonth();
-  const year  = cursor.getFullYear();
-  const title = `${pad2(month+1)}/${year}`;
-  const monthFrom = `${year}-${pad2(month+1)}-01`;
-  const lastDay = new Date(year, month+1, 0).getDate();
-  const monthTo = `${year}-${pad2(month+1)}-${pad2(lastDay)}`;
+  const weeks = useMemo(() => chunkWeeks(matrix), [matrix]);
 
+  const month = cursor.getMonth();
+  const year = cursor.getFullYear();
+  const title = `${pad2(month + 1)}/${year}`;
+
+  // width thực tế của card (container)
+  const [containerWidth, setContainerWidth] = useState(null);
+  const CELL_WIDTH = containerWidth != null ? containerWidth / 7 : null;
+
+  const onContainerLayout = (e) => {
+    const w = e.nativeEvent.layout.width;
+    if (w !== containerWidth) {
+      setContainerWidth(w);
+    }
+  };
+
+  // gọi ra ngoài khi đổi tháng (chỉ khi cursor đổi)
   useEffect(() => {
+    const monthFrom = `${year}-${pad2(month + 1)}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const monthTo = `${year}-${pad2(month + 1)}-${pad2(lastDay)}`;
     onMonthChange?.(year, month, monthFrom, monthTo);
-  }, [year, month]);
+  }, [year, month, onMonthChange]);
 
   const handlePrev = () => {
-    const d = new Date(cursor);
-    d.setMonth(cursor.getMonth() - 1);
-    setCursor(d);
+    setCursor(new Date(year, month - 1, 1));
   };
 
   const handleNext = () => {
-    const d = new Date(cursor);
-    d.setMonth(cursor.getMonth() + 1);
-    setCursor(d);
+    setCursor(new Date(year, month + 1, 1));
   };
 
   const onPick = (dateStr) => {
@@ -66,7 +86,7 @@ export default function MonthCalendar({
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} onLayout={onContainerLayout}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.navBtn} onPress={handlePrev}>
@@ -81,58 +101,76 @@ export default function MonthCalendar({
       {/* Week names */}
       <View style={styles.weekRow}>
         {VN_WEEK.map((w) => (
-          <Text key={w} style={styles.weekName}>{w}</Text>
+          <Text
+            key={w}
+            style={[
+              styles.weekName,
+              CELL_WIDTH != null && { width: CELL_WIDTH },
+            ]}
+          >
+            {w}
+          </Text>
         ))}
       </View>
 
-      {/* Grid 6x7 */}
-      <View style={styles.grid}>
-        {matrix.map((d, i) => {
-          const ds = ymd(d);
-          const inMonth = d.getMonth() === month;
-          const isToday = ds === todayStr;
-          const isSelected = ds === selected;
-          const count = eventsByDate[ds] || 0;
+      {/* 6 hàng, mỗi hàng 7 cột */}
+      <View>
+        {weeks.map((week, wi) => (
+          <View key={wi} style={styles.weekLine}>
+            {week.map((d, di) => {
+              const ds = ymd(d);
+              const inMonth = d.getMonth() === month;
+              const isToday = ds === todayStr;
+              const isSelected = ds === selected;
+              const count = eventsByDate[ds] || 0;
 
-          return (
-            <Pressable
-              key={i}
-              style={[
-                styles.cell,
-                !inMonth && styles.cellDim,
-              ]}
-              onPress={() => inMonth && onPick(ds)}
-            >
-              <View
-                style={[
-                  styles.dayWrap,
-                  isToday && styles.today,
-                  isSelected ? styles.selectedBg : styles.unSelectedBg,
-                ]}
-              >
-                <Text
+              return (
+                <Pressable
+                  key={di}
                   style={[
-                    styles.dayText,
-                    !inMonth && styles.dayTextDim,
-                    isSelected && styles.dayTextSelected,
+                    styles.cell,
+                    CELL_WIDTH != null && { width: CELL_WIDTH },
+                    !inMonth && styles.cellDim,
                   ]}
+                  onPress={() => inMonth && onPick(ds)}
                 >
-                  {d.getDate()}
-                </Text>
-              
+                  <View
+                    style={[
+                      styles.dayWrap,
+                      isToday && styles.today,
+                      isSelected
+                        ? styles.selectedBg
+                        : styles.unSelectedBg,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        !inMonth && styles.dayTextDim,
+                        isSelected && styles.dayTextSelected,
+                      ]}
+                    >
+                      {d.getDate()}
+                    </Text>
 
-              {/* Badge số lịch hẹn */}
-              {count > 0 && (
-                <View style={[styles.badge]}>
-                  <Text style={styles.badgeText}>
-                    {count > 9 ? '9+' : count}
-                  </Text>
-                </View>
-              ) }
-              </View>
-            </Pressable>
-          );
-        })}
+                    {count > 0 && (
+                      <View
+                        style={[
+                          styles.badge,
+                          isSelected && styles.badgeOnSelected,
+                        ]}
+                      >
+                        <Text style={styles.badgeText}>
+                          {count > 9 ? '9+' : count}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -168,16 +206,17 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   weekName: {
-    flex: 1,
     textAlign: 'center',
     fontSize: 12,
     color: '#6B7280',
     fontWeight: '700',
   },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  weekLine: {
+    flexDirection: 'row',
+  },
+
   cell: {
-    width: `${100/7}%`,
     height: 70,
     alignItems: 'center',
     justifyContent: 'center',
@@ -187,22 +226,23 @@ const styles = StyleSheet.create({
 
   dayWrap: {
     width: 34,
-    height: 40,
+    minHeight: 40,
     borderRadius: 8,
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  today: {  backgroundColor: '#86EFAC'},      // viền Hôm nay
-  selectedBg: { borderWidth: 2, borderColor: '#3B82F6' },   
-  unSelectedBg: { borderWidth: 2, borderColor: '#ffffff' },                    // nền xanh lá cho ngày chọn
+  today: { backgroundColor: '#86EFAC' },
+  selectedBg: { borderWidth: 2, borderColor: '#3B82F6' },
+  unSelectedBg: { borderWidth: 2, borderColor: '#ffffff' },
   dayText: { fontSize: 14, color: '#111827', fontWeight: '700' },
   dayTextDim: { color: '#6B7280' },
   dayTextSelected: { color: '#064E3B' },
 
   badge: {
-    paddingHorizontal: '40%',
+    paddingHorizontal: 6,
     borderRadius: 999,
     paddingVertical: 2,
     backgroundColor: '#3B82F6',
+    marginTop: 2,
   },
   badgeOnSelected: { backgroundColor: '#1D4ED8' },
   badgeText: { fontSize: 11, color: '#fff', fontWeight: '800' },

@@ -1,3 +1,4 @@
+// src/components/common/WheelDateTimePicker.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 
@@ -8,7 +9,7 @@ const CENTER_OFFSET = Math.floor(VISIBLE_COUNT / 2) * ITEM_HEIGHT;
 
 // ---- util
 const pad2 = (n) => String(n).padStart(2, '0');
-
+const weekdayLabel = ['CN', 'T.2', 'T.3', 'T.4', 'T.5', 'T.6', 'T.7'];
 // ================= Finite column (Date, AM/PM) =================
 function FiniteWheelColumn({
   data,
@@ -239,14 +240,16 @@ export default function WheelDateTimePicker({
     setAmPmIdx(initialDate.getHours() >= 12 ? 1 : 0);
   }, [visible]);
 
-  // ---- render text
-  const fmtDate = (d) =>
-    d.toLocaleDateString(locale, {
-      weekday: 'long',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+  const fmtDate = (d) => {
+    const w = d.getDay(); // 0 = CN, 1 = T.2, ...
+    const wStr = weekdayLabel[w];
+    const dd = pad2(d.getDate());
+    const mm = pad2(d.getMonth() + 1);
+    const yyyy = d.getFullYear();
+
+    // Ví dụ: "T.3, 18/11/2025" hoặc "CN, 23/11/2025"
+    return `${wStr}, ${dd}/${mm}/${yyyy}`;
+  };
 
   // ---- columns
   const HourColumn = (

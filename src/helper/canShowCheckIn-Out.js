@@ -1,4 +1,3 @@
-// src/helper/canShowCheckIn-Out.js
 //local time helper functions
 const pad2 = (n) => String(n).padStart(2, '0');
 

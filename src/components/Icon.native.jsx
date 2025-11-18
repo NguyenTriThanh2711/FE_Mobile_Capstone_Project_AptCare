@@ -147,7 +147,8 @@ const MAP = {
   "tray.fill": "tray",
 
   "note-text-outline": "document-text-outline",
-  "text-box-outline": "document-text-outline"
+  "text-box-outline": "document-text-outline",
+  "banknote": "cash-outline",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { Icon } from '@/src/components/Icon.native';
 import { WeatherCard } from '@/src/components/WeatherCard';
@@ -7,9 +7,11 @@ import { router } from 'expo-router';
 import callPhone from '@/src/utils/call-phone';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchSlots, selectSlotsLoading, selectSlotsMap } from '@/src/features/slots/slotsSlice';
-import { fetchMySchedule, selectWorkSlotsError, selectWorkSlotsLoading, selectWorkSlotsRaw } from '@/src/features/technician/workSlotsSlice';
+import { checkInWorkSlot, fetchMySchedule, selectWorkSlotsError, selectWorkSlotsLoading, selectWorkSlotsRaw } from '@/src/features/technician/workSlotsSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store';
 import { pad2 } from '@/src/helper/appointResident';
+import { dotnetArr } from '@/src/helper/dotnetArr';
+import { allowCheckIn, allowCheckOut } from '@/src/helper/canShowCheckIn-Out';
 
 const StatCard = ({ colors, children , start, end }) => (
   <LinearGradient
@@ -40,47 +42,113 @@ export default function TechnicianDashboard() {
     to.setDate(to.getDate() + 1);
     dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
   }, [dispatch]);
-  // ===== Mock data hôm nay =====
-  const [stats, setStats] = useState({
-    todayTotal: 10,
-    inspectionsToday: 4,
-    repairsToday: 6,
-    completedToday: 3,
-    urgentTasks: 2,
-  });
-  
-  const [todayJobs, setTodayJobs] = useState([
-    {
-      id: 1,
-      apartment: { apartmentId: 'A-204', floor: '2' },
-      title: 'Rò rỉ vòi nước',
-      type: 'Repair',
-      priority: 'Thường',
-      time: '09:30',
-      status: 'Đang xử lý',
-      contact: { name: 'Anh Huy', phone: '0901234567' },
-    },
-    {
-      id: 2,
-      apartment: { apartmentId: 'B-105', floor: '1' },
-      title: 'Kiểm tra định kỳ hệ thống điện',
-      type: 'Inspection',
-      priority: 'Khẩn cấp',
-      time: '11:00',
-      status: 'Chờ xử lý',
-      contact: { name: 'Chị Lan', phone: '0912345678' },
-    },
-    {
-      id: 3,
-      apartment: { apartmentId: 'C-301', floor: '3' },
-      title: 'Ổ cắm phòng ngủ',
-      type: 'Repair',
-      priority: 'Thường',
-      time: '14:15',
-      status: 'Đã xếp lịch',
-      contact: { name: 'Anh Minh', phone: '0987654321' },
-    },
-  ]);
+
+  const todayKey = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return ymd(d);
+  }, []);
+
+  const todayData = useMemo(() => {
+    const arr = dotnetArr(scheduleRaw);
+    return arr.find((d) => d?.date === todayKey) || null;
+  }, [scheduleRaw, todayKey]);
+  console.log('[today data]',todayData)
+  const todayShifts = useMemo(() => {
+    if (!todayData) return [];
+    const slotsArr = dotnetArr(todayData.slots);
+    return slotsArr
+      .map((sl) => {
+        const info = slotMap[sl.slotId] || {};
+        const fromTime = info.fromTime || '00:00:00';
+        const toTime = info.toTime || '00:00:00';
+        const tws = dotnetArr(sl.technicianWorkSlots)?.[0] || null;
+        const key = `${todayData.date}-${sl.slotId}`;
+        const status = tws?.status || 'NotStarted';
+        return {
+          id: key,
+          date: todayData.date,
+          slotId: sl.slotId,
+          fromTime,
+          toTime,
+          status,
+          workSlotRaw: tws,
+          appointments: dotnetArr(tws?.appointments) || [],
+        };
+      })
+      .sort((a, b) => (a.fromTime || '').localeCompare(b.fromTime || ''));
+  }, [todayData, slotMap]);
+  console.log('[[today shifts]]', todayShifts);
+  const allJobs = useMemo(() => {
+    if (!todayShifts.length) return [];
+    const jobs = [];
+
+    todayShifts.forEach((shift) => {
+      shift.appointments.forEach((appt) => {
+        const req = appt.repairRequest || {};
+        const apt = req.apartment || {};
+        const apartmentId =
+          apt.room ||
+          apt.roomNumber ||
+          apt.apartmentId ||
+          apt.apartmentCode ||
+          '---';
+        const floor = apt.floor || apt.floorId || '-';
+
+        const startIso =
+          appt.startTime || `${shift.date}T${shift.fromTime || '00:00:00'}`;
+        const timeLabel = startIso.slice(11, 16); // HH:mm
+
+        const isEmergency = req.isEmergency === true;
+        const priority = isEmergency ? 'Khẩn cấp' : 'Bình thường';
+
+        const typeRaw = appt.type || appt.appointmentType || req.type;
+        const type =
+          String(typeRaw || '')
+            .toLowerCase()
+            .includes('inspect') || String(typeRaw || '').toLowerCase().includes('survey')
+            ? 'Inspection'
+            : 'Repair';
+
+      
+
+        const contactPhone =
+          apt.residentPhone ||
+          apt.phoneNumber ||
+          apt.phone ||
+          appt.contactPhone ||
+          '';
+
+        jobs.push({
+          id: appt.appointmentId,
+          _startKey: startIso,
+          apartment: { apartmentId, floor },
+          title: req.object || appt.title || 'Công việc',
+          type,
+          priority,
+          time: timeLabel,
+          status: apt.status||'Chờ xử lý',
+          contact: {
+            name: apt.residentName || '',
+            phone: contactPhone,
+          },
+        });
+      });
+    });
+    // sort gần nhất theo giờ bắt đầu
+    return jobs.sort((a, b) => new Date(a._startKey) - new Date(b._startKey));
+  }, [todayShifts]);
+
+  const stats = useMemo(() => {
+    const todayTotal = allJobs.length;
+    const inspectionsToday = allJobs.filter((j) => j.type === 'Inspection').length;
+    const repairsToday = allJobs.filter((j) => j.type === 'Repair').length;
+    const completedToday = allJobs.filter((j) => j.status === 'Đã hoàn thành').length;
+    const urgentTasks = allJobs.filter((j) => j.priority === 'Khẩn cấp').length;
+    return { todayTotal, inspectionsToday, repairsToday, completedToday, urgentTasks };
+  }, [allJobs]);
+
+  const todayJobs = useMemo(() => allJobs.slice(0, 3), [allJobs]);
 
   const getPriorityColor = (priorityVi) => {
     switch (priorityVi) {
@@ -116,6 +184,24 @@ export default function TechnicianDashboard() {
     month: 'long',
     day: 'numeric',
   });
+  const quickCheckInShift = useMemo(
+    () => todayShifts.find((s) => s.status === 'NotStarted' && allowCheckIn(s)),
+    [todayShifts]
+  );
+
+  const quickCheckOutShift = useMemo(
+    () =>
+      todayShifts.find(
+        (s) =>
+          (s.status === 'Working' || s.status === 'InProgress') &&
+          allowCheckOut(s)
+      ),
+    [todayShifts]
+  );
+
+   const handleQuickCheckIn = () => router.push('/(technician)/check-in-qr');
+   
+
   const { data, loading, error } = useWeather();
   console.log('Weather hook:', { data, loading, error });
   return (
@@ -245,8 +331,8 @@ export default function TechnicianDashboard() {
             <Text style={styles.jobTitle}>{job.title}</Text>
 
             <View style={styles.cardFooter}>
-              <View style={[styles.statusChip, { backgroundColor: getStatusColor(job.status) }]}>
-                <Text style={styles.statusChipText}>{job.status}</Text>
+              <View style={[styles.statusChip ]}>
+                {/* <Text style={styles.statusChipText}>{job.status}</Text> */}
               </View>
 
               <Pressable
