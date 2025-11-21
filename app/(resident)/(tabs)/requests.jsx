@@ -104,7 +104,7 @@ export default function ResidentRequests() {
         <Pressable onPress={() => setOpenAptPicker(true)} style={styles.aptChip}>
           <Icon name="building.2" size={14} color="#6b7280" />
           <Text style={styles.aptChipText}>
-            {apartmentId ? `Căn hộ #${apartmentId}` : 'Chọn căn hộ'}
+            {apartmentId ? `Căn hộ số ${apartmentId}` : 'Chọn căn hộ'}
           </Text>
           <Icon name="chevron.down" size={14} color="#6b7280" />
         </Pressable>
@@ -163,7 +163,7 @@ export default function ResidentRequests() {
                     }}
                     style={[styles.optionItem, active && styles.optionItemActive]}>
                     <Text style={[styles.optionText, active && styles.optionTextActive]}>
-                      {`Tầng ${apt.floor} - Phòng ${apt.roomNumber}`}
+                      {`Tầng ${apt.floor} - Phòng ${apt.room}`}
                     </Text>
                   </Pressable>
                 );

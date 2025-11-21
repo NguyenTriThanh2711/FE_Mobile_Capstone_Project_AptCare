@@ -90,10 +90,10 @@ function AppointmentCard({ appt, onPress }) {
 
       {/* Meta row */}
       <View style={sx.metaRow}>
-        <Pill icon="building.2">Căn hộ {room}</Pill>
         {floor !== undefined && floor !== null ? (
           <Pill icon="list.number">Tầng {String(floor)}</Pill>
         ) : null}
+        <Pill icon="building.2">Căn hộ {room}</Pill>
         {!!appt?.appointmentId && <Pill icon="list.number">{`IdCH: ${appt.appointmentId}`}</Pill>}
       </View>
 

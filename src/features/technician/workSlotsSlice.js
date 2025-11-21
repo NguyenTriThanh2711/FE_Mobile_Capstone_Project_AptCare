@@ -11,12 +11,10 @@ export const fetchMySchedule = createAsyncThunk(
       const { data } = await http.get('/api/workslots/my-schedule', {
         params: { fromDate, toDate },
       });
-      // console.log('[Data]:res fetchmychedule data', pretty(data));
       return data;
     } catch (err) {
       const message =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
+        err?.message ||
         'Không tải được lịch làm việc';
       console.log(err);
       return rejectWithValue(message);

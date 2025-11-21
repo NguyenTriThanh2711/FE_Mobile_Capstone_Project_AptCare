@@ -106,7 +106,7 @@ export const fetchRepairRequests = createAsyncThunk(
   'requests/fetchRepairRequests',
   async (params = {}) => {
     const { data } = await http.get('/api/repairrequests/paginate', { params });
-    console.log('http.get("/api/repairrequests/paginate",', data);
+    //console.log('http.get("/api/repairrequests/paginate",', data);
     return data || []; // []
   }
 );

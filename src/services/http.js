@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './secure-store';
 import { Platform } from 'react-native';
 import { pretty } from '../helper/prettyLog';
+import Toast from 'react-native-toast-message';
 const BASE_URL = Platform.select({
   android: process.env.EXPO_PUBLIC_API_URL_ANDROID_EMU || process.env.EXPO_PUBLIC_API_URL,
   ios:     process.env.EXPO_PUBLIC_API_URL_IOS_SIM   || process.env.EXPO_PUBLIC_API_URL,
@@ -19,10 +20,11 @@ export function setOnAuthFail(fn) { onAuthFail = fn; } //handler khi logout do a
 // ---- Gắn access token vào mọi request
 http.interceptors.request.use(async (config) => {
   const { method, url, baseURL } = config;
-  // endpoint chính là `url` trong axios config
-  // console.log(`[HTTP ->] ${method?.toUpperCase()} ${baseURL}${url}`);
-  // if (config.params) console.log("[HTTP ->] params:", JSON.stringify(config.params));
-  // if (config.data)   console.log("[HTTP ->] body:",   JSON.stringify(config.data));
+  //endpoint chính là `url` trong axios config
+  console.log(`[HTTP ->] ${method?.toUpperCase()} ${baseURL}${url}`);
+  if (config.params) console.log("[HTTP ->] params:", JSON.stringify(config.params));
+  if (config.data)   console.log("[HTTP ->] body:",   JSON.stringify(config.data));
+
   const access = await getAccessToken();
   if (access) config.headers.Authorization = `Bearer ${access}`;
   return config;
@@ -46,15 +48,26 @@ const processQueue = (error, accessToken = null) => {
 // ---- Response interceptor
 http.interceptors.response.use(
   (r) => {
-    //console.log('[HTTP Response]', pretty(r?.data));
+    console.log('[HTTP Response]', r?.data);
     return r;
   },
   async (error) => {
     const original = error.config;
-
+    console.warn('[res error http]',  pretty({
+      message: error.message,
+      status: error?.response?.status,
+      url: error?.config?.baseURL + error?.config?.url,
+      method: error?.config?.method,
+      data: error?.response?.data,
+    }));
     const status = error?.response?.status;
+    // console.log('[status]',status)
     const isAuthEndpoint = original?.url?.includes('/auth/');
-
+    // console.log('[original._retry]',original._retry)
+    // console.log('[isAuthEndpoint]',isAuthEndpoint)
+    if(status === 500){
+      Toast.show({ type: 'error', text1: 'Lỗi máy chủ, vui lòng thử lại sau' });
+    }
     error.normalized = {
       status,
       message:
@@ -71,7 +84,7 @@ http.interceptors.response.use(
     // Nếu 401 và chưa thử refresh, thực hiện refresh
     if (status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true;
-
+      console.log('[Retrying request]', original.url);
       if (isRefreshing) {
         // đẩy request vào hàng đợi, chờ refresh xong
         return new Promise((resolve, reject) => {
@@ -83,6 +96,9 @@ http.interceptors.response.use(
           
       try {
         const refresh = await getRefreshToken();
+        const access = await getAccessToken();
+        console.log('[accesstoken]', access);
+        console.log('[Refreshing token http]', refresh);
         if (!refresh) {
           await clearTokens();
           if (onAuthFail) await onAuthFail('NO_REFRESH');

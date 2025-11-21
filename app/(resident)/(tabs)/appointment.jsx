@@ -24,37 +24,33 @@ import { pad2 } from '@/src/helper/appointResident';
 import { dayDate } from '@/src/utils/date';
 import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
+import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
 
 export default function ResidentScheduleScreen() {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
 
-  // ngày hôm nay
   const today = useMemo(() => new Date(), []);
 
-  // ngày đang chọn (YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = today;
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   });
 
-  // năm/tháng hiện tại của lịch để fetch data
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonthIndex, setCurrentMonthIndex] = useState(today.getMonth());
 
-  // key tháng
   const key = useAppSelector((s) =>
     selectResidentMonthKey(s, currentYear, currentMonthIndex)
   );
 
-  // data từ Redux
   const eventsByDate = useAppSelector((s) => selectResidentEventsByDate(s, key));
   const dayAppointments = useAppSelector((s) =>
     selectResidentDayAppointments(s, key, selectedDate)
   );
   const loadingMonth = useAppSelector((s) => selectResidentMonthLoading(s, key));
 
-  console.log('[data] day appointment', pretty(dayAppointments));
+  //console.log('[data] day appointment', pretty(dayAppointments));
 
   // fetch lịch theo tháng khi currentYear/currentMonthIndex đổi
   useEffect(() => {
@@ -185,7 +181,7 @@ export default function ResidentScheduleScreen() {
 
                   {/* tiêu đề yêu cầu */}
                   <Text style={styles.itemTitle} numberOfLines={2}>
-                    {appt?.repairRequest?.object || 'Lịch hẹn'}
+                    {capitalizeFirst(appt?.repairRequest?.object) || 'Lịch hẹn'}
                   </Text>
 
                   {/* tên issue */}
@@ -216,7 +212,11 @@ export default function ResidentScheduleScreen() {
                       <Icon name="person.fill" size={14} color="#6B7280" />
                       <Text style={styles.meta}>{technician}</Text>
                     </View>
-                  ) : null}
+                  ) : <View style={[styles.itemRow, { marginTop: 4 }]}>
+                        <Icon name="person.fill" size={14} color="#6B7280" />
+                        <Text style={styles.meta}>Kĩ thuật viên chưa được phân công!</Text>
+                      </View>
+                  }
                 </Pressable>
               );
             })

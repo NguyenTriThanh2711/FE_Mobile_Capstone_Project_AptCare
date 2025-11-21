@@ -9,6 +9,7 @@ import {
   selectReportLoadingById,
 } from '@/src/features/inspectionReport/inspectionRPSlice';
 import { Colors, zincColors, appleBlue, borderColor } from '@/src/utils/colors';
+import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { timeDayDate } from '@/src/utils/date';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { pretty } from '@/src/helper/prettyLog';

@@ -4,6 +4,28 @@ import http from '@/src/services/http';
 import { monthFromTo, monthKeyOf, pad2 } from '@/src/helper/appointResident';
 import { unwrapDotNetValuesDeep } from '@/src/helper/dotnetArr';
 
+export const createAppointment = createAsyncThunk(
+  'appointments/create',
+  async (appointmentData, { rejectWithValue }) => {
+    try {
+      const { data } = await http.post('/api/appointments', appointmentData);
+      return data;
+    } catch (err) {
+      const res = err?.response;
+      const message =
+        res?.data?.detail ||
+        res?.data?.message ||
+        res?.data ||
+        err?.message ||
+        'Tạo lịch hẹn thất bại';
+      return rejectWithValue({
+        status: res?.status,
+        message,
+      });
+    }
+  }
+);
+
 export const fetchAppointmentById = createAsyncThunk(
   'appointments/fetchById',
   async (id, { rejectWithValue }) => {
@@ -96,15 +118,21 @@ export const fetchResidentScheduleByMonth = createAsyncThunk(
 );
 export const completeAppointment = createAsyncThunk(
   'appointments/complete',
-  async ({ id, note = '', hasNextAppointment = false }, { rejectWithValue }) => {
+  async (
+    { id, note , hasNextAppointment , acceptanceTime }, 
+    { rejectWithValue }
+  ) => {
     try {
+      const acceptanceDate =
+        acceptanceTime || new Date().toISOString().slice(0, 10);
       const res = await http.post(
         `/api/appointments/${id}/complete`,
-        null, 
+        null,
         {
           params: {
             note: note || undefined,
             hasNextAppointment,
+            acceptanceTime: acceptanceDate,     
           },
         }
       );
@@ -128,6 +156,8 @@ const initialState = {
   checkingIn: {},
   requestsByApartment: {},
   completingById: {},
+  creating: false,
+  createError: null,
   residentSchedule: {
     byMonth: {},
     loadingByMonth: {},
@@ -159,6 +189,27 @@ const appointmentsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // create appointment
+      .addCase(createAppointment.pending, (s) => {
+        s.creating = true;
+        s.createError = null;
+      })
+      .addCase(createAppointment.fulfilled, (s, a) => {
+        s.creating = false;
+        s.createError = null;
+        // nếu BE trả về appointment mới, ta nhét vào byId luôn
+        const raw = a.payload;
+        const appt = unwrapDotNetValuesDeep(raw);
+        const id = appt?.appointmentId;
+        if (id != null) {
+          s.byId[String(id)] = appt;
+        }
+      })
+      .addCase(createAppointment.rejected, (s, a) => {
+        s.creating = false;
+        s.createError = a.payload?.message || a.error?.message || null;
+      })
+      // fetch by id
       .addCase(fetchAppointmentById.pending, (state, action) => {
         const id = String(action.meta.arg);
         state.loadingById[id] = true;
@@ -279,3 +330,6 @@ export const selectResidentDayAppointments = (state, key, dateStr) =>
 export const selectAppointmentCompleting = (s, id) =>
   !!s.appointments?.completingById?.[Number(id)];
 export default appointmentsSlice.reducer;
+//create 
+export const selectAppointmentCreating = (s) =>
+  !!s.appointments?.creating;

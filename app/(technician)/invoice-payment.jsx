@@ -43,8 +43,6 @@ const schema = yup
     .typeError('Id yêu cầu phải là số')
     .required('Thiếu repairRequestId'),
 
-  isChargeable: yup.boolean().required(),
-
   accessories: yup
     .array()
     .of(
@@ -68,7 +66,7 @@ const schema = yup
         price: toNumber()
           .typeError('price phải là số')
           .min(0, 'Không âm')
-          .required('Nhập giá'),
+          // sd
       })
     )
     .default([]),
@@ -78,7 +76,6 @@ const schema = yup
   'Khi tính phí, cần thêm ít nhất 1 dòng phụ kiện hoặc dịch vụ',
   (values) => {
     if (!values) return false;
-    if (!values.isChargeable) return true;
     const hasAcc = Array.isArray(values.accessories) && values.accessories.length > 0;
     const hasSvc = Array.isArray(values.services) && values.services.length > 0;
     return hasAcc || hasSvc;
@@ -103,7 +100,6 @@ export default function CreateInvoiceScreen() {
     resolver: yupResolver(schema),
     defaultValues: {
       repairRequestId: defaultRRId,
-      isChargeable: true,
       accessories: [],
       services: [],
     },
@@ -112,7 +108,6 @@ export default function CreateInvoiceScreen() {
     criteriaMode: 'firstError',
   });
 
-  const isChargeable = watch('isChargeable');
   const services = watch('services');
   const accessoriesForm = watch('accessories');
 
@@ -168,14 +163,6 @@ export default function CreateInvoiceScreen() {
     );
   }, [accSearch, accessoriesMaster]);
 
-  const onToggleChargeable = (val) => {
-    setValue('isChargeable', val, { shouldValidate: true, shouldDirty: true });
-    if (!val) {
-      setValue('accessories', [], { shouldValidate: true });
-      setValue('services', [], { shouldValidate: true });
-    }
-  };
-
   const {
     fields: accFields,
     append: accAppend,
@@ -209,7 +196,6 @@ export default function CreateInvoiceScreen() {
     try {
       const payload = {
         repairRequestId: Number(values.repairRequestId),
-        isChargeable: !!values.isChargeable,
         accessories: (values.accessories || []).map((a) => ({
           accessoryId: Number(a.accessoryId),
           quantity: Number(a.quantity),
@@ -247,59 +233,23 @@ export default function CreateInvoiceScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
         {/* repairRequestId */}
-        <Controller
-          control={control}
-          name="repairRequestId"
-          render={({ field: { value, onChange, onBlur } }) => (
             <View style={styles.field}>
-              <Text style={styles.label}>ID yêu cầu</Text>
-              <TextInput
-                value={String(value ?? '')}
-                onBlur={onBlur}
-                editable={false}
-                onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
-                keyboardType="numeric"
-                placeholder="Nhập repairRequestId"
-                style={[styles.input, { backgroundColor: '#F3F4F6' }]}
-              />
-              {!!errors.repairRequestId?.message && (
-                <Text style={styles.err}>{errors.repairRequestId.message}</Text>
-              )}
+              <Text style={styles.label}>ID yêu cầu :</Text>
+              <Text style={styles.value}>{repairRequestId}</Text>
             </View>
-          )}
-        />
-
-        {/* isChargeable */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ fontWeight: '700', fontSize: 16 }}>Tính phí (isChargeable)</Text>
-          <Controller
-            control={control}
-            name="isChargeable"
-            render={({ field: { value } }) => (
-              <Switch value={!!value} onValueChange={onToggleChargeable} />
-            )}
-          />
-        </View>
-
+      
         {/* Accessories Section */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="wrench" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Phụ kiện (Accessories)</Text>
-            <Pressable
+            <Text style={styles.cardTitle}>Phụ kiện</Text>
+            {/* <Pressable
               onPress={() => accAppend({ accessoryId: '', quantity: 1 })}
               style={styles.addBtn}
             >
               <Icon name="plus.circle" size={18} color={appleBlue} />
               <Text style={styles.addTxt}>Thêm dòng trống</Text>
-            </Pressable>
+            </Pressable> */}
           </View>
 
           {/* Tìm kiếm phụ kiện */}
@@ -374,7 +324,7 @@ export default function CreateInvoiceScreen() {
                 )}
 
                 {/* accessoryId */}
-                <Controller
+                {/* <Controller
                   control={control}
                   name={`accessories.${idx}.accessoryId`}
                   render={({ field: { value, onChange, onBlur } }) => (
@@ -395,7 +345,7 @@ export default function CreateInvoiceScreen() {
                       )}
                     </View>
                   )}
-                />
+                /> */}
 
                 {/* quantity */}
                 <Controller
@@ -433,7 +383,7 @@ export default function CreateInvoiceScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="hammer" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Dịch vụ (Services)</Text>
+            <Text style={styles.cardTitle}>Dịch vụ</Text>
             <Pressable
               onPress={() => svcAppend({ name: '', price: '' })}
               style={styles.addBtn}
@@ -505,14 +455,14 @@ export default function CreateInvoiceScreen() {
 
         {/* Tổng tiền */}
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Tổng phụ kiện (nháp)</Text>
+          <Text style={styles.totalLabel}>Tổng tiền phụ kiện (nháp)</Text>
           <Text style={styles.totalValue}>
             {accessoriesTotal.toLocaleString('vi-VN')} đ
           </Text>
 
           <View style={{ height: 8 }} />
 
-          <Text style={styles.totalLabel}>Tổng dịch vụ (nháp)</Text>
+          <Text style={styles.totalLabel}>Tổng tiền dịch vụ (nháp)</Text>
           <Text style={styles.totalValue}>
             {servicesTotal.toLocaleString('vi-VN')} đ
           </Text>
@@ -525,7 +475,7 @@ export default function CreateInvoiceScreen() {
               paddingTop: 8,
             }}
           >
-            <Text style={styles.totalLabel}>Tổng tạm tính</Text>
+            <Text style={styles.totalLabel}>Tổng tiền tạm tính</Text>
             <Text style={styles.totalValue}>
               {(accessoriesTotal + servicesTotal).toLocaleString('vi-VN')} đ
             </Text>
@@ -569,7 +519,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 6, marginRight: 2, borderRadius: 999 },
   headerTitle: { fontSize: 18, fontWeight: '800', color: THEME.text },
 
-  field: { marginBottom: 14 },
+  field: { marginBottom: 14, marginLeft: 8, flexDirection: 'row', gap: 8 },
   label: { fontSize: 14, fontWeight: '700', color: THEME.text, marginBottom: 6 },
   smallLabel: { fontSize: 12, fontWeight: '700', color: zincColors[700], marginBottom: 6 },
   input: {

@@ -54,6 +54,7 @@ const MAP = {
   "chevron.up": "chevron-up",
   "lock": "lock-closed-outline", 
   "bell": "notifications-outline",         // hoặc "notifications"
+  "bell.fill": "notifications",            // hoặc "notifications-outline"
   "envelope": "mail-outline",              // hoặc "mail"
   "wrench": "construct-outline",           // hoặc "construct"
   "creditcard": "card-outline",            // hoặc "card"

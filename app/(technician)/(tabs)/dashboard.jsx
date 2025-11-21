@@ -161,19 +161,6 @@ export default function TechnicianDashboard() {
     }
   };
 
-  const getStatusColor = (statusVi) => {
-    switch (statusVi) {
-      case 'Đang xử lý':
-        return '#007AFF';
-      case 'Chờ xử lý':
-        return '#FF9500';
-      case 'Đã xếp lịch':
-        return '#34C759';
-      default:
-        return '#8E8E93';
-    }
-  };
-
   const handleQuickAction = (action) => {
     Alert.alert('Thao tác nhanh', `${action} – sắp có!`);
   };
@@ -198,7 +185,7 @@ export default function TechnicianDashboard() {
       ),
     [todayShifts]
   );
-
+  const hasShiftToCheckIn = !!quickCheckInShift;
    const handleQuickCheckIn = () => router.push('/(technician)/check-in-qr');
    
 
@@ -258,10 +245,21 @@ export default function TechnicianDashboard() {
         <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
         <View style={styles.quickActions}>
           <Pressable
-            style={styles.quickActionButton}
-            onPress={() => router.push('/(technician)/check-in-qr')}>
-            <Icon name="play.circle.fill" size={26} color="#34C759" />
-            <Text style={styles.quickActionText}>Bắt đầu ca</Text>
+            style={[
+              styles.quickActionButton,
+              !hasShiftToCheckIn && styles.quickActionButtonDisabled,
+            ]}
+            onPress={hasShiftToCheckIn ? () => router.push('/(technician)/check-in-qr') : undefined}
+            disabled={!hasShiftToCheckIn}
+          >
+            <Icon
+              name="play.circle.fill"
+              size={26}
+              color={hasShiftToCheckIn ? '#34C759' : '#9CA3AF'} // xám khi disable
+            />
+            <Text style={styles.quickActionText}>
+              {hasShiftToCheckIn ? 'Bắt đầu ca' : 'Đã check-in'}
+            </Text>
           </Pressable>
           <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction('Khẩn cấp')}>
             <Icon name="exclamationmark.triangle.fill" size={26} color="#FF3B30" />

@@ -1,21 +1,25 @@
+// src/features/chat/chatSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { pretty } from '@/src/helper/prettyLog';
 
-
-export const fetchMyConversations = createAsyncThunk('chat/fetchMyConversations', async () => {
-  const { data } = await http.get('/api/conversations/my');
-  // console.log('http.get(/api/conversations/my)', pretty(data));
-  return dotnetArr(data);
-});
+// =============== Thunks ===============
+export const fetchMyConversations = createAsyncThunk(
+  'chat/fetchMyConversations',
+  async () => {
+    const { data } = await http.get('/api/conversations/my');
+    // console.log('http.get(/api/conversations/my)', pretty(data));
+    return dotnetArr(data);
+  }
+);
 
 export const createConversation = createAsyncThunk(
   'chat/createConversation',
   async ({ title, userIds }, { rejectWithValue }) => {
     try {
       const { data, status } = await http.post('/api/conversations', { title, userIds });
-      return { data, status }; // data có thể là slug/id
+      return { data, status };
     } catch (err) {
       const res = err?.response;
       return rejectWithValue(
@@ -34,6 +38,7 @@ export const muteConversation = createAsyncThunk('chat/mute', async (id) => {
   const { data } = await http.patch(`/api/conversations/${id}/mute`);
   return { id, data };
 });
+
 export const unmuteConversation = createAsyncThunk('chat/unmute', async (id) => {
   const { data } = await http.patch(`/api/conversations/${id}/unmute`);
   return { id, data };
@@ -46,7 +51,7 @@ export const fetchMessages = createAsyncThunk(
     const params = { conversationId, pageSize };
     if (before) params.before = before;
     const { data } = await http.get('/api/messages', { params });
-    // data.items newest-first; ta sẽ chuẩn hoá theo newest-last để hiển thị FlatList inverted=false
+    // data.items newest-first -> đổi thành newest-last
     const items = dotnetArr(data?.items).slice().reverse();
     return {
       conversationId,
@@ -74,6 +79,24 @@ export const sendTextMessage = createAsyncThunk(
   }
 );
 
+export const checkExistingConversation = createAsyncThunk(
+  'chat/checkExistingConversation',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const { data } = await http.get(`/api/conversations/check-existing/${userId}`);
+      if (data === null) return null;
+      const num = Number(data);
+      if (Number.isNaN(num) || num === 0) return null;
+      return num;
+    } catch (err) {
+      const res = err?.response;
+      return rejectWithValue(
+        res?.data?.detail || res?.data || err?.message || 'Kiểm tra hội thoại thất bại'
+      );
+    }
+  }
+);
+
 export const sendFileMessage = createAsyncThunk(
   'chat/sendFileMessage',
   async ({ conversationId, file }, { rejectWithValue }) => {
@@ -91,28 +114,56 @@ export const sendFileMessage = createAsyncThunk(
       return data;
     } catch (err) {
       const res = err?.response;
-      return rejectWithValue(res?.data?.detail || res?.data || err?.message || 'Gửi tệp thất bại');
+      return rejectWithValue(
+        res?.data?.detail || res?.data || err?.message || 'Gửi tệp thất bại'
+      );
     }
   }
 );
 
-export const markDelivered = createAsyncThunk('chat/markDelivered', async (conversationId) => {
-  await http.patch(`/api/messages/${conversationId}/mark-as-delivered`);
-  return { conversationId };
-});
-export const markRead = createAsyncThunk('chat/markRead', async (conversationId) => {
-  await http.patch(`/api/messages/${conversationId}/mark-as-read`);
-  return { conversationId };
-});
+export const markDelivered = createAsyncThunk(
+  'chat/markDelivered',
+  async (conversationId) => {
+    await http.patch(`/api/messages/${conversationId}/mark-as-delivered`);
+    return { conversationId };
+  }
+);
 
-/* ======================= Slice ======================= */
+export const markRead = createAsyncThunk(
+  'chat/markRead',
+  async (conversationId) => {
+    await http.patch(`/api/messages/${conversationId}/mark-as-read`);
+    return { conversationId };
+  }
+);
+
+// =============== Helper: tránh trùng message ===============
+function pushMessageUnique(box, msg) {
+  if (!box.messages) box.messages = [];
+
+  const id = msg.messageId;
+  const localId = msg.localId;
+
+  const exists = box.messages.some((x) => {
+    if (id != null && x.messageId === id) return true;
+    if (localId != null && x.localId === localId) return true;
+    return false;
+  });
+
+  if (!exists) {
+    box.messages = [...box.messages, msg];
+  }
+}
+
+// =============== Slice ===============
 const slice = createSlice({
   name: 'chat',
   initialState: {
     // conversations list
     list: [],
     loadingChat: false,
-    errorChat: null,                        //bug  dưới extraReducers đang gán 's.error'
+    errorChat: null,
+
     // detail
     byId: {},
     sending: false,
@@ -120,7 +171,8 @@ const slice = createSlice({
     creating: false,
     createError: null,
 
-    unreadByConv: {}, // { [conversationId]: number-of-unread
+    unreadByConv: {}, // { [conversationId]: number }
+    currentConversationId: null, // 👈 đang mở phòng nào
   },
   reducers: {
     prependLocalMessage(state, action) {
@@ -134,25 +186,54 @@ const slice = createSlice({
       state.list = [];
       state.byId = {};
       state.unreadByConv = {};
+      state.currentConversationId = null;
     },
     incomingMessage(state, action) {
       const m = action.payload;
       const cid = m.conversationId;
-      const box = state.byId[cid] || (state.byId[cid] = { info: null, messages: [] });
-      if (!box.messages.find((x) => x.messageId === m.messageId)) {
-        box.messages = [...box.messages, m];
-      }
+      if (!cid) return;
+
+      const box =
+        state.byId[cid] ||
+        (state.byId[cid] = {
+          info: null,
+          messages: [],
+          loadingChat: false,
+          canLoadMore: true,
+          oldestCursor: null,
+        });
+
+      // thêm message, tránh trùng
+      pushMessageUnique(box, m);
+
+      // cập nhật lastMessage cho list
       const idx = state.list.findIndex((x) => x.conversationId === cid);
       if (idx >= 0) {
-        state.list[idx] = { ...state.list[idx], lastMessage: m.content, updatedAt: m.createdAt };
+        const updated = {
+          ...state.list[idx],
+          lastMessage: m.content,
+          updatedAt: m.createdAt,
+        };
+        state.list.splice(idx, 1);
+        state.list.unshift(updated);  // đưa lên đầu
       }
-      if (!m.isRead) {
+
+      // nếu KHÔNG phải phòng đang mở -> tăng unread
+      if (cid !== state.currentConversationId && !m.isRead) {
         state.unreadByConv[cid] = (state.unreadByConv[cid] || 0) + 1;
       }
     },
     clearUnreadLocal(state, action) {
       const cid = action.payload;
       state.unreadByConv[cid] = 0;
+    },
+    // 👇 action mới: set phòng đang mở để tính unread
+    setCurrentConversationId(state, action) {
+      const cid = action.payload ?? null;
+      state.currentConversationId = cid;
+      if (cid != null) {
+        state.unreadByConv[cid] = 0;
+      }
     },
   },
   extraReducers: (b) => {
@@ -164,9 +245,10 @@ const slice = createSlice({
     b.addCase(fetchMyConversations.fulfilled, (s, a) => {
       s.loadingChat = false;
       s.list = a.payload || [];
-      // giữ hoặc khởi tạo 0 cho các phòng mới
       s.list.forEach((c) => {
-        if (!(c.conversationId in s.unreadByConv)) s.unreadByConv[c.conversationId] = 0;
+        if (!(c.conversationId in s.unreadByConv)) {
+          s.unreadByConv[c.conversationId] = 0;
+        }
       });
     });
     b.addCase(fetchMyConversations.rejected, (s, a) => {
@@ -192,7 +274,7 @@ const slice = createSlice({
       const info = a.payload;
       const id = info?.conversationId;
       if (!id) return;
-      if (!s.byId[id])
+      if (!s.byId[id]) {
         s.byId[id] = {
           info,
           messages: [],
@@ -200,7 +282,9 @@ const slice = createSlice({
           canLoadMore: true,
           oldestCursor: null,
         };
-      else s.byId[id].info = info;
+      } else {
+        s.byId[id].info = info;
+      }
     });
 
     // mute/unmute reflect flag
@@ -217,31 +301,36 @@ const slice = createSlice({
       if (s.byId[id]?.info) s.byId[id].info.isMuted = false;
     });
 
-    // fetch messages (prepend old ones to head)
+    // fetch messages (prepend old)
     b.addCase(fetchMessages.pending, (s, a) => {
       const { conversationId } = a.meta.arg;
-      const box = s.byId[conversationId] || (s.byId[conversationId] = { info: null, messages: [] });
+      const box =
+        s.byId[conversationId] ||
+        (s.byId[conversationId] = { info: null, messages: [] });
       box.loadingChat = true;
     });
     b.addCase(fetchMessages.fulfilled, (s, a) => {
       const { conversationId, items } = a.payload;
-      const box = s.byId[conversationId] || (s.byId[conversationId] = { info: null, messages: [] });
+      const box =
+        s.byId[conversationId] ||
+        (s.byId[conversationId] = { info: null, messages: [] });
       box.loadingChat = false;
-      // messages newest-last; loadMore (older) -> prepend
+
       if (a.payload.beforeUsed) {
         box.messages = [...items, ...box.messages];
       } else {
         box.messages = items; // first load
         s.unreadByConv[conversationId] = 0;
       }
-      // compute oldestCursor (for before)
+
       const oldest = box.messages[0];
       box.oldestCursor = oldest ? oldest.createdAt : null;
-      // canLoadMore: nếu page < totalPages (BE trả) — tạm suy theo length
+
       const total = a.payload?.raw?.total || 0;
       const size = a.payload?.raw?.size || 20;
       const page = a.payload?.raw?.page || 1;
-      const totalPages = a.payload?.raw?.totalPages || Math.ceil(total / (size || 20));
+      const totalPages =
+        a.payload?.raw?.totalPages || Math.ceil(total / (size || 20));
       box.canLoadMore = page < totalPages;
     });
     b.addCase(fetchMessages.rejected, (s, a) => {
@@ -263,15 +352,17 @@ const slice = createSlice({
       s.sending = false;
       const m = a.payload;
       const box =
-        s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
-      box.messages = [...box.messages, m];
+        s.byId[m.conversationId] ||
+        (s.byId[m.conversationId] = { info: null, messages: [] });
+      pushMessageUnique(box, m);
     });
     b.addCase(sendFileMessage.fulfilled, (s, a) => {
       s.sending = false;
       const m = a.payload;
       const box =
-        s.byId[m.conversationId] || (s.byId[m.conversationId] = { info: null, messages: [] });
-      box.messages = [...box.messages, m];
+        s.byId[m.conversationId] ||
+        (s.byId[m.conversationId] = { info: null, messages: [] });
+      pushMessageUnique(box, m);
     });
     b.addCase(sendTextMessage.rejected, (s, a) => {
       s.sending = false;
@@ -281,10 +372,14 @@ const slice = createSlice({
       s.sending = false;
       s.sendError = a.payload || a.errorChat;
     });
+
+    // markDelivered: chỉ báo server, KHÔNG reset unread
     b.addCase(markDelivered.fulfilled, (s, a) => {
-      const cid = a.payload?.conversationId;
-      if (cid != null) s.unreadByConv[cid] = 0;
+      // const cid = a.payload?.conversationId;
+      // nếu cần có thể log, nhưng không đụng unread
     });
+
+    // markRead: user đã xem -> reset unread
     b.addCase(markRead.fulfilled, (s, a) => {
       const cid = a.payload?.conversationId;
       if (cid != null) s.unreadByConv[cid] = 0;
@@ -293,15 +388,31 @@ const slice = createSlice({
 });
 
 export default slice.reducer;
-export const { prependLocalMessage, clearChat, clearUnreadLocal, incomingMessage } = slice.actions;
+export const {
+  prependLocalMessage,
+  clearChat,
+  clearUnreadLocal,
+  incomingMessage,
+  setCurrentConversationId,
+} = slice.actions;
 
-/* ======================= Selectors ======================= */
+// =============== Selectors ===============
 export const selectConversations = (s) => s.chat?.list || [];
 export const selectConversationsLoading = (s) => s.chat?.loadingChat || false;
-export const selectConversationBox = (id) => (s) =>
-  s.chat?.byId[id] || { info: null, messages: [], loadingChat: false, canLoadMore: true, oldestCursor: null };
+export const selectConversationBox =
+  (id) =>
+  (s) =>
+    s.chat?.byId[id] || {
+      info: null,
+      messages: [],
+      loadingChat: false,
+      canLoadMore: true,
+      oldestCursor: null,
+    };
 export const selectChatSending = (s) => s.chat?.sending || false;
 
 export const selectUnreadByConv = (s) => s.chat?.unreadByConv || {};
 export const selectHasAnyUnread = (s) =>
   Object.values(s.chat?.unreadByConv || {}).some((n) => n > 0);
+export const selectCurrentConversationId = (s) =>
+  s.chat?.currentConversationId ?? null;

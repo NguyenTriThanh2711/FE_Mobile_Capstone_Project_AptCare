@@ -19,7 +19,6 @@ function FiniteWheelColumn({
   render = (x) => String(x),
 }) {
   const ref = useRef(null);
-  const snappingRef = useRef(false);
   const lastIdxRef = useRef(null);
 
   const getItemLayout = (_d, i) => ({
@@ -28,7 +27,6 @@ function FiniteWheelColumn({
     index: i,
   });
 
-  // Đặt đúng vị trí khi mount / đổi selected từ ngoài
   useEffect(() => {
     const idx = Math.max(0, Math.min(selectedIndex, data.length - 1));
     lastIdxRef.current = idx;
@@ -43,21 +41,11 @@ function FiniteWheelColumn({
   const settleFromOffset = (y) => {
     const idx = Math.max(0, Math.min(Math.round(y / ITEM_HEIGHT), data.length - 1));
 
-    // Không làm gì nếu không đổi
-    if (lastIdxRef.current === idx) {
-      snappingRef.current = false;
-      return;
-    }
+    // Không đổi index => không làm gì
+    if (lastIdxRef.current === idx) return;
 
     lastIdxRef.current = idx;
     onChangeIndex?.(idx);
-
-    // Snap đúng rãnh
-    snappingRef.current = true;
-    ref.current?.scrollToOffset({
-      offset: idx * ITEM_HEIGHT,
-      animated: true,
-    });
   };
 
   return (
@@ -79,12 +67,7 @@ function FiniteWheelColumn({
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
-        // chỉ bắt 1 sự kiện cuối cùng để chốt
         onMomentumScrollEnd={(e) => {
-          if (snappingRef.current) {
-            // kết thúc snap do code -> dừng vòng lặp
-            snappingRef.current = false;
-          }
           settleFromOffset(e.nativeEvent.contentOffset.y);
         }}
       />
@@ -93,16 +76,16 @@ function FiniteWheelColumn({
   );
 }
 
+
 // ================= Infinite column (Hour, Minute) =================
 function InfiniteWheelColumn({
-  baseLength, // 12 (giờ) | 60 (phút)
-  getInitialBaseIndex, // () -> 0..base-1
-  onValueChange, // (0..base-1) -> void
+  baseLength,
+  getInitialBaseIndex,
+  onValueChange,
   renderValue = (i) => String(i),
   width = 70,
 }) {
   const ref = useRef(null);
-  const snappingRef = useRef(false);
   const lastAbsIdxRef = useRef(null);
 
   const LOOPS = 400;
@@ -110,9 +93,10 @@ function InfiniteWheelColumn({
   const MID_BLOCK = Math.floor(LOOPS / 2);
   const data = useMemo(() => Array.from({ length: TOTAL }, (_, i) => i), [TOTAL]);
 
-  const [absIndex, setAbsIndex] = useState(() => MID_BLOCK * baseLength + getInitialBaseIndex());
+  const [absIndex, setAbsIndex] = useState(
+    () => MID_BLOCK * baseLength + getInitialBaseIndex()
+  );
 
-  // đồng bộ khi mở lại với initial mới
   useEffect(() => {
     const target = MID_BLOCK * baseLength + getInitialBaseIndex();
     setAbsIndex(target);
@@ -130,25 +114,18 @@ function InfiniteWheelColumn({
   });
 
   const baseIdxFromAbs = (abs) => {
-    const m = ((abs % baseLength) + baseLength) % baseLength; // 0..base-1
+    const m = ((abs % baseLength) + baseLength) % baseLength;
     return m;
   };
 
   const settleFromOffset = (y) => {
     const absIdx = Math.round(y / ITEM_HEIGHT);
 
-    if (lastAbsIdxRef.current === absIdx) {
-      snappingRef.current = false;
-      return;
-    }
+    if (lastAbsIdxRef.current === absIdx) return;
 
     lastAbsIdxRef.current = absIdx;
     setAbsIndex(absIdx);
     onValueChange?.(baseIdxFromAbs(absIdx));
-
-    // Snap đúng rãnh
-    snappingRef.current = true;
-    ref.current?.scrollToOffset({ offset: absIdx * ITEM_HEIGHT, animated: true });
   };
 
   return (
@@ -175,9 +152,6 @@ function InfiniteWheelColumn({
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
         onMomentumScrollEnd={(e) => {
-          if (snappingRef.current) {
-            snappingRef.current = false;
-          }
           settleFromOffset(e.nativeEvent.contentOffset.y);
         }}
       />
@@ -185,6 +159,7 @@ function InfiniteWheelColumn({
     </View>
   );
 }
+
 
 // ================= Modal DateTime Picker =================
 export default function WheelDateTimePicker({

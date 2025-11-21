@@ -1,4 +1,5 @@
 // app/_layout.jsx
+import '@/src/utils/signalr-polyfill';
 import React, { useEffect, useRef, useState } from 'react';
 import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { Provider } from 'react-redux';
@@ -10,9 +11,13 @@ import { MD3LightTheme, Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast, { ErrorToast } from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { startRealtime, stopRealtime } from '@/src/services/realtime';
 import http, { setOnAuthFail } from '@/src/services/http';
-import { attachForegroundListener, registerForPushAsync } from '@/src/services/pushNotifications';
+import {
+  attachForegroundListener,
+  registerForPushAsync,
+} from '@/src/services/pushNotifications';
+
+import useChatGlobalRealtime from '@/src/hooks/useChatGlobalRealtime';
 
 function AuthGate() {
   const user = useAppSelector((s) => s.auth.user);
@@ -23,28 +28,21 @@ function AuthGate() {
 
   const triedBootstrap = useRef(false);
   const [bootstrapped, setBootstrapped] = useState(false);
-  //
-  // console.log('AuthGate: user =', user); //mocked
+
+  useChatGlobalRealtime();
+
   console.log('AuthGate: segments =', segments);
-  // nếu chưa có user, thử gọi /me (sử dụng token trong SecureStore)
   useEffect(() => {
     if (!user) return;
     (async () => {
       const fcmToken = await registerForPushAsync();
       console.log('[FCM Token ->]', fcmToken);
       if (fcmToken) {
-        const unSubscribe = attachForegroundListener();
-        // gửi token này lên BE của bạn để lưu theo userId
-        // await http.post('/notifications/register', { token: fcmToken });
+        attachForegroundListener();
       }
     })();
-  }, []);
-  // useEffect(() => {
-  //   console.log('Realtime call')
-  //   if (user) startRealtime().catch(console.warn);
-  //   else stopRealtime().catch(console.warn);
-  //   return () => {};
-  // }, [user]);
+  }, [user]);
+  
   useEffect(() => {
     (async () => {
       if (triedBootstrap.current) return;
@@ -54,40 +52,52 @@ function AuthGate() {
           await dispatch(fetchProfile()).unwrap();
         }
       } catch (_) {
-        // Không có token hợp lệ -> cứ để user=null
       } finally {
         setBootstrapped(true);
       }
     })();
-  }, []);
+  }, [dispatch, user]);
 
-  // Chờ điều hướng sẵn sàng & bootstrap xong
+  // handler 401 -> logout
+  useEffect(() => {
+    setOnAuthFail(async (reason) => {
+      console.log('[HTTP onAuthFail]', reason);
+      try {
+        await dispatch(logout()).unwrap();
+      } catch (e) {
+        console.warn('logout error', e);
+      }
+      router.replace('/(auth)/auth');
+    });
+
+    return () => setOnAuthFail(null);
+  }, [dispatch, router]);
+
+  // điều hướng theo role
   useEffect(() => {
     if (!rootState?.key || !bootstrapped) return;
-    const top = segments?.[0]; // "(auth)" | "(resident)" | "(technician)" | undefined
+    const top = segments?.[0];
     const wantTop = user?.role
       ? user.role === 'Technician'
         ? '(technician)'
         : '(resident)'
       : '(auth)';
-    if (!user) {
-      if (top !== '(auth)') router.replace('/(auth)/auth');
-      return;
-    } else if (!user.role) {
+
+    if (!user || !user.role) {
       if (top !== '(auth)') router.replace('/(auth)/auth');
       return;
     } else if (top !== wantTop || top === '(auth)') {
       router.replace('/role-gateway');
     }
-  }, [user, segments, rootState?.key, bootstrapped]);
+  }, [user, segments, rootState?.key, bootstrapped, router]);
 
   return <Slot />;
 }
+
 const toastConfig = {
   error: (props) => (
     <ErrorToast
       {...props}
-      // cho phép nhiều dòng hơn
       text1NumberOfLines={2}
       text2NumberOfLines={6}
       text2Style={{ fontSize: 13, lineHeight: 18 }}
@@ -95,6 +105,7 @@ const toastConfig = {
     />
   ),
 };
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

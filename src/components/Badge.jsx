@@ -19,6 +19,9 @@ const PALETTE = {
   awaitingIRApproval: { bg: '#ffcc00', fg: '#FFFFF' }, // cam đậm
   draft: { bg: '#D1D5DB', fg: '#374151' }, // xám nhạt
   internalRepair: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
+  awaitingPayment: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
+  scheduling: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
+  acceptancePendingVerify: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
 };
 
 const STATUS_LABEL = {
@@ -41,6 +44,9 @@ const STATUS_LABEL = {
   Confirmed:   'Đã xác nhận',
   AwaitingIRApproval: 'Chờ duyệt báo cáo',
   Draft : 'Bản nháp',
+  AwaitingPayment: 'Chờ thanh toán',
+  Scheduling : 'Đang lên lịch',
+  AcceptancePendingVerify : 'Chờ nghiệm thu',
 };
 
 function mapStatusToTone(status) {
@@ -59,6 +65,12 @@ function mapStatusToTone(status) {
       return 'inRepair';
     case 'Emergency':
       return 'emergency';
+    case 'AwaitingPayment':
+      return 'awaitingPayment';
+    case 'Scheduling':
+      return 'scheduling';
+    case 'AcceptancePendingVerify':
+      return 'acceptancePendingVerify';
     case 'NotStarted':
       return 'notStarted';
     case 'Completed':

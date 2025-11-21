@@ -1,131 +1,141 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList, RefreshControl, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
 import { useAppDispatch, useAppSelector } from '@/src/store';
-import { Icon } from '@/src/components/Icon.native';
 import {
   fetchMyConversations,
   selectConversations,
-  selectConversationsLoading,
-  muteConversation,
-  unmuteConversation,
+  selectUnreadByConv,
 } from '@/src/features/chat/chatSlice';
 import { router } from 'expo-router';
-import { pretty } from '@/src/helper/prettyLog';
-import { toArray } from '@/src/helper/array';
 
-export default function ResidentChat() {
+export default function ResidentChatList() {
   const dispatch = useAppDispatch();
-  const list = useAppSelector(selectConversations);
-  const loading = useAppSelector(selectConversationsLoading);
+  const conversations = useAppSelector(selectConversations);
+  const unreadByConv = useAppSelector(selectUnreadByConv);
 
   useEffect(() => {
     dispatch(fetchMyConversations());
   }, [dispatch]);
-  // console.log('lisst message', pretty(list));
-  const onOpen = (c) => {
-    router.push({ pathname: '/(resident)/chat/[id]', params: { id: String(c.conversationId) } });
-  };
 
-  const renderRow = ({ item }) => {
-    const last = item?.lastMessage || '';
-    const names = toArray(item?.participants || [])
-      .map((p) => `${p.firstName || ''} ${p.lastName || ''}`.trim())
-      .join(', ');
-    const title = item.title || names || 'Cuộc trò chuyện';
+  const renderItem = ({ item }) => {
+    const cid = item.conversationId;
+    const unread = unreadByConv[cid] || 0;
+
+    const participants = item.participants?.$values || item.participants || [];
+    const title =
+      item.title ||
+      participants
+        .map((p) => `${p.firstName || ''} ${p.lastName || ''}`.trim())
+        .filter(Boolean)
+        .join(', ') ||
+      `#${cid}`;
+
+    const initials =
+      String(title)
+        .split(' ')
+        .slice(-2)
+        .map((x) => x[0])
+        .join('')
+        .toUpperCase() || 'U';
 
     return (
-      <Pressable onPress={() => onOpen(item)} style={styles.row}>
+      <Pressable
+        style={styles.row}
+        onPress={() =>
+          router.push({
+            pathname: '/chat/[id]',
+            params: { id: cid, title },
+          })
+        }
+      >
         <View style={styles.avatar}>
-          <Icon name="chat.fill" size={20} color="#fff" />
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={styles.rowTitle}>
-            {title}
-          </Text>
-          <Text numberOfLines={1} style={styles.rowSub}>
-            {last} + {}
+          <View style={styles.titleRow}>
+            <Text numberOfLines={1} style={styles.title}>
+              {title}
+            </Text>
+            {unread > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unread}</Text>
+              </View>
+            )}
+          </View>
+          <Text numberOfLines={1} style={styles.lastMessage}>
+            {item.lastMessage || 'Chưa có tin nhắn'}
           </Text>
         </View>
-        <Pressable
-          onPress={() =>
-            item.isMuted
-              ? dispatch(unmuteConversation(item.conversationId))
-              : dispatch(muteConversation(item.conversationId))
-          }
-          style={styles.rowRightBtn}>
-          <Icon
-            name={item.isMuted ? 'bell' : 'bell'}
-            size={18}
-            color={item.isMuted ? '#aaa' : '#007AFF'}
-          />
-        </Pressable>
       </Pressable>
     );
   };
+
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <FlatList
-        data={list}
-        keyExtractor={(it) => String(it.conversationId)}
-        renderItem={renderRow}
-        contentContainerStyle={{ padding: 16 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={!!loading}
-            onRefresh={() => dispatch(fetchMyConversations())}
-          />
-        }
+        data={conversations}
+        keyExtractor={(item) => String(item.conversationId)}
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        contentContainerStyle={{ paddingVertical: 8 }}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  top: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: '800', color: '#0b1b14', marginBottom: 10 },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: '#e7f0ec',
-    padding: 4,
-    borderRadius: 12,
-    width: 260,
-  },
-  segBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  segBtnActive: { backgroundColor: '#0b5343' },
-  segText: { color: '#0b5343', fontWeight: '700' },
-  segTextActive: { color: '#fff' },
-
   row: {
     flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    paddingVertical: 14,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f2f2',
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#0b5343',
+    backgroundColor: '#e5e7eb',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
-  rowTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  rowSub: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  rowRightBtn: { padding: 6 },
-
-  fab: {
-    position: 'absolute',
-    right: 18,
-    bottom: 24,
-    backgroundColor: '#007AFF',
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  avatarText: {
+    fontWeight: '700',
+    color: '#374151',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  title: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  badge: {
+    marginLeft: 8,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#0b5345',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3,
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  lastMessage: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  sep: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
+    marginLeft: 62,
   },
 });

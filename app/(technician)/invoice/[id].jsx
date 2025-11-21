@@ -93,9 +93,9 @@ export default function InvoiceDetailScreen() {
       const { data } = await http.post(
         `/api/transactions/income/payment-link/${invoiceId}`
       );
-
+      console.log('[response payment link]', data.checkoutUrl);
       const url =
-        typeof data === 'string' ? data : data?.payOSCheckoutUrl || '';
+        typeof data === 'string' ? data : data?.checkoutUrl || '';
 
       if (!url) {
         throw new Error('Không nhận được link thanh toán');
@@ -111,6 +111,7 @@ export default function InvoiceDetailScreen() {
       if (invoice?.repairRequestId) {
         dispatch(fetchInvoicesByRepairRequestId(invoice.repairRequestId));
       }
+      openPayLinkInBrowser();
     } catch (e) {
       console.log('PayOS link error', e);
       const msg =
@@ -130,9 +131,10 @@ export default function InvoiceDetailScreen() {
 
   function openPayLinkInBrowser() {
     if (!payLink) return;
-    Linking.openURL(payLink).catch((err) =>
-      console.log('Linking error', err)
-    );
+    router.push({
+      pathname: '/(technician)/payos-webview',
+      params: { url: encodeURIComponent(payLink) },
+    });
   }
 
   function openCashModal() {
@@ -219,6 +221,9 @@ export default function InvoiceDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {invoice.isChargeable === false && (<Text style={{ color: 'red', marginBottom: 8,alignSelf: 'center' }}>
+          Hóa đơn này tòa nhà chi trả nên cư dân không cần thanh toán.
+        </Text>)}
         {!invoice ? (
           <Text style={{ color: zincColors[600] }}>
             Không tìm thấy dữ liệu hóa đơn. Vui lòng mở từ màn danh sách.
@@ -266,7 +271,7 @@ export default function InvoiceDetailScreen() {
                     marginVertical: 12,
                   }}
                 >
-                  <QRCode value={payLink} size={180} />
+                
                 </View>
                 <Text style={styles.meta} numberOfLines={2}>
                   {payLink}
@@ -277,7 +282,7 @@ export default function InvoiceDetailScreen() {
                 >
                   <Icon name="safari" size={18} color={appleBlue} />
                   <Text style={styles.secondaryBtnText}>
-                    Mở trong trình duyệt
+                    Mở 
                   </Text>
                 </Pressable>
               </View>

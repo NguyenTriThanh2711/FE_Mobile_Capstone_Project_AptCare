@@ -20,6 +20,7 @@ import { Icon } from '@/src/components/Icon.native';
 import { logout } from '@/src/features/auth/authSlice';
 import { persistor, useAppDispatch, useAppSelector } from '@/src/store';
 import http from '@/src/services/http';
+import { pretty } from '@/src/helper/prettyLog';
 
 const styles = StyleSheet.create({
   container: {
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
 export default function TechnicianProfile() {
   const dispatch = useAppDispatch();
   const authUser = useAppSelector((s) => s.auth.user);
-
+  console.log('[[]]',pretty(authUser));
   const displayName =
     `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() ||
     authUser?.fullName ||
@@ -226,7 +227,7 @@ export default function TechnicianProfile() {
   const roleName = authUser?.roleName || 'Kỹ thuật viên';
 
   const [avatarUrl, setAvatarUrl] = useState(
-    authUser?.imageProfileUrl || authUser?.avatarUrl || ''
+    authUser?.profileUrl || authUser?.avatarUrl || ''
   );
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -317,7 +318,6 @@ export default function TechnicianProfile() {
         text1: 'Cập nhật ảnh đại diện thành công',
       });
 
-      // TODO: nếu có slice auth hỗ trợ update avatar, có thể dispatch ở đây
       // dispatch(updateUserAvatar(newUrl));
     } catch (e) {
       console.log('Update avatar error', e?.response || e?.message || e);
@@ -351,7 +351,7 @@ export default function TechnicianProfile() {
       return;
     }
 
-    // TODO: call API update profile nếu BE có endpoint
+    //dispath
     setProfile({ ...editingProfile });
     setShowEditModal(false);
     Alert.alert('Thành công', 'Cập nhật hồ sơ thành công!');
@@ -377,7 +377,7 @@ export default function TechnicianProfile() {
       return;
     }
 
-    // TODO: call API đổi mật khẩu (nếu có)
+    //dispath
     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setShowPasswordModal(false);
     Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
