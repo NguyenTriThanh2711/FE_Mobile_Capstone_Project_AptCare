@@ -87,7 +87,7 @@ export default function AppointmentDetailsScreen() {
   const invoicesError = useAppSelector((state) =>repairRequestId ? selectInvoicesErrorByRepairRequest(state, repairRequestId) : null);
   const completing = useAppSelector((state) => selectAppointmentCompleting(state, id));
   const creatingAppt = useAppSelector(selectAppointmentCreating);
-  console.log('[appointmentss]', pretty(appointment));
+  // console.log('[appointmentss]', pretty(appointment));
 
   useEffect(() => {
     if (id) {
@@ -117,6 +117,23 @@ export default function AppointmentDetailsScreen() {
       return t2 > t1 ? cur : latest;
     }, list[0]);
   }, [inspectionReportIds, inspectionReportsById]);
+
+  const lastRepairReport = useMemo(() => {
+    if (!repairReportIds || repairReportIds.length === 0) return null;
+    const list = repairReportIds
+      .map((rid) => repairReportsById[rid])
+      .filter(Boolean);
+    if (list.length === 0) return null;
+    return list.reduce((latest, cur) => {
+      const t1 = new Date(latest?.createdAt || 0).getTime();
+      const t2 = new Date(cur?.createdAt || 0).getTime();
+      return t2 > t1 ? cur : latest;
+    }, list[0]);
+  }, [repairReportIds, repairReportsById]);
+
+  // Chuẩn hoá solutionType: Repair / Replacement / Outsource
+
+
   // console.log('appointment = useAppSelector', pretty(appointment));
   const handleStartRepair = async () => {
     if (!id) return;
@@ -166,67 +183,64 @@ export default function AppointmentDetailsScreen() {
   };
   const handleMarkCompleted = () => {
     if (!id) return;
-
     setTempAcceptanceDate(new Date());
     setShowAcceptancePicker(true);
   };
-  const handleAcceptancePicked = (date) => {
+  
+  const handleAcceptancePicked = async (date) => {
     if (!id) return;
     setShowAcceptancePicker(false);
-    const acceptanceTime = date.toISOString().slice(0, 10); // YYYY-MM-DD
-    const prettyDate = date.toLocaleDateString('vi-VN');
+    const acceptanceTime = date.toISOString().slice(0, 10); 
+
+    try {
+      await dispatch(
+        completeAppointment({
+          id: Number(id),
+          note: 'Kỹ thuật viên xác nhận đã hoàn thành công việc.',
+          hasNextAppointment: false,
+          acceptanceTime,
+        })
+      ).unwrap();
+
+      Toast.show({
+        type: 'success',
+        text1: 'Đã hoàn tất lịch hẹn',
+      });
+
+      dispatch(fetchAppointmentById(id));
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Hoàn tất thất bại',
+        text2: e?.message || 'Vui lòng thử lại.',
+      });
+    }
+  };
+  const handleCompleteAndPlanNext = () => {
+    if (!id) return;
 
     Alert.alert(
-      'Hoàn tất lịch hẹn',
-      'Bạn đã hoàn thành công việc tại lịch hẹn này chứ?',
+      'Kết thúc buổi hiện tại',
+      'Bạn sẽ hẹn lịch mới cho lần sửa tiếp theo.',
       [
         { text: 'Huỷ', style: 'cancel' },
         {
-          text: 'Chưa, còn lịch hẹn tiếp',
+          text: 'Xác nhận',
           onPress: async () => {
             try {
               await dispatch(
                 completeAppointment({
                   id: Number(id),
-                  note: 'Còn lịch hẹn tiếp theo',
+                  note: 'Kết thúc buổi hẹn, sẽ có lịch hẹn tiếp theo.',
                   hasNextAppointment: true,
-                  acceptanceTime,
+                  acceptanceTime: null, // ❗ không cần nghiệm thu ở buổi hẹn tạm
                 })
               ).unwrap();
 
               Toast.show({
                 type: 'success',
-                text1: 'Đã cập nhật hoàn tất (có lịch hẹn tiếp)',
-              });
-
-              // reload lại appointment để thấy status mới
-              dispatch(fetchAppointmentById(id));
-            } catch (e) {
-              Toast.show({
-                type: 'error',
-                text1: 'Hoàn tất thất bại',
-                text2: e?.message || 'Vui lòng thử lại.',
-              });
-            }
-          },
-        },
-        {
-          text: 'Đã hoàn tất',
-          style: 'default',
-          onPress: async () => {
-            try {
-              await dispatch(
-                completeAppointment({
-                  id: Number(id),
-                  note: 'Kỹ thuật viên xác nhận đã hoàn thành công việc.',
-                  hasNextAppointment: false,
-                  acceptanceTime
-                })
-              ).unwrap();
-
-              Toast.show({
-                type: 'success',
-                text1: 'Đã hoàn tất lịch hẹn',
+                text1: 'Đã hoàn tất buổi hẹn',
+                text2: 'Bạn có thể tạo lịch hẹn mới.',
               });
 
               dispatch(fetchAppointmentById(id));
@@ -242,6 +256,7 @@ export default function AppointmentDetailsScreen() {
       ]
     );
   };
+
   const handleCreateNewAppointment = () => {
     if (!appointment?.repairRequest?.repairRequestId) {
       Alert.alert('Thiếu dữ liệu', 'Không tìm thấy ID yêu cầu sửa chữa.');
@@ -277,7 +292,6 @@ export default function AppointmentDetailsScreen() {
 
     const start = nextApptStart || tempNextApptStart;
 
-    // Validate: end phải > start
     if (date <= start) {
       Alert.alert(
         'Thời gian không hợp lệ',
@@ -285,16 +299,14 @@ export default function AppointmentDetailsScreen() {
       );
       const suggestedEnd = new Date(start.getTime() + 60 * 60 * 1000);
       setTempNextApptEnd(suggestedEnd);
-      return; 
+      return;
     }
 
     setShowNextApptEndPicker(false);
 
     const repairRequestId = appointment.repairRequest.repairRequestId;
-    const startTime = toLocalIsoNoOffset(date);
-
-    const endDate = new Date(date.getTime() + 60 * 60 * 1000);
-    const endTime = toLocalIsoNoOffset(endDate);
+    const startTime = toLocalIsoNoOffset(start); 
+    const endTime = toLocalIsoNoOffset(date);   
 
     try {
       await dispatch(
@@ -531,9 +543,26 @@ export default function AppointmentDetailsScreen() {
     );
   }
 
-  const hasRepairReport = repairReportIds && repairReportIds.length > 0;
+  const solutionTypeRaw = lastInspectionReport?.solutionType;
+  const solutionTypeNorm =
+    solutionTypeRaw === 1 || solutionTypeRaw === 'Repair'
+      ? 'Repair'
+      : solutionTypeRaw === 2 || solutionTypeRaw === 'Replacement'
+      ? 'Replacement'
+      : solutionTypeRaw === 3 || solutionTypeRaw === 'Outsource'
+      ? 'Outsource'
+      : undefined;
+
+  const isOutsource = solutionTypeNorm === 'Outsource';
+
   const hasInspectionReport = inspectionReportIds && inspectionReportIds.length > 0;
+  const hasRepairReport = repairReportIds && repairReportIds.length > 0;
   const hasInvoice = invoices && invoices.length > 0;
+  const inspectionApproved = lastInspectionReport?.status === 'Approved';
+  const repairApproved = lastRepairReport?.status === 'Approved';
+  //console.log('lastsss', appointment?.status === 'InRepair'
+          //&& isHasPreviousAppointment);
+          //console.log('thanh',appointment?.status)
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -793,71 +822,81 @@ export default function AppointmentDetailsScreen() {
       {/* Action Bar */}
       <View style={styles.actionBar}>
         {(appointment?.status === 'Completed')
-        && hasRepairReport
-        && !hasInvoice && !(lastInspectionReport?.solutionType =='Outsource') && (
-          <>
+        && !isOutsource && (
             <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
               <Icon name="doc.text" size={20} color={THEME.background} />
-              <Text style={styles.primaryBtnText}>Tạo hóa đơn</Text>
+              <Text style={styles.primaryBtnText}>
+                {hasInvoice ? 'Tạo thêm hóa đơn' : 'Tạo hóa đơn'}
+              </Text>
             </Pressable>
-          </>
         )}
-        {appointment?.status === 'Confirmed' ? (
-          <>
-            <Pressable
-              style={[styles.secondaryBtn, checkingIn && { opacity: 0.6 }]}
-              onPress={checkingIn ? undefined : handleCheckIn}
-              disabled={checkingIn}
-            >
-              {checkingIn ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Icon name="play.circle" size={20} color={appleBlue} />
-                  <Text style={styles.secondaryBtnText}>Bắt đầu buổi gặp</Text>
-                </>
-              )}
-            </Pressable>
-          </>
-        ) : null}
+        {appointment?.status === 'Confirmed' && (
+          <Pressable
+            style={[styles.secondaryBtn, checkingIn && { opacity: 0.6 }]}
+            onPress={checkingIn ? undefined : handleCheckIn}
+            disabled={checkingIn}
+          >
+            {checkingIn ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Icon name="play.circle" size={20} color={appleBlue} />
+                <Text style={styles.secondaryBtnText}>Bắt đầu buổi gặp</Text>
+              </>
+            )}
+          </Pressable>
+        )}
         {(appointment?.status === 'AwaitingIRApproval' || appointment?.status === 'InVisit') && (
             <Pressable style={styles.primaryBtn} onPress={handleCreateInspectionReport}>
               <Icon name="doc.text" size={20} color={THEME.background} />
               <Text style={styles.primaryBtnText}>
-                {inspectionReportIds.length > 0
+                {hasInspectionReport
                   ? 'Thêm báo cáo k/sát'
                   : 'Báo cáo khảo sát'}
               </Text>
             </Pressable>
         )}
-        
-        { appointment?.status === 'AwaitingIRApproval' ? (
-          <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
-            <Icon name="pencil" size={20} color={appleBlue} />
-            <Text style={styles.secondaryBtnText}>Bắt đầu sửa chữa</Text>
-          </Pressable>
-        ) : null}
-        {(appointment?.status === 'InRepair' )
-        && !hasRepairReport
-        && !hasInvoice && 
-        (
-          <Pressable style={styles.primaryBtn} onPress={handleCreateRepairReport}>
-            <Icon name="pencil" size={20} color={appleBlue} />
-            <Text style={styles.primaryBtnText}>Báo cáo sữa chữa</Text>
-          </Pressable>
+        {appointment?.status === 'AwaitingIRApproval' && inspectionApproved && (
+          <>
+            {isOutsource ? (
+              <Pressable
+                style={styles.secondaryBtn}
+                onPress={handleCompleteAndPlanNext}
+              >
+                <Icon name="checkmark.circle" size={20} color={appleGreen} />
+                <Text style={styles.secondaryBtnText}>
+                  Hoàn tất (hẹn lịch mới)
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
+                <Icon name="pencil" size={20} color={appleBlue} />
+                <Text style={styles.secondaryBtnText}>Bắt đầu sửa chữa</Text>
+              </Pressable>
+            )}
+          </>
         )}
-        {appointment?.status === 'InRepair'
-          && hasInspectionReport
-          && hasRepairReport
-            && (
-            <Pressable style={styles.secondaryBtn} onPress={handleMarkCompleted}>
-              <Icon name="checkmark.circle" size={20} color={appleGreen} />
-              <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
+        {appointment?.status === 'InRepair' && (
+          <>
+            <Pressable style={styles.primaryBtn} onPress={handleCreateRepairReport}>
+              <Icon name="pencil" size={20} color={appleBlue} />
+              <Text style={styles.primaryBtnText}>
+                {hasRepairReport ? 'Thêm báo cáo sửa chữa' : 'Báo cáo sửa chữa'}
+              </Text>
             </Pressable>
+
+            {repairApproved && (
+              <Pressable style={styles.secondaryBtn} onPress={handleMarkCompleted}>
+                <Icon name="checkmark.circle" size={20} color={appleGreen} />
+                <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
+              </Pressable>
+            )}
+          </>
         )}
+        
         {appointment?.status === 'Completed'
           && hasInspectionReport
-          && (lastInspectionReport?.solutionType == 'Outsource') && (
+          && isOutsource && (
             <Pressable
               style={[styles.secondaryBtn, creatingAppt && { opacity: 0.6 }]}
               onPress={creatingAppt ? undefined : handleCreateNewAppointment}

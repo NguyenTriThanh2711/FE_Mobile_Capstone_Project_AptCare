@@ -74,6 +74,7 @@ function mapStatusToTone(status) {
     case 'NotStarted':
       return 'notStarted';
     case 'Completed':
+      return 'success';
     case 'Approved':
       return 'success';
     case 'InProgress':
@@ -87,6 +88,7 @@ function mapStatusToTone(status) {
     case 'New':
       return 'muted';
     case 'Cancelled':
+      return 'cancelled'
     case 'Rejected':
       return 'warning';
     case 'Failed':

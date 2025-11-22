@@ -53,7 +53,7 @@ export default function TechnicianDashboard() {
     const arr = dotnetArr(scheduleRaw);
     return arr.find((d) => d?.date === todayKey) || null;
   }, [scheduleRaw, todayKey]);
-  console.log('[today data]',todayData)
+  //console.log('[today data]',todayData)
   const todayShifts = useMemo(() => {
     if (!todayData) return [];
     const slotsArr = dotnetArr(todayData.slots);
@@ -78,7 +78,7 @@ export default function TechnicianDashboard() {
       })
       .sort((a, b) => (a.fromTime || '').localeCompare(b.fromTime || ''));
   }, [todayData, slotMap]);
-  console.log('[[today shifts]]', todayShifts);
+  //console.log('[[today shifts]]', todayShifts);
   const allJobs = useMemo(() => {
     if (!todayShifts.length) return [];
     const jobs = [];
@@ -190,7 +190,7 @@ export default function TechnicianDashboard() {
    
 
   const { data, loading, error } = useWeather();
-  console.log('Weather hook:', { data, loading, error });
+  //console.log('Weather hook:', { data, loading, error });
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={true}>
       {/* Header */}

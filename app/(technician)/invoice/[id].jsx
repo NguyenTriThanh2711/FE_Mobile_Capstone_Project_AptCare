@@ -20,7 +20,6 @@ import {
 } from '@/src/helper/dotnetArr';
 import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
-import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import http from '@/src/services/http';
 import { fetchInvoicesByRepairRequestId } from '@/src/features/invoices/invoiceSlice';

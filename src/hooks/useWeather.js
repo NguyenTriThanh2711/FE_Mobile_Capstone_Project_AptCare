@@ -8,7 +8,7 @@ const TTL = 10 * 60 * 1000;
 
 export function useWeather() {
   const [data, setData] = useState(null);
-  console.log('Weather hook: data =', data);
+  //console.log('Weather hook: data =', data);
   const [status, setStatus] = useState({ loading: true, error: null });
 
   useEffect(() => {
@@ -24,16 +24,16 @@ export function useWeather() {
             setData(cached);
           }
         }
-        console.log('Weather cache:', raw ? JSON.parse(raw) : null); //clg
+        //console.log('Weather cache:', raw ? JSON.parse(raw) : null); //clg
 
         // 2) Quyền & toạ độ
         const { status: perm } = await Location.requestForegroundPermissionsAsync();
         if (perm !== 'granted') throw new Error('Không có quyền vị trí');
 
         const { coords } = await Location.getCurrentPositionAsync({});
-        console.log('Current coords:', coords);
+        //console.log('Current coords:', coords);
         const w = await fetchWeather(coords.latitude, coords.longitude);
-        console.log('Fetched weather:', w);
+        //console.log('Fetched weather:', w);
         if (mounted) {
           setData(w);
           await AsyncStorage.setItem(KEY, JSON.stringify(w));
