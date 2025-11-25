@@ -39,6 +39,7 @@ import ProgressStepper from '@/src/components/ProgressStepper';
 import { fetchInvoicesByRepairRequestId, selectInvoicesByRepairRequest, selectInvoicesErrorByRepairRequest, selectInvoicesLoadingByRepairRequest } from '@/src/features/invoices/invoiceSlice';
 import InvoiceListItem from '@/src/components/InvoiceListItem';
 import WheelDateTimePicker from '@/src/components/common/WheelDateTimePicker';
+import { getRequest, selectCurrentRequest } from '@/src/features/requests/requestsSlice';
 
 const THEME = Colors.light;
 const OWNER_LABEL = {
@@ -87,6 +88,7 @@ export default function AppointmentDetailsScreen() {
   const invoicesError = useAppSelector((state) =>repairRequestId ? selectInvoicesErrorByRepairRequest(state, repairRequestId) : null);
   const completing = useAppSelector((state) => selectAppointmentCompleting(state, id));
   const creatingAppt = useAppSelector(selectAppointmentCreating);
+  const currentRequest = useAppSelector(selectCurrentRequest);
   // console.log('[appointmentss]', pretty(appointment));
 
   useEffect(() => {
@@ -100,6 +102,7 @@ export default function AppointmentDetailsScreen() {
   useEffect(() => {
     if (repairRequestId) {
       dispatch(fetchInvoicesByRepairRequestId(repairRequestId));
+      dispatch(getRequest(repairRequestId));
     }
   }, [repairRequestId, dispatch]);
 
@@ -131,7 +134,22 @@ export default function AppointmentDetailsScreen() {
     }, list[0]);
   }, [repairReportIds, repairReportsById]);
 
-  // Chuẩn hoá solutionType: Repair / Replacement / Outsource
+  const hasPreviousAppointment = useMemo(() => {
+    if (!currentRequest || !appointment?.appointmentId) return false;
+    const rawAppts = currentRequest.appointments;
+    const appts = (rawAppts?.$values ?? rawAppts ?? []).slice();
+    if (!appts.length) return false;
+    appts.sort((a, b) => {
+      const ta = new Date(a.startTime || a.createdAt || 0).getTime();
+      const tb = new Date(b.startTime || b.createdAt || 0).getTime();
+      return ta - tb;
+    });
+    const idx = appts.findIndex(
+      (x) => x.appointmentId === appointment.appointmentId
+    );
+    if (idx === -1) return false;    // không tìm thấy -> coi như buổi đầu
+    return idx > 0;                  // index > 0 => đã có ít nhất 1 buổi trước đó
+  }, [currentRequest, appointment?.appointmentId]);
 
 
   // console.log('appointment = useAppSelector', pretty(appointment));
@@ -846,15 +864,22 @@ export default function AppointmentDetailsScreen() {
             )}
           </Pressable>
         )}
-        {(appointment?.status === 'AwaitingIRApproval' || appointment?.status === 'InVisit') && (
-            <Pressable style={styles.primaryBtn} onPress={handleCreateInspectionReport}>
-              <Icon name="doc.text" size={20} color={THEME.background} />
-              <Text style={styles.primaryBtnText}>
-                {hasInspectionReport
-                  ? 'Thêm báo cáo k/sát'
-                  : 'Báo cáo khảo sát'}
-              </Text>
-            </Pressable>
+        {(
+          appointment?.status === 'AwaitingIRApproval' ||
+          (appointment?.status === 'InVisit' && !hasPreviousAppointment)
+        ) && (
+          <Pressable style={styles.primaryBtn} onPress={handleCreateInspectionReport}>
+            <Icon name="doc.text" size={20} color={THEME.background} />
+            <Text style={styles.primaryBtnText}>
+              {hasInspectionReport ? 'Thêm báo cáo k/sát' : 'Báo cáo khảo sát'}
+            </Text>
+          </Pressable>
+        )}
+        {appointment?.status === 'InVisit' && hasPreviousAppointment && (
+          <Pressable style={styles.secondaryBtn} onPress={handleStartRepair}>
+            <Icon name="pencil" size={20} color={appleBlue} />
+            <Text style={styles.secondaryBtnText}>Bắt đầu sửa chữa</Text>
+          </Pressable>
         )}
         {appointment?.status === 'AwaitingIRApproval' && inspectionApproved && (
           <>
@@ -865,7 +890,7 @@ export default function AppointmentDetailsScreen() {
               >
                 <Icon name="checkmark.circle" size={20} color={appleGreen} />
                 <Text style={styles.secondaryBtnText}>
-                  Hoàn tất (hẹn lịch mới)
+                  Hoàn tất
                 </Text>
               </Pressable>
             ) : (
