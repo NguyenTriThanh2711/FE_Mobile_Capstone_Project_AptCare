@@ -18,6 +18,7 @@ import {
 } from '@/src/services/pushNotifications';
 
 import useChatGlobalRealtime from '@/src/hooks/useChatGlobalRealtime';
+import { fetchMyNotifications, fetchUnreadCount } from '@/src/features/notifications/notificationsSlice';
 
 function AuthGate() {
   const user = useAppSelector((s) => s.auth.user);
@@ -57,6 +58,12 @@ function AuthGate() {
       }
     })();
   }, [dispatch, user]);
+  //fetch notifications sau khi bootstrap xong 
+  useEffect(() => {
+  if (!user || !bootstrapped) return;
+  dispatch(fetchMyNotifications({ page: 1, size: 20 }));
+  dispatch(fetchUnreadCount());
+}, [user, bootstrapped, dispatch]);
 
   // handler 401 -> logout
   useEffect(() => {

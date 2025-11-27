@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { Icon } from '@/src/components/Icon.native';
 import { WeatherCard } from '@/src/components/WeatherCard';
@@ -7,25 +7,29 @@ import { router } from 'expo-router';
 import callPhone from '@/src/utils/call-phone';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchSlots, selectSlotsLoading, selectSlotsMap } from '@/src/features/slots/slotsSlice';
-import { checkInWorkSlot, fetchMySchedule, selectWorkSlotsError, selectWorkSlotsLoading, selectWorkSlotsRaw } from '@/src/features/technician/workSlotsSlice';
+import {
+  checkInWorkSlot,
+  fetchMySchedule,
+  selectWorkSlotsError,
+  selectWorkSlotsLoading,
+  selectWorkSlotsRaw,
+} from '@/src/features/technician/workSlotsSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store';
 import { pad2 } from '@/src/helper/appointResident';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { allowCheckIn, allowCheckOut } from '@/src/helper/canShowCheckIn-Out';
 
-const StatCard = ({ colors, children , start, end }) => (
-  <LinearGradient
-    colors={colors}
-    start={start}
-    end={end}
-    style={styles.statCard}
-  >
+const StatCard = ({ colors, children, start, end }) => (
+  <LinearGradient colors={colors} start={start} end={end} style={styles.statCard}>
     {children}
   </LinearGradient>
 );
+
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
 export default function TechnicianDashboard() {
   const dispatch = useAppDispatch();
+  const user = useAppSelector((s) => s.auth.user);
 
   const slotMap = useAppSelector(selectSlotsMap);
   const slotsLoading = useAppSelector(selectSlotsLoading);
@@ -53,7 +57,7 @@ export default function TechnicianDashboard() {
     const arr = dotnetArr(scheduleRaw);
     return arr.find((d) => d?.date === todayKey) || null;
   }, [scheduleRaw, todayKey]);
-  //console.log('[today data]',todayData)
+
   const todayShifts = useMemo(() => {
     if (!todayData) return [];
     const slotsArr = dotnetArr(todayData.slots);
@@ -78,7 +82,9 @@ export default function TechnicianDashboard() {
       })
       .sort((a, b) => (a.fromTime || '').localeCompare(b.fromTime || ''));
   }, [todayData, slotMap]);
-  //console.log('[[today shifts]]', todayShifts);
+
+  console.log('[[today shifts]]', todayShifts);
+
   const allJobs = useMemo(() => {
     if (!todayShifts.length) return [];
     const jobs = [];
@@ -88,11 +94,7 @@ export default function TechnicianDashboard() {
         const req = appt.repairRequest || {};
         const apt = req.apartment || {};
         const apartmentId =
-          apt.room ||
-          apt.roomNumber ||
-          apt.apartmentId ||
-          apt.apartmentCode ||
-          '---';
+          apt.room || apt.roomNumber || apt.apartmentId || apt.apartmentCode || '---';
         const floor = apt.floor || apt.floorId || '-';
 
         const startIso =
@@ -104,13 +106,10 @@ export default function TechnicianDashboard() {
 
         const typeRaw = appt.type || appt.appointmentType || req.type;
         const type =
-          String(typeRaw || '')
-            .toLowerCase()
-            .includes('inspect') || String(typeRaw || '').toLowerCase().includes('survey')
+          String(typeRaw || '').toLowerCase().includes('inspect') ||
+          String(typeRaw || '').toLowerCase().includes('survey')
             ? 'Inspection'
             : 'Repair';
-
-      
 
         const contactPhone =
           apt.residentPhone ||
@@ -127,7 +126,7 @@ export default function TechnicianDashboard() {
           type,
           priority,
           time: timeLabel,
-          status: apt.status||'Chờ xử lý',
+          status: apt.status || 'Chờ xử lý',
           contact: {
             name: apt.residentName || '',
             phone: contactPhone,
@@ -135,7 +134,7 @@ export default function TechnicianDashboard() {
         });
       });
     });
-    // sort gần nhất theo giờ bắt đầu
+
     return jobs.sort((a, b) => new Date(a._startKey) - new Date(b._startKey));
   }, [todayShifts]);
 
@@ -171,10 +170,26 @@ export default function TechnicianDashboard() {
     month: 'long',
     day: 'numeric',
   });
+
+  const greetingText = useMemo(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    if (hour >= 5 && hour < 11) {
+      return 'Chào buổi sáng,';
+    } else if (hour >= 11 && hour < 13) {
+      return 'Chào buổi trưa,';
+    } else if (hour >= 13 && hour < 18) {
+      return 'Chào buổi chiều,';
+    } else {
+      return 'Chào buổi tối,';
+    }
+  }, []);
+
   const quickCheckInShift = useMemo(
-    () => todayShifts.find((s) => s.status === 'NotStarted' && allowCheckIn(s)),
+    () => todayShifts.find((s) => s.status === 'NotStarted'),
     [todayShifts]
   );
+  const hasShiftToCheckIn = !!quickCheckInShift;
 
   const quickCheckOutShift = useMemo(
     () =>
@@ -185,26 +200,48 @@ export default function TechnicianDashboard() {
       ),
     [todayShifts]
   );
-  const hasShiftToCheckIn = !!quickCheckInShift;
-   const handleQuickCheckIn = () => router.push('/(technician)/check-in-qr');
-   
+
+  const hasAnyShiftToday = todayShifts.length > 0;
+  const canCheckInNow = useMemo(
+    () =>
+      !!todayShifts.find(
+        (s) => s.status === 'NotStarted'
+        // && allowCheckIn(s)
+      ),
+    [todayShifts]
+  );
+
+  console.log('[quickCheckInShift]', quickCheckInShift);
+  console.log('[canCheckInNow]', canCheckInNow);
+
+  const checkInLabel = !hasAnyShiftToday
+    ? 'Không có ca hôm nay'
+    : hasShiftToCheckIn
+    ? 'Bắt đầu ca'
+    : 'Đã check-in';
+
+  const checkInDisabled = !hasAnyShiftToday || !canCheckInNow;
+
+  const handleQuickCheckIn = () => router.push('/(technician)/check-in-qr');
 
   const { data, loading, error } = useWeather();
-  //console.log('Weather hook:', { data, loading, error });
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={true}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Chào buổi sáng, Kỹ thuật viên!</Text>
+        <Text style={styles.greeting}>
+          {greetingText + ' ' + (user?.lastName || '')}
+        </Text>
         <Text style={styles.date}>{todayStr}</Text>
       </View>
 
       <WeatherCard weather={data} loading={loading} error={error} />
+
       {/* Tổng quan hôm nay */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Tổng quan hôm nay</Text>
 
-        {/* Hàng 1: Tổng, Kiểm tra, Sửa chữa */}
         <View style={styles.statsRow}>
           <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#eb9625', '#9aeb25']}>
             <Icon name="calendar" size={22} color="#1976D2" />
@@ -225,7 +262,6 @@ export default function TechnicianDashboard() {
           </StatCard>
         </View>
 
-        {/* Hàng 2: Hoàn thành, Khẩn cấp */}
         <View style={styles.statsRow}>
           <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} colors={['#eb9625', '#64da12']}>
             <Icon name="checkmark.circle" size={22} color="#388E3C" />
@@ -240,6 +276,7 @@ export default function TechnicianDashboard() {
           </StatCard>
         </View>
       </View>
+
       {/* Thao tác nhanh */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
@@ -247,33 +284,39 @@ export default function TechnicianDashboard() {
           <Pressable
             style={[
               styles.quickActionButton,
-              !hasShiftToCheckIn && styles.quickActionButtonDisabled,
+              checkInDisabled && styles.quickActionButtonDisabled,
             ]}
-            onPress={hasShiftToCheckIn ? () => router.push('/(technician)/check-in-qr') : undefined}
-            disabled={!hasShiftToCheckIn}
+            onPress={canCheckInNow ? handleQuickCheckIn : undefined}
+            disabled={checkInDisabled}
           >
             <Icon
               name="play.circle.fill"
               size={26}
-              color={hasShiftToCheckIn ? '#34C759' : '#9CA3AF'} // xám khi disable
+              color={checkInDisabled ? '#9CA3AF' : '#34C759'}
             />
-            <Text style={styles.quickActionText}>
-              {hasShiftToCheckIn ? 'Bắt đầu ca' : 'Đã check-in'}
-            </Text>
+            <Text style={styles.quickActionText}>{checkInLabel}</Text>
           </Pressable>
-          <Pressable style={styles.quickActionButton} onPress={() => handleQuickAction('Khẩn cấp')}>
+
+          <Pressable
+            style={styles.quickActionButton}
+            onPress={() => handleQuickAction('Khẩn cấp')}
+          >
             <Icon name="exclamationmark.triangle.fill" size={26} color="#FF3B30" />
             <Text style={styles.quickActionText}>Khẩn cấp</Text>
           </Pressable>
+
           <Pressable
             style={styles.quickActionButton}
-            onPress={() => handleQuickAction('Nghỉ giải lao')}>
+            onPress={() => handleQuickAction('Nghỉ giải lao')}
+          >
             <Icon name="pause.circle.fill" size={26} color="#FF9500" />
             <Text style={styles.quickActionText}>Nghỉ giải lao</Text>
           </Pressable>
+
           <Pressable
             style={styles.quickActionButton}
-            onPress={() => handleQuickAction('Kết thúc ngày')}>
+            onPress={() => handleQuickAction('Kết thúc ngày')}
+          >
             <Icon name="stop.circle.fill" size={26} color="#8E8E93" />
             <Text style={styles.quickActionText}>Kết thúc ngày</Text>
           </Pressable>
@@ -289,14 +332,20 @@ export default function TechnicianDashboard() {
             <View style={styles.cardHeader}>
               <View style={styles.leftHeader}>
                 <Text style={styles.apartment}>{job.apartment.apartmentId}</Text>
-                <View style={[styles.badge, { backgroundColor: getPriorityColor(job.priority) }]}>
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: getPriorityColor(job.priority) },
+                  ]}
+                >
                   <Text style={styles.badgeText}>{job.priority}</Text>
                 </View>
                 <View
                   style={[
                     styles.typePill,
                     job.type === 'Inspection' ? styles.typeInspect : styles.typeRepair,
-                  ]}>
+                  ]}
+                >
                   <Text style={styles.typeText}>
                     {job.type === 'Inspection' ? 'Kiểm tra' : 'Sửa chữa'}
                   </Text>
@@ -315,7 +364,8 @@ export default function TechnicianDashboard() {
               <View style={styles.metaItem}>
                 <Icon name="door.left.hand.closed" size={14} color="#6b7280" />
                 <Text style={styles.metaText}>
-                  Phòng: <Text style={styles.metaStrong}>{job.apartment.apartmentId}</Text>
+                  Phòng:{' '}
+                  <Text style={styles.metaStrong}>{job.apartment.apartmentId}</Text>
                 </Text>
               </View>
               {!!job.contact?.phone && (
@@ -329,13 +379,11 @@ export default function TechnicianDashboard() {
             <Text style={styles.jobTitle}>{job.title}</Text>
 
             <View style={styles.cardFooter}>
-              <View style={[styles.statusChip ]}>
-                {/* <Text style={styles.statusChipText}>{job.status}</Text> */}
-              </View>
-
+              <View style={styles.statusChip} />
               <Pressable
                 style={styles.linkBtn}
-                onPress={() => router.push(`appointment/${job.id}`)}>
+                onPress={() => router.push(`appointment/${job.id}`)}
+              >
                 <Text style={styles.linkText}>Xem chi tiết</Text>
                 <Icon name="chevron.right" size={16} color="#007AFF" />
               </Pressable>
@@ -356,7 +404,6 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 22, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
   date: { fontSize: 15, color: '#666' },
 
-  // Weather
   weatherCard: {
     marginHorizontal: 20,
     marginBottom: 16,
@@ -407,6 +454,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
+  quickActionButtonDisabled: { opacity: 0.6 },
   quickActionText: { fontSize: 13, color: '#1a1a1a', marginTop: 8, fontWeight: '500' },
 
   card: {
@@ -451,7 +499,11 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 13, color: '#666' },
   jobTitle: { fontSize: 14, color: '#333', marginBottom: 10, lineHeight: 18 },
 
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   statusChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14 },
   statusChipText: { fontSize: 11, color: 'white', fontWeight: '600' },
 

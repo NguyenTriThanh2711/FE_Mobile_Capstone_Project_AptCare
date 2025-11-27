@@ -82,7 +82,7 @@ const slice = createSlice({
     });
     b.addCase(fetchMySchedule.rejected, (s, a) => {
       s.loading = false;
-      s.error = a.payload || a.error.message;
+      s.error = a.payload || a.error.data.detail;
     });
   },
 });

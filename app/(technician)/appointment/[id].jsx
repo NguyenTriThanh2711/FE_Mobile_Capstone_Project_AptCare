@@ -724,7 +724,7 @@ export default function AppointmentDetailsScreen() {
             </View>
             {/* invoice */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Hóa đơn</Text>
+              <Text style={styles.sectionTitle}>Báo giá</Text>
 
               {invoicesLoading ? (
                 <Text style={{ color: zincColors[500], marginLeft: 40 }}>

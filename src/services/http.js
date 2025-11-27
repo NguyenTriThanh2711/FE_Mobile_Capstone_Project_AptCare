@@ -4,9 +4,8 @@ import { Platform } from 'react-native';
 import { pretty } from '../helper/prettyLog';
 import Toast from 'react-native-toast-message';
 const BASE_URL = Platform.select({
-  android: process.env.EXPO_PUBLIC_API_URL_ANDROID_EMU || process.env.EXPO_PUBLIC_API_URL,
-  ios:     process.env.EXPO_PUBLIC_API_URL_IOS_SIM   || process.env.EXPO_PUBLIC_API_URL,
-  default: process.env.EXPO_PUBLIC_API_URL,
+  android: process.env.EXPO_PUBLIC_API_URL,
+  default: 'https://aptcare.click',
 });
 console.log("[HTTP] BASE_URL =", BASE_URL);
 const http = axios.create({
@@ -61,12 +60,17 @@ http.interceptors.response.use(
       data: error?.response?.data,
     }));
     const status = error?.response?.status;
+    const message = error?.response?.data?.detail || error?.response?.data?.data?.message;
     // console.log('[status]',status)
     const isAuthEndpoint = original?.url?.includes('/auth/');
     // console.log('[original._retry]',original._retry)
     // console.log('[isAuthEndpoint]',isAuthEndpoint)
     if(status === 500){
-      Toast.show({ type: 'error', text1: 'Lỗi máy chủ, vui lòng thử lại sau' });
+      Toast.show({
+         type: 'error', 
+         text1: 'Lỗi máy chủ, vui lòng thử lại sau' ,
+         text2: message,
+        });
     }
     error.normalized = {
       status,

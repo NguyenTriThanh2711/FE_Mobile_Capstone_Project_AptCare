@@ -16,6 +16,9 @@ const initialState = {
   registerAccountId: null,
   otpStatus: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   otpError: null,
+
+  avatarStatus: 'idle',
+  avatarError: null,
 };
 
 /**
@@ -212,6 +215,55 @@ export const logout = createAsyncThunk('auth/logout', async () => {
   return true;
 });
 
+export const changeProfileImage = createAsyncThunk(
+  'auth/changeProfileImage',
+  async ({ uri }, { rejectWithValue, dispatch }) => {
+    try {
+      const formData = new FormData();
+
+      formData.append('dto', {
+        uri,
+        name: 'avatar.jpg', 
+        type: 'image/jpeg',    
+      });
+
+      const { data } = await http.post('/auth/change-profile-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Nếu BE trả luôn profile mới thì dùng luôn
+      let profile = data;
+
+      // Nếu BE chỉ trả 200 OK không có body → gọi lại /auth/me
+      if (!profile || typeof profile !== 'object') {
+        profile = await dispatch(fetchProfile()).unwrap();
+      }
+
+      Toast.show({
+        type: 'success',
+        text1: 'Thành công',
+        text2: 'Ảnh đại diện đã được cập nhật.',
+      });
+
+      return profile;
+    } catch (err) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        'Cập nhật ảnh đại diện thất bại';
+
+      Toast.show({
+        type: 'error',
+        text1: 'Cập nhật ảnh đại diện thất bại',
+        text2: message,
+      });
+
+      return rejectWithValue(message);
+    }
+  }
+);
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -332,7 +384,23 @@ const authSlice = createSlice({
       s.registerAccountId = null; // << reset
       s.otpStatus = 'idle';
       s.otpError = null;
-    });
+    });             
+    // --- CHANGE PROFILE IMAGE
+    builder
+      .addCase(changeProfileImage.pending, (s) => {
+        s.avatarStatus = 'loading';
+        s.avatarError = null;
+      })
+      .addCase(changeProfileImage.fulfilled, (s, a) => {
+        s.avatarStatus = 'succeeded';
+        if (a.payload && typeof a.payload === 'object') {
+          s.user = a.payload;
+        }
+      })
+      .addCase(changeProfileImage.rejected, (s, a) => {
+        s.avatarStatus = 'failed';
+        s.avatarError = a.payload || a.error.message;
+      });
   },
 });
 
@@ -352,4 +420,5 @@ export const selectOtpState = (state) => ({
   status: state.auth.otpStatus,
   error: state.auth.otpError,
 }); // <<
+export const selectAvatarStatus = (state) => state.auth.avatarStatus;
 export default authSlice.reducer;

@@ -111,7 +111,7 @@ export default function TechCheckInScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Icon name="chevron.left" size={20} color="#ffffff` " />
+          <Icon name="chevron.left" size={20} color="#ffffffff" />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Quét QR điểm danh</Text>

@@ -70,7 +70,7 @@ export default function ResidentHome() {
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Chào mừng quay trở lại!</Text>
-          <Text style={styles.apartmentText}>Căn hộ {getRoomsLabel(user)}</Text>
+          <Text style={styles.apartmentText}>{user?.firstName + " " + user?.lastName}</Text>
         </View>
 
         {/* Quick Actions */}

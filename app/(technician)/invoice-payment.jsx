@@ -73,7 +73,7 @@ const schema = yup
 })
 .test(
   'chargeable-has-something',
-  'Khi tính phí, cần thêm ít nhất 1 dòng phụ kiện hoặc dịch vụ',
+  'Khi tính phí, cần thêm ít nhất 1 dòng nguyên vật liệu hoặc dịch vụ',
   (values) => {
     if (!values) return false;
     const hasAcc = Array.isArray(values.accessories) && values.accessories.length > 0;
@@ -242,7 +242,7 @@ export default function CreateInvoiceScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="wrench" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Phụ kiện</Text>
+            <Text style={styles.cardTitle}>Nguyên vật liệu</Text>
             {/* <Pressable
               onPress={() => accAppend({ accessoryId: '', quantity: 1 })}
               style={styles.addBtn}
@@ -252,18 +252,18 @@ export default function CreateInvoiceScreen() {
             </Pressable> */}
           </View>
 
-          {/* Tìm kiếm phụ kiện */}
+          {/* Tìm kiếm nguyên vật liệu */}
           <View style={{ marginBottom: 10 }}>
-            <Text style={styles.smallLabel}>Tìm phụ kiện theo tên</Text>
+            <Text style={styles.smallLabel}>Tìm nguyên vật liệu theo tên</Text>
             <TextInput
               value={accSearch}
               onChangeText={setAccSearch}
-              placeholder="Nhập tên phụ kiện..."
+              placeholder="Nhập tên nguyên vật liệu..."
               style={styles.input}
             />
             {accLoading && (
               <Text style={{ fontSize: 12, color: zincColors[500], marginTop: 4 }}>
-                Đang tải danh sách phụ kiện...
+                Đang tải danh sách nguyên vật liệu...
               </Text>
             )}
             {accError && (
@@ -299,7 +299,7 @@ export default function CreateInvoiceScreen() {
           </View>
 
           {accFields.length === 0 ? (
-            <Text style={{ color: zincColors[500] }}>Chưa có dòng phụ kiện nào.</Text>
+            <Text style={{ color: zincColors[500] }}>Chưa có dòng nguyên vật liệu nào.</Text>
           ) : null}
 
           {accFields.map((row, idx) => {
@@ -311,7 +311,7 @@ export default function CreateInvoiceScreen() {
 
             return (
               <View key={row.id} style={[styles.rowBlock]}>
-                {/* Thông tin phụ kiện (tên + giá) nếu đã match */}
+                {/* Thông tin nguyên vật liệu (tên + giá) nếu đã match */}
                 {matchedAcc && (
                   <View style={styles.accInfoLine}>
                     <Text style={styles.accName}>{matchedAcc.name}</Text>
@@ -455,7 +455,7 @@ export default function CreateInvoiceScreen() {
 
         {/* Tổng tiền */}
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Tổng tiền phụ kiện (nháp)</Text>
+          <Text style={styles.totalLabel}>Tổng tiềnnguyên vật liệu (nháp)</Text>
           <Text style={styles.totalValue}>
             {accessoriesTotal.toLocaleString('vi-VN')} đ
           </Text>

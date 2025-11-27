@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { persistor } from "@/src/store";
 import { getRoomsLabel } from "@/src/helper/room-labels-profile";
 import GradientButton from "@/src/components/common/GradientButton";
+import * as ImagePicker from "expo-image-picker";
 
 const styles = StyleSheet.create({
   container: {
@@ -175,6 +176,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  bottomSheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)", 
+    justifyContent: "flex-end",       
+  },
+  backdrop: {
+    flex: 1,                    
+  },
+  avatarSheet: {
+    width: "100%",                   
+    backgroundColor: "white",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 28,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  avatarSheetButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+    alignItems: "center",
+  },
+  avatarSheetButtonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  avatarConfirmContent: {
+    backgroundColor: "white",
+    margin: 20,
+    borderRadius: 16,
+    padding: 20,
+    width: "90%",
+    maxHeight: "80%",
+    alignItems: "center",
+  },
+  avatarPreviewImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  avatarViewBox: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: "15%",
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  avatarViewImage: {
+    width: "100%",
+    height: "80%",
+  },
 });
 
 export default function ResidentProfile() {
@@ -207,6 +272,16 @@ export default function ResidentProfile() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  // bottom sheet avatar menu
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  // modal confirm đổi avatar (preview ảnh mới chọn)
+  const [showConfirmAvatar, setShowConfirmAvatar] = useState(false);
+  const [previewAvatarUri, setPreviewAvatarUri] = useState(null);
+  // modal xem avatar hiện tại
+  const [showViewAvatar, setShowViewAvatar] = useState(false);
+
+
   const openEditFromUser = () => {
     const mapped = {
       name: user?.FullName ?? user?.name ?? "",
@@ -289,6 +364,29 @@ export default function ResidentProfile() {
         ]
     );
   };
+  const pickAvatarFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Quyền truy cập",
+        "Ứng dụng cần quyền truy cập thư viện ảnh để đổi ảnh đại diện."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    setPreviewAvatarUri(asset.uri);
+    setShowConfirmAvatar(true); 
+  };
 
   const toggleNotification = (key) => {
     setNotifications({
@@ -296,14 +394,61 @@ export default function ResidentProfile() {
       [key]: !notifications[key],
     });
   };
+  const openAvatarMenu = () => {
+    setShowAvatarMenu(true);
+  };
+  const handlePressChangeAvatar = async () => {
+    setShowAvatarMenu(false);
+    await pickAvatarFromLibrary();
+  };
+  const handlePressViewAvatar = () => {
+    setShowAvatarMenu(false);
+    if (user?.profileUrl) {
+      setShowViewAvatar(true);
+    } else {
+      Alert.alert("Thông báo", "Bạn chưa có ảnh đại diện.");
+    }
+  };
+  const handleConfirmAvatar = async () => {
+    if (!previewAvatarUri) return;
+
+    try {
+      setUploadingAvatar(true);
+      await dispatch(changeProfileImage({ uri: previewAvatarUri })).unwrap();
+      setShowConfirmAvatar(false);
+      setPreviewAvatarUri(null);
+    } catch (e) {
+      console.log("changeProfileImage error:", e);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleCancelAvatar = () => {
+    setShowConfirmAvatar(false);
+    setPreviewAvatarUri(null);
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.profileImage}>
-          {user?.profileUrl ? <Image alt="profile" source={{ uri: user.profileUrl }} style={{ width: 80, height: 80, borderRadius: 40 }} /> : (<Icon name="person.fill" size={40} color="white" />)}
-        </View>
-        <Text style={styles.profileName}>{(user?.firstName ?? '') + ' ' + (user?.lastName ?? '')?? "Unknown User"}</Text>
+        <Pressable onPress={openAvatarMenu} disabled={uploadingAvatar}>
+          <View style={styles.profileImage}>
+            {user?.profileUrl ? (
+              <Image
+                alt="profile"
+                source={{ uri: user.profileUrl }}
+                style={{ width: 80, height: 80, borderRadius: 40 }}
+              />
+            ) : (
+              <Icon name="person.fill" size={40} color="white" />
+            )}
+          </View>
+        </Pressable>
+
+        <Text style={styles.profileName}>
+          {((user?.firstName ?? "") + " " + (user?.lastName ?? "")) || "Unknown User"}
+        </Text>
         <Text style={styles.profileApartment}>Căn hộ {getRoomsLabel(user)}</Text>
       </View>
 
@@ -566,6 +711,87 @@ export default function ResidentProfile() {
                 <Text style={styles.submitButtonText}>Đổi</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Avatar Menu Modal */}
+      <Modal
+        visible={showAvatarMenu}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAvatarMenu(false)}
+      >
+        <View style={styles.bottomSheetOverlay}>
+          {/* Vùng tối phía trên – bấm để đóng */}
+          <Pressable style={styles.backdrop} onPress={() => setShowAvatarMenu(false)} />
+
+          {/* Bottom sheet full width */}
+          <View style={styles.avatarSheet}>
+
+            <Pressable style={styles.avatarSheetButton} onPress={handlePressChangeAvatar}>
+              <Text style={styles.avatarSheetButtonText}>Đổi ảnh đại diện</Text>
+            </Pressable>
+
+            <Pressable style={styles.avatarSheetButton} onPress={handlePressViewAvatar}>
+              <Text style={styles.avatarSheetButtonText}>Xem ảnh đại diện</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      {/* Modal confirm dùng ảnh mới */}
+      <Modal
+        visible={showConfirmAvatar}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelAvatar}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.avatarConfirmContent}>
+            <Text style={styles.modalTitle}>Xác nhận ảnh đại diện</Text>
+
+            {previewAvatarUri ? (
+              <Image
+                source={{ uri: previewAvatarUri }}
+                style={styles.avatarPreviewImage}
+                resizeMode="cover"
+              />
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.cancelButton} onPress={handleCancelAvatar}>
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </Pressable>
+              <Pressable
+                style={styles.submitButton}
+                onPress={handleConfirmAvatar}
+                disabled={uploadingAvatar}
+              >
+                <Text style={styles.submitButtonText}>
+                  {uploadingAvatar ? "Đang lưu..." : "Dùng ảnh này"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={showViewAvatar}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowViewAvatar(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowViewAvatar(false)} />
+          <View style={styles.avatarViewBox}>
+            {user?.profileUrl ? (
+              <Image
+                source={{ uri: user.profileUrl }}
+                style={styles.avatarViewImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <Text style={{ color: "#fff" }}>Chưa có ảnh đại diện</Text>
+            )}
           </View>
         </View>
       </Modal>
