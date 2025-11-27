@@ -32,7 +32,6 @@ export default function RepairReportDetailScreen() {
   const medias = useMemo(() => dotnetArr(report?.medias), [report]);
   const approvals = useMemo(() => dotnetArr(report?.reportApprovals), [report]);
 
-  // appointment & nested request
   const appt = report?.appointment;
   const req  = appt?.repairRequest;
   const apt  = req?.apartment;
@@ -63,7 +62,7 @@ export default function RepairReportDetailScreen() {
           <View style={styles.card}>
             <Row label="Mã báo cáo"   value={report.repairReportId} />
             <Row label="Mã cuộc hẹn"  value={report.appointmentId} />
-            <Row label="Người lập"    value={report.userFullName || '-'} />
+            <Row label="Người tạo báo cáo"    value={report.userFullName || '-'} />
             <Row label="Trạng thái"   value={<Badge status={report.status} /> || '-'} />
             <Row label="Thời gian tạo" value={createdAt} />
           </View>
@@ -100,7 +99,7 @@ export default function RepairReportDetailScreen() {
             <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Yêu cầu sửa chữa</Text>
             <Row label="Tiêu đề" value={req?.object || '-'} />
             <Row label="Mô tả"   value={req?.description || '-'} />
-            <Row label="Khẩn cấp" value={String(req?.isEmergency ?? '-') } />
+            <Row label="Khẩn cấp" value={String(req?.isEmergency ? 'Khẩn cấp' : 'Không')} />
 
             <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Căn hộ</Text>
             <Row label="Phòng" value={apt?.room || apt?.roomNumber || '-'} />

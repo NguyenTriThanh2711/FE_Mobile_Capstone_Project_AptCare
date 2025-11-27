@@ -1,3 +1,4 @@
+// app/(technician)/invoice-payment.jsx (CreateInvoiceScreen)
 import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
@@ -35,52 +36,60 @@ const toNumber = () =>
       return isNaN(value) ? undefined : value;
     });
 
-const intPos = () => toNumber().integer('Phải là số nguyên').positive('Phải > 0');
+const intPos = () =>
+  toNumber().integer('Phải là số nguyên').positive('Phải > 0');
 
 const schema = yup
-.object({
-  repairRequestId: intPos()
-    .typeError('Id yêu cầu phải là số')
-    .required('Thiếu repairRequestId'),
+  .object({
+    repairRequestId: intPos()
+      .typeError('Id yêu cầu phải là số')
+      .required('Thiếu repairRequestId'),
 
-  accessories: yup
-    .array()
-    .of(
-      yup.object({
-        accessoryId: intPos()
-          .typeError('accessoryId phải là số')
-          .required('Nhập accessoryId'),
-        quantity: intPos()
-          .min(1, 'Tối thiểu 1')
-          .typeError('quantity phải là số')
-          .required('Nhập quantity'),
-      })
-    )
-    .default([]),
+    isChargeable: yup
+      .boolean()
+      .required('Thiếu thông tin có tính phí hay không'),
 
-  services: yup
-    .array()
-    .of(
-      yup.object({
-        name: yup.string().trim().required('Nhập tên dịch vụ'),
-        price: toNumber()
-          .typeError('price phải là số')
-          .min(0, 'Không âm')
-          // sd
-      })
-    )
-    .default([]),
-})
-.test(
-  'chargeable-has-something',
-  'Khi tính phí, cần thêm ít nhất 1 dòng nguyên vật liệu hoặc dịch vụ',
-  (values) => {
-    if (!values) return false;
-    const hasAcc = Array.isArray(values.accessories) && values.accessories.length > 0;
-    const hasSvc = Array.isArray(values.services) && values.services.length > 0;
-    return hasAcc || hasSvc;
-  }
-);
+    accessories: yup
+      .array()
+      .of(
+        yup.object({
+          accessoryId: intPos()
+            .typeError('accessoryId phải là số')
+            .required('Nhập accessoryId'),
+          quantity: intPos()
+            .min(1, 'Tối thiểu 1')
+            .typeError('quantity phải là số')
+            .required('Nhập quantity'),
+        })
+      )
+      .default([]),
+
+    services: yup
+      .array()
+      .of(
+        yup.object({
+          name: yup.string().trim().required('Nhập tên dịch vụ'),
+          price: toNumber()
+            .typeError('price phải là số')
+            .min(0, 'Không âm'),
+        })
+      )
+      .default([]),
+  })
+  .test(
+    'chargeable-has-something',
+    'Khi tính phí, cần thêm ít nhất 1 dòng nguyên vật liệu hoặc dịch vụ',
+    (values) => {
+      if (!values) return false;
+      if (!values.isChargeable) return true; // không tính phí thì không bắt buộc
+
+      const hasAcc =
+        Array.isArray(values.accessories) && values.accessories.length > 0;
+      const hasSvc =
+        Array.isArray(values.services) && values.services.length > 0;
+      return hasAcc || hasSvc;
+    }
+  );
 
 export default function CreateInvoiceScreen() {
   const { repairRequestId } = useLocalSearchParams();
@@ -95,11 +104,11 @@ export default function CreateInvoiceScreen() {
     handleSubmit,
     formState: { errors, isSubmitting },
     watch,
-    setValue,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       repairRequestId: defaultRRId,
+      isChargeable: true, // mặc định có tính phí, KTV có thể tắt nếu toà nhà chịu
       accessories: [],
       services: [],
     },
@@ -110,6 +119,7 @@ export default function CreateInvoiceScreen() {
 
   const services = watch('services');
   const accessoriesForm = watch('accessories');
+  const isChargeable = watch('isChargeable');
 
   // ====== STATE: danh sách phụ kiện từ API ======
   const [accessoriesMaster, setAccessoriesMaster] = useState([]);
@@ -132,7 +142,9 @@ export default function CreateInvoiceScreen() {
         setAccError(null);
       } catch (e) {
         if (!mounted) return;
-        setAccError(e?.response?.data?.detail || e?.message || 'Lỗi tải phụ kiện');
+        setAccError(
+          e?.response?.data?.detail || e?.message || 'Lỗi tải phụ kiện'
+        );
       } finally {
         if (mounted) setAccLoading(false);
       }
@@ -147,6 +159,7 @@ export default function CreateInvoiceScreen() {
     const first =
       formLevelError ||
       formErrors?.repairRequestId?.message ||
+      formErrors?.isChargeable?.message ||
       formErrors?.accessories?.[0]?.accessoryId?.message ||
       formErrors?.accessories?.[0]?.quantity?.message ||
       formErrors?.services?.[0]?.name?.message ||
@@ -155,6 +168,7 @@ export default function CreateInvoiceScreen() {
 
     Toast.show({ type: 'error', text1: first });
   };
+
   const filteredAccessories = useMemo(() => {
     const keyword = accSearch.trim().toLowerCase();
     if (!keyword) return [];
@@ -196,6 +210,7 @@ export default function CreateInvoiceScreen() {
     try {
       const payload = {
         repairRequestId: Number(values.repairRequestId),
+        isChargeable: !!values.isChargeable,
         accessories: (values.accessories || []).map((a) => ({
           accessoryId: Number(a.accessoryId),
           quantity: Number(a.quantity),
@@ -233,23 +248,37 @@ export default function CreateInvoiceScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
         {/* repairRequestId */}
-            <View style={styles.field}>
-              <Text style={styles.label}>ID yêu cầu :</Text>
-              <Text style={styles.value}>{repairRequestId}</Text>
-            </View>
-      
+        <View style={styles.field}>
+          <Text style={styles.label}>ID yêu cầu :</Text>
+          <Text style={styles.value}>{repairRequestId}</Text>
+        </View>
+
+        {/* isChargeable */}
+        <View style={[styles.card, { marginBottom: 14 }]}>
+          <View style={styles.chargeRow}>
+            <Text style={styles.chargeLabel}>Tính phí cho cư dân</Text>
+            <Controller
+              control={control}
+              name="isChargeable"
+              render={({ field: { value, onChange } }) => (
+                <Switch
+                  value={!!value}
+                  onValueChange={onChange}
+                />
+              )}
+            />
+          </View>
+          <Text style={styles.chargeHint}>
+            • Bật ON nếu cư dân chịu chi phí.{'\n'}
+            • Tắt OFF nếu toà nhà chịu chi phí (cư dân không bị tính tiền).
+          </Text>
+        </View>
+
         {/* Accessories Section */}
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
+          <View className="cardHeader" style={styles.cardHeader}>
             <Icon name="wrench" size={18} color={appleBlue} />
             <Text style={styles.cardTitle}>Nguyên vật liệu</Text>
-            {/* <Pressable
-              onPress={() => accAppend({ accessoryId: '', quantity: 1 })}
-              style={styles.addBtn}
-            >
-              <Icon name="plus.circle" size={18} color={appleBlue} />
-              <Text style={styles.addTxt}>Thêm dòng trống</Text>
-            </Pressable> */}
           </View>
 
           {/* Tìm kiếm nguyên vật liệu */}
@@ -299,7 +328,9 @@ export default function CreateInvoiceScreen() {
           </View>
 
           {accFields.length === 0 ? (
-            <Text style={{ color: zincColors[500] }}>Chưa có dòng nguyên vật liệu nào.</Text>
+            <Text style={{ color: zincColors[500] }}>
+              Chưa có dòng nguyên vật liệu nào.
+            </Text>
           ) : null}
 
           {accFields.map((row, idx) => {
@@ -311,7 +342,6 @@ export default function CreateInvoiceScreen() {
 
             return (
               <View key={row.id} style={[styles.rowBlock]}>
-                {/* Thông tin nguyên vật liệu (tên + giá) nếu đã match */}
                 {matchedAcc && (
                   <View style={styles.accInfoLine}>
                     <Text style={styles.accName}>{matchedAcc.name}</Text>
@@ -322,30 +352,6 @@ export default function CreateInvoiceScreen() {
                     </Text>
                   </View>
                 )}
-
-                {/* accessoryId */}
-                {/* <Controller
-                  control={control}
-                  name={`accessories.${idx}.accessoryId`}
-                  render={({ field: { value, onChange, onBlur } }) => (
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.smallLabel}>Accessory ID</Text>
-                      <TextInput
-                        value={String(value ?? '')}
-                        onBlur={onBlur}
-                        onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
-                        keyboardType="numeric"
-                        placeholder="ID"
-                        style={styles.input}
-                      />
-                      {!!errors?.accessories?.[idx]?.accessoryId?.message && (
-                        <Text style={styles.err}>
-                          {errors.accessories[idx].accessoryId.message}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                /> */}
 
                 {/* quantity */}
                 <Controller
@@ -394,7 +400,9 @@ export default function CreateInvoiceScreen() {
           </View>
 
           {svcFields.length === 0 ? (
-            <Text style={{ color: zincColors[500] }}>Chưa có dòng dịch vụ nào.</Text>
+            <Text style={{ color: zincColors[500] }}>
+              Chưa có dòng dịch vụ nào.
+            </Text>
           ) : null}
 
           {svcFields.map((row, idx) => (
@@ -432,7 +440,9 @@ export default function CreateInvoiceScreen() {
                     <TextInput
                       value={String(value ?? '')}
                       onBlur={onBlur}
-                      onChangeText={(t) => onChange(t.replace(/[^\d.]/g, ''))}
+                      onChangeText={(t) =>
+                        onChange(t.replace(/[^\d.]/g, ''))
+                      }
                       keyboardType="decimal-pad"
                       placeholder="0"
                       style={styles.input}
@@ -455,7 +465,7 @@ export default function CreateInvoiceScreen() {
 
         {/* Tổng tiền */}
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Tổng tiềnnguyên vật liệu (nháp)</Text>
+          <Text style={styles.totalLabel}>Tổng tiền nguyên vật liệu (nháp)</Text>
           <Text style={styles.totalValue}>
             {accessoriesTotal.toLocaleString('vi-VN')} đ
           </Text>
@@ -478,6 +488,12 @@ export default function CreateInvoiceScreen() {
             <Text style={styles.totalLabel}>Tổng tiền tạm tính</Text>
             <Text style={styles.totalValue}>
               {(accessoriesTotal + servicesTotal).toLocaleString('vi-VN')} đ
+            </Text>
+          </View>
+
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.smallLabel}>
+              Ghi chú: Cư dân tính phí = {isChargeable ? 'Đúng (cư dân trả)' : 'Sai (toà nhà trả)'}
             </Text>
           </View>
         </View>
@@ -521,6 +537,8 @@ const styles = StyleSheet.create({
 
   field: { marginBottom: 14, marginLeft: 8, flexDirection: 'row', gap: 8 },
   label: { fontSize: 14, fontWeight: '700', color: THEME.text, marginBottom: 6 },
+  value: { fontSize: 14, color: THEME.text, fontWeight: '600' },
+
   smallLabel: { fontSize: 12, fontWeight: '700', color: zincColors[700], marginBottom: 6 },
   input: {
     borderWidth: 1,
@@ -559,6 +577,15 @@ const styles = StyleSheet.create({
     borderColor: appleBlue,
   },
   addTxt: { color: appleBlue, fontWeight: '700' },
+
+  chargeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  chargeLabel: { fontSize: 14, color: THEME.text, fontWeight: '600' },
+  chargeHint: { fontSize: 12, color: zincColors[600], marginTop: 8 },
 
   rowBlock: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginBottom: 10 },
   delBtn: {

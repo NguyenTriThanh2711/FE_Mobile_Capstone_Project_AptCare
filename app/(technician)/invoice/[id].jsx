@@ -72,7 +72,6 @@ export default function InvoiceDetailScreen() {
     return Array.isArray(arr) ? arr : [];
   }, [invoice]);
 
-  // --- STATE THANH TOÁN ---
   const [creatingPayLink, setCreatingPayLink] = useState(false);
   const [payLink, setPayLink] = useState('');
   const [cashModalVisible, setCashModalVisible] = useState(false);
@@ -81,7 +80,7 @@ export default function InvoiceDetailScreen() {
 
   const canPay =
     !!invoice &&
-    !!invoice.isChargeable &&
+    !!invoice?.isChargeable &&
     !['PAID', 'CANCELLED', 'CANCELED'].includes(invoiceStatusUpper);
 
   async function handleCreatePayLink() {
@@ -106,7 +105,6 @@ export default function InvoiceDetailScreen() {
         text1: 'Tạo link thanh toán thành công',
       });
 
-      // reload lại invoice list nếu có repairRequestId
       if (invoice?.repairRequestId) {
         dispatch(fetchInvoicesByRepairRequestId(invoice.repairRequestId));
       }
@@ -220,7 +218,7 @@ export default function InvoiceDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {invoice.isChargeable === false && (<Text style={{ color: 'red', marginBottom: 8,alignSelf: 'center' }}>
+        {invoice?.isChargeable === false && (<Text style={{ color: 'red', marginBottom: 8,alignSelf: 'center' }}>
           Hóa đơn này tòa nhà chi trả nên cư dân không cần thanh toán.
         </Text>)}
         {!invoice ? (
@@ -246,7 +244,7 @@ export default function InvoiceDetailScreen() {
               </Text>
               <Text style={styles.meta}>
                 Tính phí:{' '}
-                {invoice.isChargeable ? 'Có tính phí' : 'Không tính phí'}
+                {invoice?.isChargeable ? 'Có tính phí' : 'Không tính phí'}
               </Text>
               <Text style={styles.total}>
                 Tổng tiền:{' '}

@@ -22,6 +22,7 @@ const PALETTE = {
   awaitingPayment: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
   scheduling: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
   acceptancePendingVerify: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
+  paid: { bg: '#34C759', fg: '#FFFFFF' }, // xanh lá
 };
 
 const STATUS_LABEL = {
@@ -32,7 +33,7 @@ const STATUS_LABEL = {
   Cancelled:   'Đã hủy',
   Failed:      'Lỗi',
   Rejected:    'Từ chối',
-  Approved:    'Đã duyệt',
+  Approved:    'Đã được duyệt',
   New:         'Mới',
   Normal:      'Thường',
   Emergency:   'Khẩn cấp',
@@ -47,6 +48,7 @@ const STATUS_LABEL = {
   AwaitingPayment: 'Chờ thanh toán',
   Scheduling : 'Đang lên lịch',
   AcceptancePendingVerify : 'Chờ nghiệm thu',
+  Paid : 'Đã thanh toán',
 };
 
 function mapStatusToTone(status) {
@@ -95,6 +97,8 @@ function mapStatusToTone(status) {
       return 'danger';
     case 'Draft':
       return 'draft';
+    case 'Paid':
+      return 'paid';
     default:
       return 'muted';
   }

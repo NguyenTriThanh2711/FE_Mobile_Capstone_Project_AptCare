@@ -7,8 +7,9 @@ export const fetchInspectionReportById = createAsyncThunk(
   async (reportId, { rejectWithValue }) => {
     try {
       const {data} = await http.get(
-        `/api/inspectionreports/get-inspection-report-by-id/${reportId}`,
+        `/api/inspectionreports/inspection-report/${reportId}`,
       );
+      console.log('fetchsdfd',data)
       return data;
     } catch (error) {
       return rejectWithValue(

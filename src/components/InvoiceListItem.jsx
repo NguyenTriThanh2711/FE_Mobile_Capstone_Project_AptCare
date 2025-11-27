@@ -39,7 +39,7 @@ export default function InvoiceListItem({ index, invoice, onPress }) {
 
       <View style={styles.right}>
         <Text style={styles.amount}>{amount.toLocaleString('vi-VN')} đ</Text>
-        <Icon name="chevron.right" size={18} color={appleBlue} />
+        {/* <Icon name="chevron.right" size={18} color={appleBlue} /> */}
       </View>
     </Pressable>
   );

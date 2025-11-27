@@ -1,24 +1,35 @@
-// app/(technician)/inspectReport-create.jsx
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  TextInput,
+} from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import Toast from 'react-native-toast-message';
+
 import { Icon } from '@/src/components/Icon.native';
 import MUITextField from '@/src/components/common/MUITextField';
 import ChipRadioGroup from '@/src/components/ChipRadioGroup';
-import { Colors } from '@/src/utils/colors';
-import http from '@/src/services/http';
+import { Colors, zincColors, appleBlue, borderColor } from '@/src/utils/colors';
 import { compressMany } from '@/src/utils/imageCompression';
 import ImagePickerStrip from '@/src/components/ImagePickerStrip';
-import { markRead } from '@/src/features/chat/chatSlice';
-import { pretty } from '@/src/helper/prettyLog';
 import { generateInspectionReport } from '@/src/features/inspectionReport/inspectionRPSlice';
 import { useAppDispatch } from '@/src/store';
+import http from '@/src/services/http';
+import { dotnetArr } from '@/src/helper/dotnetArr';
+import { createInternalInvoice } from '@/src/features/invoices/invoiceSlice';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
+
+const INVOICE_ENDPOINT = '/api/invoices/internal';
+const ACCESSORY_LIST_ENDPOINT = '/api/accessorys/list';
 
 // ===== Enums  =====
 const FaultOwner = {
@@ -41,28 +52,92 @@ const SOLUTION_TYPE_OPTIONS = [
   { label: 'Thuê ngoài', value: SolutionType.Outsource },
 ];
 
-// ===== Yup schema =====
 const schema = yup.object({
-  appointmentId: yup.number().typeError('AppointmentId phải là số').required('Bắt buộc'),
-  faultOwner: yup.string().oneOf(Object.values(FaultOwner), 'Chọn người chịu lỗi').required('Bắt buộc'),
-  solutionType: yup.string().oneOf(Object.values(SolutionType), 'Chọn giải pháp').required('Bắt buộc'),
-  description: yup.string().trim().required('Vui lòng nhập mô tả hiện trạng').max(2000, 'Tối đa 2000 ký tự').default(''),
-  solution: yup.string().trim().required('Vui lòng nhập phương án xử lý').min(10, ({ min }) => `Phương án xử lý tối thiểu ${min} ký tự`).max(2000, 'Tối đa 2000 ký tự').default(''),
+  appointmentId: yup
+    .number()
+    .typeError('AppointmentId phải là số')
+    .required('Bắt buộc'),
+  faultOwner: yup
+    .string()
+    .oneOf(Object.values(FaultOwner), 'Chọn người chịu lỗi')
+    .required('Bắt buộc'),
+  solutionType: yup
+    .string()
+    .oneOf(Object.values(SolutionType), 'Chọn giải pháp')
+    .required('Bắt buộc'),
+  description: yup
+    .string()
+    .trim()
+    .required('Vui lòng nhập mô tả hiện trạng')
+    .max(2000, 'Tối đa 2000 ký tự')
+    .default(''),
+  solution: yup
+    .string()
+    .trim()
+    .required('Vui lòng nhập phương án xử lý')
+    .min(10, ({ min }) => `Phương án xử lý tối thiểu ${min} ký tự`)
+    .max(2000, 'Tối đa 2000 ký tự')
+    .default(''),
+  
 });
 
 export default function CreateInspectionReportScreen() {
   const dispatch = useAppDispatch();
   const [images, setImages] = useState([]);
-  const { appointmentId } = useLocalSearchParams();
+  const { appointmentId, repairRequestId } = useLocalSearchParams();
+
   const defaultAppointmentId = useMemo(() => {
     const n = Number(appointmentId);
     return Number.isFinite(n) ? n : '';
   }, [appointmentId]);
 
+  const rrIdNum = useMemo(() => {
+    const n = Number(repairRequestId);
+    return Number.isFinite(n) ? n : 0;
+  }, [repairRequestId]);
+
+  const [withInvoice, setWithInvoice] = useState(false);
+  const [isChargeable, setIsChargeable] = useState(true);
+
+  const [accessoriesMaster, setAccessoriesMaster] = useState([]);
+  const [accLoading, setAccLoading] = useState(true);
+  const [accError, setAccError] = useState(null);
+  const [accSearch, setAccSearch] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setAccLoading(true);
+        const res = await http.get(ACCESSORY_LIST_ENDPOINT);
+        const list = dotnetArr(res?.data);
+        if (!mounted) return;
+        setAccessoriesMaster(
+          (list || []).filter(
+            (x) => x.status === 'Active' || !x.status
+          )
+        );
+        setAccError(null);
+      } catch (e) {
+        if (!mounted) return;
+        setAccError(
+          e?.response?.data?.detail ||
+            e?.message ||
+            'Lỗi tải phụ kiện'
+        );
+      } finally {
+        if (mounted) setAccLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const {
     control,
     handleSubmit,
-    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(schema),
@@ -72,34 +147,149 @@ export default function CreateInspectionReportScreen() {
       solutionType: SolutionType.Repair,
       description: '',
       solution: '',
+      accessories: [],
+      services: [],
     },
   });
 
+  const solutionTypeWatch = watch('solutionType');
+  const accessoriesWatch = watch('accessories') || [];
+  const servicesWatch = watch('services') || [];
+
+  const {
+    fields: accFields,
+    append: accAppend,
+    remove: accRemove,
+  } = useFieldArray({ control, name: 'accessories' });
+
+  const {
+    fields: svcFields,
+    append: svcAppend,
+    remove: svcRemove,
+  } = useFieldArray({ control, name: 'services' });
+
+  const isOutsource = solutionTypeWatch === SolutionType.Outsource;
+  const isRepairOrReplace =
+    solutionTypeWatch === SolutionType.Repair ||
+    solutionTypeWatch === SolutionType.Replacement;
+
+  useEffect(() => {
+    if (isOutsource) {
+      setWithInvoice(false);
+    }
+  }, [isOutsource]);
+
+  const filteredAccessories = useMemo(() => {
+    const keyword = accSearch.trim().toLowerCase();
+    if (!keyword) return [];
+    return accessoriesMaster.filter((a) =>
+      String(a.name || '').toLowerCase().includes(keyword)
+    );
+  }, [accSearch, accessoriesMaster]);
+
+  const servicesTotal = (servicesWatch || []).reduce(
+    (sum, s) => sum + (Number(s?.price) || 0),
+    0
+  );
+  const accessoriesTotal = (accessoriesWatch || []).reduce((sum, row) => {
+    const currentId = row?.accessoryId;
+    const found = accessoriesMaster.find(
+      (a) => String(a.accessoryId) === String(currentId)
+    );
+    const price = Number(found?.price || 0);
+    const qty = Number(row?.quantity || 0);
+    return sum + price * qty;
+  }, 0);
+
+  const handleToggleInvoice = () => {
+    if (isOutsource) return;
+    setWithInvoice((prev) => !prev);
+  };
+
   const onSubmit = async (values) => {
     try {
+      if (isRepairOrReplace && !withInvoice) {
+        Toast.show({
+          type: 'error',
+          text1: 'Báo giá bắt buộc',
+          text2: 'Với trường hợp sửa chữa / thay thế, hãy bật "Chọn kèm báo giá".',
+        });
+        return;
+      }
+
+      if (withInvoice) {
+        const hasAcc =
+          Array.isArray(accessoriesWatch) &&
+          accessoriesWatch.length > 0;
+        const hasSvc =
+          Array.isArray(servicesWatch) && servicesWatch.length > 0;
+
+        if (isChargeable && !hasAcc && !hasSvc) {
+          Toast.show({
+            type: 'error',
+            text1: 'Thiếu dữ liệu báo giá',
+            text2:
+              'Khi tính phí cư dân, cần ít nhất 1 dòng nguyên vật liệu hoặc dịch vụ.',
+          });
+          return;
+        }
+      }
+      if (withInvoice && !isOutsource && rrIdNum) {
+        const invoicePayload = {
+          repairRequestId: rrIdNum,
+          isChargeable: !!isChargeable,
+          accessories: (accessoriesWatch || []).map((a) => ({
+            accessoryId: Number(a.accessoryId),
+            quantity: Number(a.quantity),
+          })),
+          services: (servicesWatch || []).map((s) => ({
+            name: String(s.name || '').trim(),
+            price: Number(s.price),
+          })),
+        };
+
+        await dispatch(createInternalInvoice(invoicePayload)).unwrap();
+      }
+
       const filesCompressed = await compressMany(images, {
         maxWidth: 1280,
         quality: 0.7,
         format: 'jpeg',
       });
-      const payload = {
+
+      const reportPayload = {
         appointmentId: Number(values.appointmentId),
         faultOwner: String(values.faultOwner),
         solutionType: String(values.solutionType),
         description: values.description?.trim() || '',
         solution: values.solution?.trim() || '',
         Files: filesCompressed,
-      }
-      console.log('[req]:' ,pretty(payload))
-      const created = await dispatch(generateInspectionReport(payload)).unwrap();
-      console.log('[response ->] :', created);
-      Toast.show({ type: 'success', text1: 'Đã tạo báo cáo khảo sát' });
+      };
+
+      await dispatch(generateInspectionReport(reportPayload)).unwrap();
+
+      Toast.show({
+        type: 'success',
+        text1: 'Đã tạo báo cáo khảo sát',
+        text2:
+          withInvoice && !isOutsource
+            ? 'Báo giá kèm cũng đã được tạo.'
+            : undefined,
+      });
+
       router.back();
     } catch (err) {
-      console.log('[error] :', err);
+      console.log('[inspection + invoice error]', err);
       const msg =
-        err?.response?.data?.detail || err?.response?.data?.message || 'Tạo báo cáo thất bại';
-      Toast.show({ type: 'error', text1: err });
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Tạo báo cáo thất bại';
+      Toast.show({
+        type: 'error',
+        text1: 'Lỗi',
+        text2: msg,
+      });
     }
   };
 
@@ -107,14 +297,21 @@ export default function CreateInspectionReportScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
-          <Icon name="chevron.left" size={22} color="#0A66C2" />
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          hitSlop={10}
+        >
+          <Icon name="chevron.left" size={22} color={appleBlue} />
         </Pressable>
-        <Icon name="doc.text" size={20} color="#0A66C2" />
+        <Icon name="doc.text" size={20} color={appleBlue} />
         <Text style={styles.headerTitle}>Báo cáo khảo sát</Text>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
         {/* Appointment Id */}
         <Controller
           control={control}
@@ -125,7 +322,7 @@ export default function CreateInspectionReportScreen() {
               placeholder="Nhập mã cuộc hẹn"
               keyboardType="numeric"
               disabled={true}
-              size='small'
+              size="small"
               value={String(value ?? '')}
               onBlur={onBlur}
               onChangeText={(txt) => onChange(txt.replace(/\D+/g, ''))}
@@ -138,7 +335,7 @@ export default function CreateInspectionReportScreen() {
         <Controller
           control={control}
           name="faultOwner"
-          render={({ field: { value, onChange } }) => (
+          render={({ field: { value, onChange} }) => (
             <ChipRadioGroup
               label="Người chịu lỗi"
               value={value}
@@ -199,8 +396,8 @@ export default function CreateInspectionReportScreen() {
               multiline
               numberOfLines={4}
               value={value}
-              size='large'
-              style={{marginTop : 14}}
+              size="large"
+              style={{ marginTop: 14 }}
               onBlur={onBlur}
               onChangeText={onChange}
               error={errors.solution?.message}
@@ -210,15 +407,339 @@ export default function CreateInspectionReportScreen() {
         {!!errors.solution?.message && (
           <Text style={styles.errText}>{errors.solution.message}</Text>
         )}
-        <ImagePickerStrip style= {{marginTop: 14}} mode="update" value={images} onChange={setImages} maxCount={10} title="Ảnh khảo sát" />
+        <ImagePickerStrip
+          style={{ marginTop: 14 }}
+          mode="update"
+          value={images}
+          onChange={setImages}
+          maxCount={10}
+          title="Ảnh khảo sát"
+        />
+        <View style={styles.invoiceToggleRow}>
+          <Pressable
+            onPress={handleToggleInvoice}
+            disabled={isOutsource}
+            style={[
+              styles.invoiceToggleBtn,
+              isOutsource && { opacity: 0.4 },
+            ]}
+          >
+            <Icon
+              name={withInvoice ? 'xmark.circle' : 'plus.circle'}
+              size={18}
+              color={appleBlue}
+            />
+            <Text style={styles.invoiceToggleText}>
+              {withInvoice ? 'Không kèm báo giá' : 'Chọn kèm báo giá'}
+            </Text>
+          </Pressable>
+          {isOutsource && (
+            <Text style={styles.invoiceToggleNote}>
+              Thuê ngoài: không cần báo giá kèm.
+            </Text>
+          )}
+        </View>
+        {withInvoice && !isOutsource && (
+          <View style={styles.invoiceBlock}>
+            <Text style={styles.invoiceTitle}>Báo giá kèm</Text>
+            <Text style={styles.invoiceSub}>
+              Hóa đơn nội bộ sẽ được tạo trước, sau đó tạo báo cáo khảo sát.
+            </Text>
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>ID yêu cầu:</Text>
+              <Text style={styles.value}>{rrIdNum || '-'}</Text>
+            </View>
+
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>Tính phí cho cư dân</Text>
+              <Pressable
+                onPress={() => setIsChargeable((v) => !v)}
+                style={styles.chargeableChip}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor: isChargeable
+                        ? '#16A34A'
+                        : '#6B7280',
+                    },
+                  ]}
+                />
+                <Text style={styles.chargeableText}>
+                  {isChargeable
+                    ? 'Có – cư dân chịu phí'
+                    : 'Không – tòa nhà chịu phí'}
+                </Text>
+              </Pressable>
+            </View>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Icon name="wrench" size={18} color={appleBlue} />
+                <Text style={styles.cardTitle}>Nguyên vật liệu</Text>
+              </View>
+
+              <View style={{ marginBottom: 10 }}>
+                <Text style={styles.smallLabel}>
+                  Tìm nguyên vật liệu theo tên
+                </Text>
+                <TextInput
+                  value={accSearch}
+                  onChangeText={setAccSearch}
+                  placeholder="Nhập tên nguyên vật liệu..."
+                  style={styles.input}
+                />
+                {accLoading && (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: zincColors[500],
+                      marginTop: 4,
+                    }}
+                  >
+                    Đang tải danh sách nguyên vật liệu...
+                  </Text>
+                )}
+                {accError && (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: '#B91C1C',
+                      marginTop: 4,
+                    }}
+                  >
+                    {String(accError)}
+                  </Text>
+                )}
+
+                {accSearch.length > 0 &&
+                  filteredAccessories.length > 0 && (
+                    <View style={styles.suggestionBox}>
+                      {filteredAccessories
+                        .slice(0, 5)
+                        .map((acc) => (
+                          <Pressable
+                            key={acc.accessoryId}
+                            style={styles.suggestionItem}
+                            onPress={() => {
+                              accAppend({
+                                accessoryId: String(acc.accessoryId),
+                                quantity: 1,
+                              });
+                              setAccSearch('');
+                            }}
+                          >
+                            <Text style={styles.suggestionName}>
+                              {acc.name}
+                            </Text>
+                            <Text style={styles.suggestionMeta}>
+                              #{acc.accessoryId} ·{' '}
+                              {Number(acc.price || 0).toLocaleString(
+                                'vi-VN'
+                              )}{' '}
+                              đ · tồn {acc.quantity}
+                            </Text>
+                          </Pressable>
+                        ))}
+                    </View>
+                  )}
+              </View>
+
+              {accFields.length === 0 ? (
+                <Text style={{ color: zincColors[500] }}>
+                  Chưa có dòng nguyên vật liệu nào.
+                </Text>
+              ) : null}
+
+              {accFields.map((row, idx) => {
+                const formRow = accessoriesWatch?.[idx];
+                const currentAccessoryId = formRow?.accessoryId;
+                const matchedAcc = accessoriesMaster.find(
+                  (a) =>
+                    String(a.accessoryId) === String(currentAccessoryId)
+                );
+
+                return (
+                  <View key={row.id} style={styles.rowBlock}>
+                    {matchedAcc && (
+                      <View style={styles.accInfoLine}>
+                        <Text style={styles.accName}>
+                          {matchedAcc.name}
+                        </Text>
+                        <Text style={styles.accMeta}>
+                          #{matchedAcc.accessoryId} ·{' '}
+                          {Number(
+                            matchedAcc.price || 0
+                          ).toLocaleString('vi-VN')}{' '}
+                          đ · tồn {matchedAcc.quantity}
+                        </Text>
+                      </View>
+                    )}
+                    <Controller
+                      control={control}
+                      name={`accessories.${idx}.quantity`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <View style={{ width: 110 }}>
+                          <Text style={styles.smallLabel}>Số lượng</Text>
+                          <TextInput
+                            value={String(value ?? '')}
+                            onBlur={onBlur}
+                            onChangeText={(t) =>
+                              onChange(t.replace(/\D+/g, ''))
+                            }
+                            keyboardType="numeric"
+                            placeholder="1"
+                            style={styles.input}
+                          />
+                        </View>
+                      )}
+                    />
+
+                    <Pressable
+                      onPress={() => accRemove(idx)}
+                      style={styles.delBtn}
+                    >
+                      <Icon
+                        name="trash"
+                        size={18}
+                        color="#B91C1C"
+                      />
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Icon name="hammer" size={18} color={appleBlue} />
+                <Text style={styles.cardTitle}>Dịch vụ</Text>
+                <Pressable
+                  onPress={() => svcAppend({ name: '', price: '' })}
+                  style={styles.addBtn}
+                >
+                  <Icon
+                    name="plus.circle"
+                    size={18}
+                    color={appleBlue}
+                  />
+                  <Text style={styles.addTxt}>Thêm dòng</Text>
+                </Pressable>
+              </View>
+
+              {svcFields.length === 0 ? (
+                <Text style={{ color: zincColors[500] }}>
+                  Chưa có dòng dịch vụ nào.
+                </Text>
+              ) : null}
+
+              {svcFields.map((row, idx) => (
+                <View key={row.id} style={styles.rowBlock}>
+                  <Controller
+                    control={control}
+                    name={`services.${idx}.name`}
+                    render={({ field: { value, onChange, onBlur } }) => (
+                      <View style={{ flex: 1.2 }}>
+                        <Text style={styles.smallLabel}>Tên dịch vụ</Text>
+                        <TextInput
+                          value={value}
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          placeholder="VD: Sửa khóa cửa"
+                          style={styles.input}
+                        />
+                      </View>
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name={`services.${idx}.price`}
+                    render={({ field: { value, onChange, onBlur } }) => (
+                      <View style={{ width: 140 }}>
+                        <Text style={styles.smallLabel}>Giá</Text>
+                        <TextInput
+                          value={String(value ?? '')}
+                          onBlur={onBlur}
+                          onChangeText={(t) =>
+                            onChange(t.replace(/[^\d.]/g, ''))
+                          }
+                          keyboardType="decimal-pad"
+                          placeholder="0"
+                          style={styles.input}
+                        />
+                      </View>
+                    )}
+                  />
+
+                  <Pressable
+                    onPress={() => svcRemove(idx)}
+                    style={styles.delBtn}
+                  >
+                    <Icon
+                      name="trash"
+                      size={18}
+                      color="#B91C1C"
+                    />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+
+            {/* Tổng nháp – giống kiểu invoice */}
+            <View style={styles.totalBox}>
+              <Text style={styles.totalLabel}>
+                Tổng tiền nguyên vật liệu (nháp)
+              </Text>
+              <Text style={styles.totalValue}>
+                {accessoriesTotal.toLocaleString('vi-VN')} đ
+              </Text>
+
+              <View style={{ height: 8 }} />
+
+              <Text style={styles.totalLabel}>
+                Tổng tiền dịch vụ (nháp)
+              </Text>
+              <Text style={styles.totalValue}>
+                {servicesTotal.toLocaleString('vi-VN')} đ
+              </Text>
+
+              <View
+                style={{
+                  marginTop: 10,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: borderColor,
+                  paddingTop: 8,
+                }}
+              >
+                <Text style={styles.totalLabel}>
+                  Tổng tiền tạm tính
+                </Text>
+                <Text style={styles.totalValue}>
+                  {(accessoriesTotal + servicesTotal).toLocaleString(
+                    'vi-VN'
+                  )}{' '}
+                  đ
+                </Text>
+              </View>
+
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.smallLabel}>
+                  {isChargeable
+                    ? '(Cư dân thanh toán)'
+                    : '(Tòa nhà thanh toán)'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      {/* Action bar */}
       <View style={styles.actionBar}>
         <Pressable
           onPress={handleSubmit(onSubmit)}
           style={[styles.primaryBtn, isSubmitting && { opacity: 0.6 }]}
-          disabled={isSubmitting}>
+          disabled={isSubmitting}
+        >
           {isSubmitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -251,7 +772,13 @@ const styles = StyleSheet.create({
 
   content: { flex: 1, padding: 16 },
 
-  errText: { color: '#B91C1C', fontSize: 12, marginTop: 0, marginBottom: 0, marginLeft: 4 },
+  errText: {
+    color: '#B91C1C',
+    fontSize: 12,
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 4,
+  },
 
   actionBar: {
     padding: 16,
@@ -268,5 +795,197 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
   },
-  primaryText: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
+  primaryText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.2,
+  },
+
+  invoiceToggleRow: {
+    marginTop: 20,
+    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  invoiceToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: appleBlue,
+    backgroundColor: '#EFF6FF',
+    alignSelf: 'center',
+  },
+  invoiceToggleText: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+
+    color: appleBlue,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  invoiceToggleNote: {
+    fontSize: 11,
+    color: zincColors[500],
+  },
+
+  invoiceBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: borderColor,
+  },
+  invoiceTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: THEME.text,
+  },
+  invoiceSub: {
+    fontSize: 12,
+    color: zincColors[600],
+    marginTop: 2,
+    marginBottom: 10,
+  },
+
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.text,
+  },
+  value: { fontSize: 14, color: THEME.text, fontWeight: '600' },
+
+  chargeableChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: borderColor,
+    backgroundColor: '#F9FAFB',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    marginRight: 6,
+  },
+  chargeableText: {
+    fontSize: 12,
+    color: THEME.text,
+    fontWeight: '600',
+  },
+
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: borderColor,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: THEME.text,
+    flex: 1,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: appleBlue,
+  },
+  addTxt: { color: appleBlue, fontWeight: '700' },
+
+  smallLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: zincColors[700],
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    color: THEME.text,
+  },
+
+  rowBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    marginBottom: 10,
+  },
+  delBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    backgroundColor: '#FEF2F2',
+  },
+
+  accInfoLine: { marginBottom: 4, flex: 1 },
+  accName: { fontSize: 13, fontWeight: '700', color: THEME.text },
+  accMeta: { fontSize: 11, color: zincColors[600] },
+
+  suggestionBox: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    backgroundColor: '#FFF',
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  suggestionName: { fontSize: 13, fontWeight: '700', color: THEME.text },
+  suggestionMeta: { fontSize: 11, color: zincColors[600], marginTop: 2 },
+
+  totalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: borderColor,
+  },
+  totalLabel: { color: zincColors[600], fontWeight: '700', fontSize: 14 },
+  totalValue: {
+    marginTop: 4,
+    fontSize: 18,
+    fontWeight: '800',
+    color: THEME.text,
+  },
 });
