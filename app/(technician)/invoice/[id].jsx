@@ -287,9 +287,9 @@ export default function InvoiceDetailScreen() {
 
             {/* Accessories */}
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Phụ kiện</Text>
+              <Text style={styles.sectionTitle}>Nguyên vật liệu</Text>
               {accessories.length === 0 ? (
-                <Text style={styles.emptyText}>Không có phụ kiện.</Text>
+                <Text style={styles.emptyText}>Không có nguyên vật liệu.</Text>
               ) : (
                 accessories.map((a) => (
                   <View
@@ -299,7 +299,7 @@ export default function InvoiceDetailScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowTitle}>{a.name}</Text>
                       <Text style={styles.rowMeta}>
-                        Mã phụ kiện: {a.accessoryId} • SL:{' '}
+                        Mã nguyên vật liệu: {a.accessoryId} • SL:{' '}
                         {a.quantity ?? 1}
                       </Text>
                     </View>

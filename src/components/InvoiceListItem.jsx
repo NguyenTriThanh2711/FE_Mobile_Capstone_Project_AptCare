@@ -33,7 +33,7 @@ export default function InvoiceListItem({ index, invoice, onPress }) {
           Ngày tạo: <Text style={styles.metaStrong}>{createdAt}</Text>
         </Text>
         <Text style={styles.meta}>
-          Loại: <Text style={styles.metaStrong}>{typeLabel}</Text> • {chargeLabel}
+          Loại hóa đơn: <Text style={styles.metaStrong}>{(typeLabel==='ExternalContractor') ? 'Bên thứ ba' : (typeLabel ==='InternalRepair') ? 'Sửa chữa nội bộ' : typeLabel}</Text> • {chargeLabel}
         </Text>
       </View>
 

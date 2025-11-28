@@ -1,4 +1,3 @@
-// src/components/common/WheelDateTimePicker.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 
@@ -10,7 +9,8 @@ const CENTER_OFFSET = Math.floor(VISIBLE_COUNT / 2) * ITEM_HEIGHT;
 // ---- util
 const pad2 = (n) => String(n).padStart(2, '0');
 const weekdayLabel = ['CN', 'T.2', 'T.3', 'T.4', 'T.5', 'T.6', 'T.7'];
-// ================= Finite column (Date, AM/PM) =================
+
+// Finite column (Date) 
 function FiniteWheelColumn({
   data,
   selectedIndex,
@@ -41,7 +41,6 @@ function FiniteWheelColumn({
   const settleFromOffset = (y) => {
     const idx = Math.max(0, Math.min(Math.round(y / ITEM_HEIGHT), data.length - 1));
 
-    // Không đổi index => không làm gì
     if (lastIdxRef.current === idx) return;
 
     lastIdxRef.current = idx;
@@ -76,8 +75,7 @@ function FiniteWheelColumn({
   );
 }
 
-
-// ================= Infinite column (Hour, Minute) =================
+//Infinite column (Hour, Minute)
 function InfiniteWheelColumn({
   baseLength,
   getInitialBaseIndex,
@@ -104,7 +102,6 @@ function InfiniteWheelColumn({
     requestAnimationFrame(() => {
       ref.current?.scrollToOffset({ offset: target * ITEM_HEIGHT, animated: false });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseLength, getInitialBaseIndex]);
 
   const getItemLayout = (_d, i) => ({
@@ -160,8 +157,7 @@ function InfiniteWheelColumn({
   );
 }
 
-
-// ================= Modal DateTime Picker =================
+//Modal DateTime Picker
 export default function WheelDateTimePicker({
   visible,
   onClose,
@@ -182,7 +178,6 @@ export default function WheelDateTimePicker({
     const end = new Date(start);
     end.setMonth(end.getMonth() + 1); // mốc 1 tháng sau
 
-    // push từng ngày: [start, end)
     for (const d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
       arr.push(new Date(d));
     }
@@ -200,19 +195,18 @@ export default function WheelDateTimePicker({
     return Math.max(0, idx === -1 ? 0 : idx);
   };
 
+  // 24h: 0..23
   const [dateIdx, setDateIdx] = useState(findDateIdx());
-  const [hourBaseIdx, setHourBaseIdx] = useState((initialDate.getHours() % 12 || 12) - 1); // 0..11
+  const [hourBaseIdx, setHourBaseIdx] = useState(initialDate.getHours()); // 0..23
   const [minuteBaseIdx, setMinuteBaseIdx] = useState(
     initialDate.getMinutes() === 0 ? 59 : initialDate.getMinutes() - 1
   );
-  const [ampmIdx, setAmPmIdx] = useState(initialDate.getHours() >= 12 ? 1 : 0);
 
   useEffect(() => {
     if (!visible) return;
     setDateIdx(findDateIdx());
-    setHourBaseIdx((initialDate.getHours() % 12 || 12) - 1);
+    setHourBaseIdx(initialDate.getHours());
     setMinuteBaseIdx(initialDate.getMinutes() === 0 ? 59 : initialDate.getMinutes() - 1);
-    setAmPmIdx(initialDate.getHours() >= 12 ? 1 : 0);
   }, [visible]);
 
   const fmtDate = (d) => {
@@ -221,18 +215,16 @@ export default function WheelDateTimePicker({
     const dd = pad2(d.getDate());
     const mm = pad2(d.getMonth() + 1);
     const yyyy = d.getFullYear();
-
-    // Ví dụ: "T.3, 18/11/2025" hoặc "CN, 23/11/2025"
     return `${wStr}, ${dd}/${mm}/${yyyy}`;
   };
 
   // ---- columns
   const HourColumn = (
     <InfiniteWheelColumn
-      baseLength={12}
+      baseLength={24}                         // 0..23
       getInitialBaseIndex={() => hourBaseIdx}
       onValueChange={setHourBaseIdx}
-      renderValue={(i) => pad2(i + 1)} // 0..11 -> 01..12
+      renderValue={(i) => pad2(i)}           // 00..23
       width={52}
     />
   );
@@ -250,19 +242,22 @@ export default function WheelDateTimePicker({
     />
   );
 
-  const ampmData = ['AM', 'PM'];
-
   const handleConfirm = () => {
     const day = dates[dateIdx];
 
-    const hour12 = hourBaseIdx + 1; // 1..12
-    let h24 = hour12 % 12; // 12 -> 0 (AM)
-    if (ampmIdx === 1) h24 += 12; // PM
-
+    const hour = hourBaseIdx; // 0..23 (24h format)
     const dispMin = minuteBaseIdx + 1; // 1..60
     const minute = dispMin === 60 ? 0 : dispMin;
 
-    const result = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h24, minute, 0, 0);
+    const result = new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+      hour,
+      minute,
+      0,
+      0
+    );
 
     onConfirm?.(result);
     onClose?.();
@@ -284,13 +279,6 @@ export default function WheelDateTimePicker({
             />
             {HourColumn}
             {MinuteColumn}
-            <FiniteWheelColumn
-              data={ampmData}
-              selectedIndex={ampmIdx}
-              onChangeIndex={setAmPmIdx}
-              width={52}
-              render={(x) => x}
-            />
           </View>
 
           <View style={styles.actions}>

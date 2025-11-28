@@ -23,6 +23,7 @@ const PALETTE = {
   scheduling: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
   acceptancePendingVerify: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
   paid: { bg: '#34C759', fg: '#FFFFFF' }, // xanh lá
+  externalContractor: { bg: '#800080', fg: '#FFFFFF' }, // tím
 };
 
 const STATUS_LABEL = {
@@ -49,6 +50,7 @@ const STATUS_LABEL = {
   Scheduling : 'Đang lên lịch',
   AcceptancePendingVerify : 'Chờ nghiệm thu',
   Paid : 'Đã thanh toán',
+  ExternalContractor: 'Bên thứ ba'
 };
 
 function mapStatusToTone(status) {
@@ -99,6 +101,8 @@ function mapStatusToTone(status) {
       return 'draft';
     case 'Paid':
       return 'paid';
+    case 'ExternalContractor':
+      return 'externalContractor';
     default:
       return 'muted';
   }

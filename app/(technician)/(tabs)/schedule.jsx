@@ -154,7 +154,7 @@ export default function TechnicianSchedule() {
     if (idx < 0 || !dateListRef.current) return;
     const x = 16 + idx * (60 + 10); // ước lượng width 60 + gap 10
     requestAnimationFrame(() => {
-      dateListRef.current.scrollTo({ x, animated: true });
+      dateListRef?.current?.scrollTo({ x, animated: true });
     });
   }, [twoWeekDates, selectedDate]);
 

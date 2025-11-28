@@ -121,7 +121,7 @@ export default function CreateInvoiceScreen() {
   const accessoriesForm = watch('accessories');
   const isChargeable = watch('isChargeable');
 
-  // ====== STATE: danh sách phụ kiện từ API ======
+  // ====== STATE: danh sách nguyên vật liệu từ API ======
   const [accessoriesMaster, setAccessoriesMaster] = useState([]);
   const [accLoading, setAccLoading] = useState(true);
   const [accError, setAccError] = useState(null);
@@ -143,7 +143,7 @@ export default function CreateInvoiceScreen() {
       } catch (e) {
         if (!mounted) return;
         setAccError(
-          e?.response?.data?.detail || e?.message || 'Lỗi tải phụ kiện'
+          e?.response?.data?.detail || e?.message || 'Lỗi tải nguyên vật liệu'
         );
       } finally {
         if (mounted) setAccLoading(false);
@@ -195,7 +195,7 @@ export default function CreateInvoiceScreen() {
     0
   );
 
-  // Tổng phụ kiện (dựa vào price trong accessoriesMaster * quantity)
+  // Tổng nguyên vật liệu (dựa vào price trong accessoriesMaster * quantity)
   const accessoriesTotal = (accessoriesForm || []).reduce((sum, row) => {
     const currentId = row?.accessoryId;
     const found = accessoriesMaster.find(
@@ -328,9 +328,16 @@ export default function CreateInvoiceScreen() {
           </View>
 
           {accFields.length === 0 ? (
-            <Text style={{ color: zincColors[500] }}>
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text
+                style={{
+                  color: zincColors[500],
+                  textAlign: 'center',
+                }}
+              >
               Chưa có dòng nguyên vật liệu nào.
-            </Text>
+              </Text>
+            </View>
           ) : null}
 
           {accFields.map((row, idx) => {
@@ -467,14 +474,14 @@ export default function CreateInvoiceScreen() {
         <View style={styles.totalCard}>
           <Text style={styles.totalLabel}>Tổng tiền nguyên vật liệu (nháp)</Text>
           <Text style={styles.totalValue}>
-            {accessoriesTotal.toLocaleString('vi-VN')} đ
+            {accessoriesTotal.toLocaleString('vi-VN')} vnđ
           </Text>
 
           <View style={{ height: 8 }} />
 
           <Text style={styles.totalLabel}>Tổng tiền dịch vụ (nháp)</Text>
           <Text style={styles.totalValue}>
-            {servicesTotal.toLocaleString('vi-VN')} đ
+            {servicesTotal.toLocaleString('vi-VN')} vnđ
           </Text>
 
           <View
@@ -487,7 +494,7 @@ export default function CreateInvoiceScreen() {
           >
             <Text style={styles.totalLabel}>Tổng tiền tạm tính</Text>
             <Text style={styles.totalValue}>
-              {(accessoriesTotal + servicesTotal).toLocaleString('vi-VN')} đ
+              {(accessoriesTotal + servicesTotal).toLocaleString('vi-VN')} vnđ
             </Text>
           </View>
 

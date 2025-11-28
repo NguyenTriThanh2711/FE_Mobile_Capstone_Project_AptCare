@@ -181,7 +181,7 @@ export const selectReportByAppointment = (s, appointmentId) => {
   return rid ? s.inspectionReports?.byId?.[rid] || null : null;
 };
 export const selectReportLoadingByAppointment = (s, appointmentId) =>
-  !!s.inspectionReports?.loadingByAppointment?.[Number(appointmentId)];
+  !!s.inspectionReports?.loadingByAppointmentId?.[Number(appointmentId)];
 //byAppointmentId là mảng id, không phải object
 export const selectReportIdsByAppointment = (s, appointmentId) =>
   s.inspectionReports?.byAppointmentId?.[Number(appointmentId)] || [];

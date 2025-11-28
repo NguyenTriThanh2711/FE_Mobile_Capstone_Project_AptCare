@@ -189,7 +189,7 @@ export default function CreateInvoiceScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="wrench" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Phụ kiện (Accessories)</Text>
+            <Text style={styles.cardTitle}>Nguyên vật liệu (Accessories)</Text>
             <Pressable
               onPress={() => accAppend({ accessoryId: '', quantity: 1 })}
               style={styles.addBtn}
