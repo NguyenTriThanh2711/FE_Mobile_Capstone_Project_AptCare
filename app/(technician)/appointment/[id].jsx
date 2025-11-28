@@ -65,6 +65,7 @@ import {
 import InvoiceListItem from '@/src/components/InvoiceListItem';
 import WheelDateTimePicker from '@/src/components/common/WheelDateTimePicker';
 import { getRequest, selectCurrentRequest } from '@/src/features/requests/requestsSlice';
+import AcceptanceAfterDaysPicker from '@/src/components/AcceptanceAfterDaysPicker';
 
 const THEME = Colors.light;
 const OWNER_LABEL = {
@@ -88,7 +89,6 @@ export default function AppointmentDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [showAcceptancePicker, setShowAcceptancePicker] = useState(false);
-  const [tempAcceptanceDate, setTempAcceptanceDate] = useState(new Date());
   const [showNextApptStartPicker, setShowNextApptStartPicker] = useState(false);
   const [tempNextApptStart, setTempNextApptStart] = useState(new Date());
   const [showNextApptEndPicker, setShowNextApptEndPicker] = useState(false);
@@ -135,7 +135,7 @@ export default function AppointmentDetailsScreen() {
       ? selectInvoicesByRepairRequest(state, repairRequestId)
       : []
   );
-  console.log('[invoices]',invoices)
+  console.log('[invoices]', invoices);
   const invoicesLoading = useAppSelector((state) =>
     repairRequestId
       ? selectInvoicesLoadingByRepairRequest(state, repairRequestId)
@@ -163,12 +163,72 @@ export default function AppointmentDetailsScreen() {
 
   useEffect(() => {
     if (repairRequestId) {
-      console.log('fetch toàn bộ invoice')
+      console.log('fetch toàn bộ invoice');
       dispatch(fetchInvoicesByRepairRequestId(repairRequestId));
       dispatch(getRequest(repairRequestId));
     }
   }, [repairRequestId, dispatch]);
 
+  // Tính index buổi hẹn, buổi đầu tiên, flag buổi >= 3
+  const {
+    hasPreviousAppointment,
+    appointmentIndex,
+    previousAppointmentsCount,
+    firstAppointmentId,
+    isThirdOrLaterAppointment,
+  } = useMemo(() => {
+    if (!currentRequest || !appointment?.appointmentId) {
+      return {
+        hasPreviousAppointment: false,
+        appointmentIndex: -1,
+        previousAppointmentsCount: 0,
+        firstAppointmentId: null,
+        isThirdOrLaterAppointment: false,
+      };
+    }
+
+    const rawAppts = currentRequest.appointments;
+    const appts = (rawAppts?.$values ?? rawAppts ?? []).slice();
+    if (!appts.length) {
+      return {
+        hasPreviousAppointment: false,
+        appointmentIndex: -1,
+        previousAppointmentsCount: 0,
+        firstAppointmentId: null,
+        isThirdOrLaterAppointment: false,
+      };
+    }
+
+    appts.sort((a, b) => {
+      const ta = new Date(a.startTime || a.createdAt || 0).getTime();
+      const tb = new Date(b.startTime || b.createdAt || 0).getTime();
+      return ta - tb;
+    });
+
+    const idx = appts.findIndex(
+      (x) => x.appointmentId === appointment.appointmentId
+    );
+    if (idx === -1) {
+      return {
+        hasPreviousAppointment: false,
+        appointmentIndex: -1,
+        previousAppointmentsCount: 0,
+        firstAppointmentId: appts[0]?.appointmentId ?? null,
+        isThirdOrLaterAppointment: false,
+      };
+    }
+
+    const previousCount = idx; // số buổi trước đó (buổi hiện tại là idx+1)
+    return {
+      hasPreviousAppointment: idx > 0,
+      appointmentIndex: idx,
+      previousAppointmentsCount: previousCount,
+      firstAppointmentId: appts[0]?.appointmentId ?? null,
+      isThirdOrLaterAppointment: previousCount >= 2, // từ buổi thứ 3 trở lên
+    };
+  }, [currentRequest, appointment?.appointmentId]);
+
+  // Inspection report của buổi hiện tại
   const lastInspectionReport = useMemo(() => {
     if (!inspectionReportIds || inspectionReportIds.length === 0) return null;
     const list = inspectionReportIds
@@ -195,50 +255,54 @@ export default function AppointmentDetailsScreen() {
     }, list[0]);
   }, [repairReportIds, repairReportsById]);
 
-  const {
-    hasPreviousAppointment,
-    appointmentIndex,
-    previousAppointmentsCount,
-  } = useMemo(() => {
-    if (!currentRequest || !appointment?.appointmentId) {
-      return {
-        hasPreviousAppointment: false,
-        appointmentIndex: -1,
-        previousAppointmentsCount: 0,
-      };
-    }
-    const rawAppts = currentRequest.appointments;
-    const appts = (rawAppts?.$values ?? rawAppts ?? []).slice();
-    if (!appts.length) {
-      return {
-        hasPreviousAppointment: false,
-        appointmentIndex: -1,
-        previousAppointmentsCount: 0,
-      };
-    }
-    appts.sort((a, b) => {
-      const ta = new Date(a.startTime || a.createdAt || 0).getTime();
-      const tb = new Date(b.startTime || b.createdAt || 0).getTime();
-      return ta - tb;
-    });
-    const idx = appts.findIndex(
-      (x) => x.appointmentId === appointment.appointmentId
-    );
-    if (idx === -1) {
-      return {
-        hasPreviousAppointment: false,
-        appointmentIndex: -1,
-        previousAppointmentsCount: 0,
-      };
-    }
-    return {
-      hasPreviousAppointment: idx > 0,
-      appointmentIndex: idx,
-      previousAppointmentsCount: idx,
-    };
-  }, [currentRequest, appointment?.appointmentId]);
+  // --- Lấy inspection report của buổi đầu tiên ---
+  const baseInspectionAppointmentId = firstAppointmentId;
 
-  const solutionTypeRaw = lastInspectionReport?.solutionType;
+  const baseInspectionReportIds = useAppSelector((s) =>
+    baseInspectionAppointmentId
+      ? selectReportIdsByAppointment(s, baseInspectionAppointmentId)
+      : []
+  );
+
+  const baseInspectionReportLoading = useAppSelector((s) =>
+    baseInspectionAppointmentId
+      ? selectReportLoadingByAppointment(s, baseInspectionAppointmentId)
+      : false
+  );
+
+  // fetch report buổi 1 (nếu khác buổi hiện tại)
+  useEffect(() => {
+    if (
+      baseInspectionAppointmentId &&
+      String(baseInspectionAppointmentId) !== String(id)
+    ) {
+      dispatch(
+        fetchInspectionReportByAppointmentId(baseInspectionAppointmentId)
+      );
+    }
+  }, [baseInspectionAppointmentId, id, dispatch]);
+
+  const baseInspectionReport = useMemo(() => {
+    if (!baseInspectionReportIds || baseInspectionReportIds.length === 0) {
+      return null;
+    }
+    const list = baseInspectionReportIds
+      .map((rid) => inspectionReportsById[rid])
+      .filter(Boolean);
+    if (list.length === 0) return null;
+
+    // lấy report mới nhất của buổi 1
+    return list.reduce((latest, cur) => {
+      const t1 = new Date(latest?.createdAt || 0).getTime();
+      const t2 = new Date(cur?.createdAt || 0).getTime();
+      return t2 > t1 ? cur : latest;
+    }, list[0]);
+  }, [baseInspectionReportIds, inspectionReportsById]);
+
+  // Report dùng cho UI & logic: ưu tiên buổi 1, fallback buổi hiện tại
+  const inspectionReportForDisplay = baseInspectionReport || lastInspectionReport;
+
+  const solutionTypeRaw = inspectionReportForDisplay?.solutionType;
   const solutionTypeNorm =
     solutionTypeRaw === 1 || solutionTypeRaw === 'Repair'
       ? 'Repair'
@@ -251,7 +315,7 @@ export default function AppointmentDetailsScreen() {
   const isOutsource = solutionTypeNorm === 'Outsource';
 
   const faultOwnerNorm = useMemo(() => {
-    const raw = lastInspectionReport?.faultOwner;
+    const raw = inspectionReportForDisplay?.faultOwner;
     if (raw === 1 || raw === 'BuildingFault') return 'BuildingFault';
     if (raw === 2 || raw === 'ResidentFault') return 'ResidentFault';
     if (typeof raw === 'string') {
@@ -260,21 +324,31 @@ export default function AppointmentDetailsScreen() {
       if (lower.includes('resident')) return 'ResidentFault';
     }
     return undefined;
-  }, [lastInspectionReport]);
+  }, [inspectionReportForDisplay]);
 
   const scenarioCode = useMemo(() => {
     if (!solutionTypeNorm || !faultOwnerNorm) return null;
-    if (solutionTypeNorm === 'Repair' && faultOwnerNorm === 'BuildingFault') return 1002;
-    if (solutionTypeNorm === 'Repair' && faultOwnerNorm === 'ResidentFault') return 1003;
-    if (solutionTypeNorm === 'Replacement' && faultOwnerNorm === 'BuildingFault') return 1004;
-    if (solutionTypeNorm === 'Replacement' && faultOwnerNorm === 'ResidentFault') return 1005;
-    if (solutionTypeNorm === 'Outsource' && faultOwnerNorm === 'BuildingFault') return 1006;
-    if (solutionTypeNorm === 'Outsource' && faultOwnerNorm === 'ResidentFault') return 1007;
+    if (solutionTypeNorm === 'Repair' && faultOwnerNorm === 'BuildingFault')
+      return 1002;
+    if (solutionTypeNorm === 'Repair' && faultOwnerNorm === 'ResidentFault')
+      return 1003;
+    if (solutionTypeNorm === 'Replacement' && faultOwnerNorm === 'BuildingFault')
+      return 1004;
+    if (solutionTypeNorm === 'Replacement' && faultOwnerNorm === 'ResidentFault')
+      return 1005;
+    if (solutionTypeNorm === 'Outsource' && faultOwnerNorm === 'BuildingFault')
+      return 1006;
+    if (solutionTypeNorm === 'Outsource' && faultOwnerNorm === 'ResidentFault')
+      return 1007;
     return null;
   }, [solutionTypeNorm, faultOwnerNorm]);
 
-  const hasInspectionReport =
+  // flag báo cáo
+  const hasInspectionReportForThisAppt =
     inspectionReportIds && inspectionReportIds.length > 0;
+
+  const hasAnyInspectionReport = !!inspectionReportForDisplay;
+
   const hasRepairReport = repairReportIds && repairReportIds.length > 0;
   const hasInvoice = invoices && invoices.length > 0;
 
@@ -284,12 +358,11 @@ export default function AppointmentDetailsScreen() {
   const canCreateInvoiceNow =
     !!repairRequestId &&
     !isOutsource &&
-    hasInspectionReport &&
+    hasAnyInspectionReport &&
     !invoicesLoading &&
     (!invoices || invoices.length === 0) &&
     (appointment?.status === 'InVisit' ||
       appointment?.status === 'AwaitingIRApproval');
-
 
   const handleStartRepair = async () => {
     if (!id) return;
@@ -330,16 +403,13 @@ export default function AppointmentDetailsScreen() {
 
   const handleMarkCompleted = () => {
     if (!id) return;
-    setTempAcceptanceDate(new Date());
     setShowAcceptancePicker(true);
   };
 
-  const handleAcceptancePicked = async (date) => {
+  const handleAcceptancePicked = async (dateStr) => {
     if (!id) return;
     setShowAcceptancePicker(false);
-
-    const acceptanceTime = date.toISOString().slice(0, 10);
-
+    const acceptanceTime = dateStr;
     try {
       await dispatch(
         completeAppointment({
@@ -349,7 +419,15 @@ export default function AppointmentDetailsScreen() {
           acceptanceTime,
         })
       ).unwrap();
-
+      // console.log(
+      //   '{}',
+      //   {
+      //     id: Number(id),
+      //     note: 'Kỹ thuật viên xác nhận đã hoàn thành công việc.',
+      //     hasNextAppointment: false,
+      //     acceptanceTime,
+      //   }
+      // );
       Toast.show({
         type: 'success',
         text1: 'Đã hoàn tất lịch hẹn',
@@ -494,11 +572,13 @@ export default function AppointmentDetailsScreen() {
       Alert.alert('Thiếu dữ liệu', 'Không tìm thấy ID yêu cầu sửa chữa.');
       return;
     }
+    const isSecondOrLater = previousAppointmentsCount >= 1;
     router.push({
       pathname: '/(technician)/inspectReport-create',
       params: {
         appointmentId: Number(apptId),
         repairRequestId: Number(rrId),
+        isSecondOrLater: String(isSecondOrLater),
       },
     });
   };
@@ -674,6 +754,15 @@ export default function AppointmentDetailsScreen() {
         promises.push(
           dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap()
         );
+        if (baseInspectionAppointmentId &&
+          String(baseInspectionAppointmentId) !== String(id)
+        ) {
+          promises.push(
+            dispatch(
+              fetchInspectionReportByAppointmentId(baseInspectionAppointmentId)
+            ).unwrap()
+          );
+        }
       }
 
       await Promise.all(promises);
@@ -693,7 +782,8 @@ export default function AppointmentDetailsScreen() {
     if (initialLoaded) return;
 
     const hasAppointmentOrError = !!appointment || !!error;
-    const inspectionDone = !inspectionReportLoading;
+    const inspectionDone =
+      !inspectionReportLoading && !baseInspectionReportLoading;
     const repairDone = !repairReportLoading;
     const invoiceDone =
       !repairRequestId || !invoicesLoading || !!invoicesError;
@@ -706,6 +796,7 @@ export default function AppointmentDetailsScreen() {
     appointment,
     error,
     inspectionReportLoading,
+    baseInspectionReportLoading,
     repairReportLoading,
     invoicesLoading,
     repairRequestId,
@@ -835,9 +926,9 @@ export default function AppointmentDetailsScreen() {
                   icon="flag"
                   label="Người chịu lỗi"
                   value={
-                    lastInspectionReport
-                      ? OWNER_LABEL[lastInspectionReport.faultOwner] ??
-                        String(lastInspectionReport.faultOwner)
+                    inspectionReportForDisplay
+                      ? OWNER_LABEL[inspectionReportForDisplay.faultOwner] ??
+                        String(inspectionReportForDisplay.faultOwner)
                       : '-'
                   }
                 />
@@ -845,9 +936,10 @@ export default function AppointmentDetailsScreen() {
                   icon="wrench"
                   label="Loại giải pháp"
                   value={
-                    lastInspectionReport
-                      ? SOLUTION_LABEL[lastInspectionReport?.solutionType] ??
-                        String(lastInspectionReport?.solutionType)
+                    inspectionReportForDisplay
+                      ? SOLUTION_LABEL[
+                          inspectionReportForDisplay?.solutionType
+                        ] ?? String(inspectionReportForDisplay?.solutionType)
                       : '-'
                   }
                 />
@@ -859,12 +951,12 @@ export default function AppointmentDetailsScreen() {
                 <Item
                   icon="text.justify"
                   label="Mô tả hiện trạng"
-                  value={lastInspectionReport?.description || '-'}
+                  value={inspectionReportForDisplay?.description || '-'}
                 />
                 <Item
                   icon="list.bullet"
                   label="Giải pháp"
-                  value={lastInspectionReport?.solution || '-'}
+                  value={inspectionReportForDisplay?.solution || '-'}
                 />
               </View>
             </View>
@@ -898,6 +990,7 @@ export default function AppointmentDetailsScreen() {
                 </View>
               )}
             </View>
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Báo cáo sửa chữa</Text>
               {repairReportLoading && repairReportIds.length === 0 ? (
@@ -1116,9 +1209,7 @@ export default function AppointmentDetailsScreen() {
           </Pressable>
         )}
 
-        {/* 3. Tạo báo cáo khảo sát
-            - InVisit hoặc AwaitingIRApproval đều có thể tạo
-            - Flow 1006–1007 cho phép nhiều ngày thuê ngoài vẫn tạo report */}
+        {/* 3. Tạo báo cáo khảo sát */}
         {(appointment?.status === 'InVisit' ||
           appointment?.status === 'AwaitingIRApproval') && (
           <Pressable
@@ -1131,18 +1222,34 @@ export default function AppointmentDetailsScreen() {
               color={THEME.background}
             />
             <Text style={styles.primaryBtnText}>
-              {hasInspectionReport
+              {hasInspectionReportForThisAppt
                 ? 'Thêm báo cáo k/sát'
                 : 'Báo cáo khảo sát'}
             </Text>
           </Pressable>
         )}
 
+        {/* Buổi >= 3 + Outsource + đã check-in: cho phép bắt đầu sửa chữa luôn */}
+        {appointment?.status === 'InVisit' &&
+          isThirdOrLaterAppointment &&
+          isOutsource && (
+            <Pressable
+              style={styles.secondaryBtn}
+              onPress={handleStartRepair}
+            >
+              <Icon name="pencil" size={20} color={appleBlue} />
+              <Text style={styles.secondaryBtnText}>
+                Bắt đầu sửa chữa
+              </Text>
+            </Pressable>
+          )}
+
+        {/* AwaitingIRApproval + approved */}
         {appointment?.status === 'AwaitingIRApproval' &&
           inspectionApproved && (
             <>
               {isOutsource ? (
-                previousAppointmentsCount <= 1 ? (
+                !isThirdOrLaterAppointment ? (
                   <Pressable
                     style={styles.secondaryBtn}
                     onPress={handleCompleteAndPlanNext}
@@ -1185,7 +1292,7 @@ export default function AppointmentDetailsScreen() {
             </>
           )}
 
-        {/* 5. Đang sửa chữa: tạo báo cáo sửa chữa + hoàn tất sau khi báo cáo duyệt */}
+        {/* Đang sửa chữa: tạo báo cáo sửa chữa + hoàn tất sau khi báo cáo duyệt */}
         {appointment?.status === 'InRepair' && (
           <>
             <Pressable
@@ -1216,9 +1323,9 @@ export default function AppointmentDetailsScreen() {
           </>
         )}
 
-        {/* 6. Sau khi Completed:
-              - Non-outsource: vẫn cho tạo hóa đơn (fallback)
-              - Outsource: tạo lịch hẹn mới (flow 1006–1007) */}
+        {/* Sau khi Completed:
+            - Non-outsource: vẫn cho tạo hóa đơn
+            - Outsource: tạo lịch hẹn mới */}
         {appointment?.status === 'Completed' && !isOutsource && (
           <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
             <Icon name="doc.text" size={20} color={THEME.background} />
@@ -1229,7 +1336,7 @@ export default function AppointmentDetailsScreen() {
         )}
 
         {appointment?.status === 'Completed' &&
-          hasInspectionReport &&
+          hasAnyInspectionReport &&
           isOutsource && (
             <Pressable
               style={[
@@ -1260,14 +1367,13 @@ export default function AppointmentDetailsScreen() {
       </View>
 
       {/* Picker nghiệm thu */}
-      <WheelDateTimePicker
+      <AcceptanceAfterDaysPicker
         visible={showAcceptancePicker}
         onClose={() => setShowAcceptancePicker(false)}
-        initialDate={tempAcceptanceDate}
-        title="Chọn ngày nghiệm thu"
+        title="Chọn nghiệm thu sau bao nhiêu ngày"
         cancelText="Huỷ"
         confirmText="Chọn"
-        onConfirm={handleAcceptancePicked}
+        onConfirm={(dateStr) => handleAcceptancePicked(dateStr)}
       />
 
       {/* Picker thời gian bắt đầu lịch hẹn mới */}
@@ -1434,9 +1540,18 @@ const styles = StyleSheet.create({
   },
   timelineTitle: { fontSize: 16, fontWeight: '700', color: THEME.text },
   timelineDate: { marginTop: 2, fontSize: 12, color: zincColors[500] },
-  timelineDesc: { marginTop: 6, fontSize: 14, color: zincColors[600], lineHeight: 20 },
+  timelineDesc: {
+    marginTop: 6,
+    fontSize: 14,
+    color: zincColors[600],
+    lineHeight: 20,
+  },
 
-  chatPlaceholder: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  chatPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
 
   actionBar: {
     flexDirection: 'row',
@@ -1493,4 +1608,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   ghostBtnText: { color: appleBlue, fontWeight: '700' },
+
+  invoiceError: {
+    color: appleRed,
+    marginLeft: 40,
+  },
 });

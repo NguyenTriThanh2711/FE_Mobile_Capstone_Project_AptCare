@@ -114,7 +114,7 @@ export default function TechnicianSchedule() {
       Toast.show({ type: 'success', text1: 'Đã điểm danh' });
       await reloadAroundSelected(); // lấy lại status mới từ BE
     } catch (e) {
-      Toast.show({ type: 'error', text1: 'Điểm danh thất bại' });
+      Toast.show({ type: 'error', text1: 'Điểm danh thất bại', text2: String(e) });
     } finally {
       setPending(null);
     }

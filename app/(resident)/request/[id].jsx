@@ -21,11 +21,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Badge from '@/src/components/Badge';
 import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
-import { useAppDispatch } from '@/src/store';
+import { useAppDispatch, useAppSelector } from '@/src/store';
 import { timeDate } from '@/src/utils/date';
+import { fetchInvoicesByRepairRequestId, selectInvoicesByRepairRequest, selectInvoicesLoadingByRepairRequest } from '@/src/features/invoices/invoiceSlice';
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
+  const repairRequestId = Number(id);
   const rawData = useSelector(selectCurrentRequest);
   const data = useMemo(
     () => unwrapDotNetValuesDeep(rawData),
@@ -36,6 +38,8 @@ export default function RequestDetail() {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
+  const invoices = useAppSelector((s) => selectInvoicesByRepairRequest(s, repairRequestId));
+  const invoicesLoading = useAppSelector((s) => selectInvoicesLoadingByRepairRequest(s, repairRequestId));
   const medias = useMemo(() => {
     if (!data) return [];
     return dotnetArr(data.medias);
@@ -72,6 +76,7 @@ export default function RequestDetail() {
       try {
         setInitialLoading(true);
         await dispatch(getRequest(id)).unwrap?.();
+        await dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap?.();
       } catch (e) {
         console.log('[getRequest error]', e);
       } finally {
@@ -94,6 +99,7 @@ export default function RequestDetail() {
         })
       ).unwrap();
       await dispatch(getRequest(id)).unwrap();
+      await dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap?.();
     } catch (e) {
       console.log('[request detail refresh error]', e?.normalized || e);
     } finally {
@@ -311,7 +317,60 @@ export default function RequestDetail() {
             })}
           </View>
         ) : null}
+        {/* Invoices */}
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Icon name="doc.text" size={16} color="#0C4A6E" />
+            <Text style={styles.cardLabel}>Hoá đơn</Text>
+          </View>
 
+          {invoicesLoading ? (
+            <View style={{ paddingVertical: 10 }}>
+              <ActivityIndicator size="small" color="#1e88e5" />
+              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+                Đang tải danh sách hoá đơn...
+              </Text>
+            </View>
+          ) : invoices.length === 0 ? (
+            <Text style={styles.emptyLine}>
+              Chưa có hoá đơn cho yêu cầu này.
+            </Text>
+          ) : (
+            invoices.map((inv) => (
+              <Pressable
+                key={inv.invoiceId}
+                style={[styles.invoiceItem, { marginTop: 10 }]}
+                // onPress={() => handleOpenInvoice(inv)}
+              >
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Text style={styles.invoiceTitle}>
+                      Hóa đơn #{inv.invoiceId}
+                    </Text>
+                    <Badge status={inv.status} />
+                  </View>
+                  <Text style={styles.invoiceMeta}>
+                    Tổng tiền: {inv.totalAmount + ' VND'}
+                  </Text>
+                  {/* <Text style={styles.invoiceMeta}>
+                    Loại: {inv.type || '-'}
+                  </Text> */}
+                  <Text style={styles.invoiceMeta}>
+                    Ngày tạo:{' '}
+                    {inv.createdAt ? timeDate(inv.createdAt) : '-'}
+                  </Text>
+                </View>
+                {/* <Icon name="chevron.right" size={18} color="#9CA3AF" /> */}
+              </Pressable>
+            ))
+          )}
+        </View>
         {/* Tracking timeline */}
         <View style={styles.card}>
           <View style={styles.row}>
