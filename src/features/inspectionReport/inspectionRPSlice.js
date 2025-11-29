@@ -12,9 +12,7 @@ export const fetchInspectionReportById = createAsyncThunk(
       console.log('fetchsdfd',data)
       return data;
     } catch (error) {
-      return rejectWithValue(
-        error?.response?.data?.detail || 'Tải chi tiết báo cáo thất bại',
-      );
+      return rejectWithValue(error);
     }
   }
 );
@@ -77,7 +75,7 @@ export const generateInspectionReport = createAsyncThunk(
     } catch (error) {
       console.log('[]]',error)
       return rejectWithValue(
-        error?.response?.detail || 'Tạo báo cáo khảo sát thất bại'
+        error
       );
     }
   }

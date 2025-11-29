@@ -211,8 +211,6 @@ export default function TechnicianDashboard() {
     [todayShifts]
   );
 
-  console.log('[quickCheckInShift]', quickCheckInShift);
-  console.log('[canCheckInNow]', canCheckInNow);
 
   const checkInLabel = !hasAnyShiftToday
     ? 'Không có ca hôm nay'

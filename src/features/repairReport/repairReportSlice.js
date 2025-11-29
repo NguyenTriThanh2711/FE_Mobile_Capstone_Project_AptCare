@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
+import { pretty } from '@/src/helper/prettyLog';
 
 export const createRepairReport = createAsyncThunk(
   'repairReports/create',
@@ -13,10 +14,9 @@ export const createRepairReport = createAsyncThunk(
       return data; // object report
     } catch (err) {
       const res = err?.response;
+      console.log('ơ]ơ]', pretty(err?.response.data.detail))
       const message =
         res?.data?.detail ||
-        res?.data?.message ||
-        res?.data ||
         err?.message ||
         'Tạo báo cáo sửa chữa thất bại';
       return rejectWithValue({ status: res?.status, message });

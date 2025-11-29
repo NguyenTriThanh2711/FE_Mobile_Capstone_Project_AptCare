@@ -299,7 +299,7 @@ export default function InspectReportDetailScreen() {
                   <Text
                     style={[styles.subTitle, { marginTop: 12 }]}
                   >
-                    Dịch vụ
+                    Công việc
                   </Text>
                   {invoiceServices.map((sv, idx) => (
                     <View
@@ -307,7 +307,7 @@ export default function InspectReportDetailScreen() {
                       style={styles.serviceRow}
                     >
                       <Text style={styles.serviceName}>
-                        {sv.name || `Dịch vụ ${idx + 1}`}
+                        {sv.name || `Công việc ${idx + 1}`}
                       </Text>
                       <Text style={styles.servicePrice}>
                         {formatCurrency(sv.price)}

@@ -1,4 +1,3 @@
-// src/store/index.js
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, createTransform } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +13,7 @@ import inspectionReports from '@/src/features/inspectionReport/inspectionRPSlice
 import repairReports from '@/src/features/repairReport/repairReportSlice';
 import invoices from '@/src/features/invoices/invoiceSlice';
 import notifications from '@/src/features/notifications/notificationsSlice';
+import feedbacks from '@/src/features/feedback/feedbacksSlice';
 // --- Chỉ persist "user" của auth (KHÔNG persist status/error/token)
 const authTransform = createTransform(
   (inboundState) => ({ user: inboundState.user }),
@@ -39,7 +39,8 @@ const rootReducer = combineReducers({
   inspectionReports,
   repairReports,
   invoices,
-  notifications
+  notifications,
+  feedbacks,
 });
 
 const persistConfig = {
@@ -61,5 +62,5 @@ export const store = configureStore({
 
 export const persistor = persistStore(store);
 
-// (tuỳ chọn) export hooks ở đây cho gọn
+// export hooks ở đây cho gọn
 export * from './hooks';

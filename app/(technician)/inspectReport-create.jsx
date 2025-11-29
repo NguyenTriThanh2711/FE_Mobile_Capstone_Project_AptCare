@@ -29,6 +29,7 @@ import {
   createExternalInvoice,
 } from '@/src/features/invoices/invoiceSlice';
 import { fetchAppointmentById } from '@/src/features/appointments/appointmentsSlice';
+import { pretty } from '@/src/helper/prettyLog';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
 
@@ -274,7 +275,7 @@ export default function CreateInspectionReportScreen() {
             type: 'error',
             text1: 'Thiếu dữ liệu báo giá',
             text2:
-              'Khi tính phí cư dân, cần ít nhất 1 dòng nguyên vật liệu hoặc dịch vụ.',
+              'Khi tính phí cư dân, cần ít nhất 1 dòng nguyên vật liệu hoặc công việc.',
           });
           return;
         }
@@ -309,7 +310,7 @@ export default function CreateInspectionReportScreen() {
             type: 'error',
             text1: 'Thiếu dữ liệu hóa đơn bên thứ ba',
             text2:
-              'Khi tính phí cư dân, cần ít nhất 1 dòng nguyên vật liệu hoặc dịch vụ.',
+              'Khi tính phí cư dân, cần ít nhất 1 dòng nguyên vật liệu hoặc công việc.',
           });
           return;
         }
@@ -366,10 +367,10 @@ export default function CreateInspectionReportScreen() {
       dispatch(fetchAppointmentById(Number(appointmentId)));
       router.back();
     } catch (err) {
-      console.log('[inspection + invoice error]', err);
+      console.log('[inspection + invoice error]', pretty(err.response));
+
       const msg =
         err?.response?.data?.detail ||
-        err?.response?.data?.message ||
         err?.message ||
         'Tạo báo cáo thất bại';
       Toast.show({
@@ -706,7 +707,7 @@ export default function CreateInspectionReportScreen() {
                   })}
                 </View>
 
-                {/* Dịch vụ internal */}
+                {/* Công việc internal */}
                 <View style={styles.card}>
                   <View style={styles.cardHeader}>
                     <Icon
@@ -714,7 +715,7 @@ export default function CreateInspectionReportScreen() {
                       size={18}
                       color={appleBlue}
                     />
-                    <Text style={styles.cardTitle}>Dịch vụ</Text>
+                    <Text style={styles.cardTitle}>Công việc</Text>
                     <Pressable
                       onPress={() =>
                         svcAppend({ name: '', price: '' })
@@ -732,7 +733,7 @@ export default function CreateInspectionReportScreen() {
 
                   {svcFields.length === 0 ? (
                     <Text style={{ color: zincColors[500] }}>
-                      Chưa có dòng dịch vụ nào.
+                      Chưa có dòng công việc nào.
                     </Text>
                   ) : null}
 
@@ -746,7 +747,7 @@ export default function CreateInspectionReportScreen() {
                         }) => (
                           <View style={{ flex: 1.2 }}>
                             <Text style={styles.smallLabel}>
-                              Tên dịch vụ
+                              Tên công việc
                             </Text>
                             <TextInput
                               value={value}
@@ -807,7 +808,7 @@ export default function CreateInspectionReportScreen() {
                   <View style={{ height: 8 }} />
 
                   <Text style={styles.totalLabel}>
-                    Tổng tiền dịch vụ (nháp)
+                    Tổng tiền công việc (nháp)
                   </Text>
                   <Text style={styles.totalValue}>
                     {servicesTotal.toLocaleString('vi-VN')} đ
@@ -981,7 +982,7 @@ export default function CreateInspectionReportScreen() {
               ))}
             </View>
 
-            {/* Dịch vụ EXTERNAL – tự nhập */}
+            {/* Công việc EXTERNAL – tự nhập */}
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Icon
@@ -990,7 +991,7 @@ export default function CreateInspectionReportScreen() {
                   color={appleBlue}
                 />
               <Text style={styles.cardTitle}>
-                  Dịch vụ
+                  Công việc
                 </Text>
                 <Pressable
                   onPress={() =>
@@ -1009,7 +1010,7 @@ export default function CreateInspectionReportScreen() {
 
               {extSvcFields.length === 0 ? (
                 <Text style={{ color: zincColors[500] }}>
-                  Chưa có dòng dịch vụ nào.
+                  Chưa có dòng công việc nào.
                 </Text>
               ) : null}
 
@@ -1020,7 +1021,7 @@ export default function CreateInspectionReportScreen() {
                     name={`extServices.${idx}.name`}
                     render={({ field: { value, onChange, onBlur } }) => (
                       <View style={{ flex: 1.3 }}>
-                        <Text style={styles.smallLabel}>Tên dịch vụ</Text>
+                        <Text style={styles.smallLabel}>Tên công việc</Text>
                         <TextInput
                           value={value}
                           onBlur={onBlur}
@@ -1078,7 +1079,7 @@ export default function CreateInspectionReportScreen() {
               <View style={{ height: 8 }} />
 
               <Text style={styles.totalLabel}>
-                Tổng tiền dịch vụ (nháp)
+                Tổng tiền công việc (nháp)
               </Text>
               <Text style={styles.totalValue}>
                 {extServicesTotal.toLocaleString('vi-VN')} đ

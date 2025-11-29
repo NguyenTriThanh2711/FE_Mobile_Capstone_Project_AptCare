@@ -5,17 +5,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { useAppDispatch } from '@/src/store';
-import { checkInWorkSlot } from '@/src/features/technician/workSlotsSlice';
+import { checkOutWorkSlot } from '@/src/features/technician/workSlotsSlice';
 import Toast from 'react-native-toast-message';
 import { Icon } from '@/src/components/Icon.native';
 
-export default function TechCheckInScreen() {
+export default function TechCheckOutScreen() {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
     if (!permission) {
@@ -23,11 +23,11 @@ export default function TechCheckInScreen() {
     }
   }, [permission, requestPermission]);
 
-  const parseCheckinUrl = (raw) => {
+  const parseCheckoutUrl = (raw) => {
     try {
       const url = new URL(raw);
-      if (url.protocol !== 'aptcare:' || url.hostname !== 'checkin') {
-        throw new Error('QR không đúng định dạng điểm danh');
+      if (url.protocol !== 'aptcare:' || url.hostname !== 'checkout') {
+        throw new Error('QR không đúng định dạng kết thúc ca');
       }
       const slotIdStr = url.searchParams.get('slotId');
       const date = url.searchParams.get('date');
@@ -46,19 +46,19 @@ export default function TechCheckInScreen() {
 
   const handleBarcodeScanned = useCallback(
     async ({ data }) => {
-      if (scanned || checkingIn) return;
+      if (scanned || checkingOut) return;
       setScanned(true);
 
       try {
-        const { slotId, date } = parseCheckinUrl(data);
-        console.log('[slot id, date]', slotId, date);
-        setCheckingIn(true);
+        const { slotId, date } = parseCheckoutUrl(data);
+        console.log('[checkout slot id, date]', slotId, date);
+        setCheckingOut(true);
 
-        await dispatch(checkInWorkSlot({ slotId, date })).unwrap();
+        await dispatch(checkOutWorkSlot({ slotId, date })).unwrap();
 
         Toast.show({
           type: 'success',
-          text1: 'Điểm danh thành công',
+          text1: 'Kết thúc ca thành công',
           text2: `Ca làm ngày ${date}, slot ${slotId}`,
         });
 
@@ -66,10 +66,10 @@ export default function TechCheckInScreen() {
           router.back(); 
         }, 500);
       } catch (err) {
-        console.log('Check-in via QR failed:', err);
+        console.log('Check-out via QR failed:', err);
         Toast.show({
           type: 'error',
-          text1: 'Điểm danh thất bại',
+          text1: 'Kết thúc ca thất bại',
           text2:
             err?.message ||
             String(err) ||
@@ -77,12 +77,12 @@ export default function TechCheckInScreen() {
         });
         setTimeout(() => {
           router.back();
-        }, 500);
+        }, 700);
       } finally {
-        setCheckingIn(false);
+        setCheckingOut(false);
       }
     },
-    [dispatch, scanned, checkingIn]
+    [dispatch, scanned, checkingOut]
   );
 
   if (!permission) {
@@ -120,8 +120,10 @@ export default function TechCheckInScreen() {
           <Icon name="chevron.left" size={20} color="#ffffffff" />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Quét QR điểm danh</Text>
-          <Text style={styles.subtitle}>Đưa camera vào mã QR trên màn hình điểm danh</Text>
+          <Text style={styles.title}>Quét QR kết thúc ca</Text>
+          <Text style={styles.subtitle}>
+            Đưa camera vào mã QR kết thúc ca trên màn hình điểm danh kết thúc ca
+          </Text>
         </View>
       </View>
 
@@ -132,7 +134,7 @@ export default function TechCheckInScreen() {
           barcodeScannerSettings={{
             barcodeTypes: ['qr'],
           }}
-          onBarcodeScanned={scanned || checkingIn ? undefined : handleBarcodeScanned}
+          onBarcodeScanned={scanned || checkingOut ? undefined : handleBarcodeScanned}
         />
         <View style={styles.overlay}>
           <View style={styles.scanFrame} />
@@ -140,17 +142,17 @@ export default function TechCheckInScreen() {
       </View>
 
       <View style={styles.footer}>
-        {checkingIn ? (
+        {checkingOut ? (
           <View style={styles.rowCenter}>
             <ActivityIndicator />
-            <Text style={styles.footerText}>Đang điểm danh, vui lòng chờ…</Text>
+            <Text style={styles.footerText}>Đang kết thúc ca, vui lòng chờ…</Text>
           </View>
         ) : (
           <>
             <Text style={styles.footerText}>
-              Hệ thống sẽ tự động điểm danh khi quét được mã QR hợp lệ của ca làm việc.
+              Hệ thống sẽ tự động kết thúc ca khi quét được mã QR hợp lệ.
             </Text>
-            {scanned && !checkingIn && (
+            {scanned && !checkingOut && (
               <Pressable
                 style={[styles.primaryBtn, { marginTop: 12 }]}
                 onPress={() => setScanned(false)}
@@ -211,7 +213,7 @@ const styles = StyleSheet.create({
     height: 220,
     borderRadius: 18,
     borderWidth: 3,
-    borderColor: '#22c55e',
+    borderColor: '#f97316', // cam cho khác check-in 1 tí (muốn giữ xanh thì đổi lại)
     backgroundColor: 'transparent',
   },
 
@@ -237,7 +239,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#22c55e',
+    backgroundColor: '#f97316',
   },
   primaryBtnText: { color: 'white', fontWeight: '600', fontSize: 14 },
 });

@@ -48,7 +48,7 @@ const schema = yup.object({
     .array()
     .of(
       yup.object({
-        name: yup.string().trim().required('Nhập tên dịch vụ'),
+        name: yup.string().trim().required('Nhập tên công việc'),
         price: yup
           .number()
           .typeError('price phải là số')
@@ -105,7 +105,7 @@ export default function CreateInvoiceScreen() {
   } = useFieldArray({ control, name: 'services' });
 
   const services = watch('services');
-  // Tổng nháp: chỉ cộng dịch vụ (nếu chưa có unit price của accessories)
+  // Tổng nháp: chỉ cộng công việc (nếu chưa có unit price của accessories)
   const servicesTotal = (services || []).reduce((sum, s) => sum + (Number(s?.price) || 0), 0);
 
   const onSubmit = async (values) => {
@@ -261,7 +261,7 @@ export default function CreateInvoiceScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="hammer" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Dịch vụ (Services)</Text>
+            <Text style={styles.cardTitle}>Công việc (Services)</Text>
             <Pressable
               onPress={() => svcAppend({ name: '', price: '' })}
               style={styles.addBtn}
@@ -283,7 +283,7 @@ export default function CreateInvoiceScreen() {
                 name={`services.${idx}.name`}
                 render={({ field: { value, onChange, onBlur } }) => (
                   <View style={{ flex: 1.2 }}>
-                    <Text style={styles.smallLabel}>Tên dịch vụ</Text>
+                    <Text style={styles.smallLabel}>Tên công việc</Text>
                     <TextInput
                       value={value}
                       onBlur={onBlur}
@@ -329,7 +329,7 @@ export default function CreateInvoiceScreen() {
 
         {/* Tổng nháp */}
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Tổng dịch vụ (nháp)</Text>
+          <Text style={styles.totalLabel}>Tổng công việc (nháp)</Text>
           <Text style={styles.totalValue}>
             {servicesTotal.toLocaleString('vi-VN')} đ
           </Text>

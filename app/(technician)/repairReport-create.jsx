@@ -84,13 +84,11 @@ export default function CreateRepairReportScreen() {
       router.back();
     } catch (err) {
       console.log('[repair report err] =>', err);
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
+      const msg =err?.message ||
         'Tạo báo cáo sửa chữa thất bại';
       Toast.show({
         type: 'error',
-        text1: 'Lỗi',
+        text1: 'Lỗi không tạo được báo cáo',
         text2: msg,
       });
     }

@@ -313,9 +313,9 @@ export default function InvoiceDetailScreen() {
 
             {/* Services */}
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Dịch vụ</Text>
+              <Text style={styles.sectionTitle}>Công việc làm</Text>
               {services.length === 0 ? (
-                <Text style={styles.emptyText}>Không có dịch vụ.</Text>
+                <Text style={styles.emptyText}>Không có công việc.</Text>
               ) : (
                 services.map((s) => (
                   <View

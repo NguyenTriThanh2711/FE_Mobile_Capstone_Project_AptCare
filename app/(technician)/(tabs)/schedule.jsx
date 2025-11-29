@@ -1,26 +1,40 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { Icon } from '@/src/components/Icon.native';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { useAppDispatch, useAppSelector } from '@/src/store';
-import { fetchSlots, selectSlotsLoading, selectSlotsMap } from '@/src/features/slots/slotsSlice';
+import {
+  fetchSlots,
+  selectSlotsLoading,
+  selectSlotsMap,
+} from '@/src/features/slots/slotsSlice';
 import {
   fetchMySchedule,
   selectWorkSlotsRaw,
   selectWorkSlotsLoading,
   selectWorkSlotsError,
-  checkInWorkSlot,
 } from '@/src/features/technician/workSlotsSlice';
 import AppointmentCard from '@/src/components/AppointmentCard';
 import { router } from 'expo-router';
-import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
 import Toast from 'react-native-toast-message';
-import { set } from 'react-hook-form';
-import { allowCheckIn, allowCheckOut, dateAtLocal, minutesFromNow, tooLateForCheckIn } from '@/src/helper/canShowCheckIn-Out';
 import { pad2 } from '@/src/helper/appointResident';
+import { useFocusEffect } from 'expo-router';
 
-/* ========= utils ========= */
 const colors = {
   primary: '#007AFF',
   success: '#34C759',
@@ -33,7 +47,8 @@ const colors = {
   border: '#e5e5e5',
 };
 
-const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const ymd = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 function formatViDate(d) {
   return d.toLocaleDateString('vi-VN', {
@@ -44,18 +59,6 @@ function formatViDate(d) {
   });
 }
 
-function dateAt(dateStr, hhmmss) {
-  const [h, m, s] = (hhmmss || '00:00:00').split(':').map((x) => parseInt(x, 10) || 0);
-  const dt = new Date(`${dateStr}T00:00:00`);
-  dt.setHours(h, m, s, 0);
-  return dt;
-}
-
-function minutesUntil(dtEnd) {
-  const diffMs = dtEnd - new Date();
-  return Math.floor(diffMs / 60000);
-}
-
 const atMidnight = (d) => {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -64,19 +67,19 @@ const atMidnight = (d) => {
 
 export default function TechnicianSchedule() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  // console.log("const selectedDate", selectedDate);
   const dateStr = useMemo(() => ymd(selectedDate), [selectedDate]);
-  // console.log("const dateStr", dateStr);
   const dispatch = useAppDispatch();
-  
-  const [pending, setPending] = useState(null); 
+
+  const [pending, setPending] = useState(null); // { type: 'in' | 'out', slotKey }
+  const [refreshing, setRefreshing] = useState(false);
+
   const slotMap = useAppSelector(selectSlotsMap);
   const slotsLoading = useAppSelector(selectSlotsLoading);
 
   const scheduleRaw = useAppSelector(selectWorkSlotsRaw);
-  // console.log("const scheduleRaw", scheduleRaw);
   const schedLoading = useAppSelector(selectWorkSlotsLoading);
   const schedError = useAppSelector(selectWorkSlotsError);
+
   useEffect(() => {
     if (!schedError) return;
 
@@ -86,10 +89,12 @@ export default function TechnicianSchedule() {
       text2: String(schedError),
     });
   }, [schedError]);
+
   useEffect(() => {
     dispatch(fetchSlots());
   }, [dispatch]);
 
+  // load lịch ±7 ngày quanh selectedDate
   useEffect(() => {
     const from = new Date(selectedDate);
     const to = new Date(selectedDate);
@@ -97,46 +102,39 @@ export default function TechnicianSchedule() {
     to.setDate(to.getDate() + 7);
     dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
   }, [dispatch, selectedDate]);
+
   const reloadAroundSelected = useCallback(async () => {
-    const from = new Date(selectedDate); from.setDate(from.getDate() - 7);
-    const to   = new Date(selectedDate); to.setDate(to.getDate() + 7);
-    await dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
+    try {
+      setRefreshing(true); // 👈 để RefreshControl biết đang loading
+      const from = new Date(selectedDate);
+      from.setDate(from.getDate() - 7);
+      const to = new Date(selectedDate);
+      to.setDate(to.getDate() + 7);
+      await dispatch(
+        fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) })
+      ).unwrap();
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Làm mới lịch làm việc thất bại',
+        text2: String(e),
+      });
+    } finally {
+      setRefreshing(false); 
+    }
   }, [dispatch, selectedDate]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reloadAroundSelected();
+      return () => {};
+    }, [reloadAroundSelected])
+  );
+
   const isNotStarted = (s) => s?.status === 'NotStarted';
-  const isWorking    = (s) => s?.status === 'Working' || s?.status === 'InProgress';
-  const isCompleted  = (s) => s?.status === 'Completed';
+  const isWorking = (s) => s?.status === 'Working' || s?.status === 'InProgress';
+  const isCompleted = (s) => s?.status === 'Completed';
 
-  const handleCheckIn = useCallback(async (shift) => {
-    const slotKey = `${shift.date}-${shift.slotId}`;
-    try {
-      setPending({ type: 'in', slotKey });
-      await dispatch(checkInWorkSlot({ date: shift.date, slotId: shift.slotId })).unwrap();
-      Toast.show({ type: 'success', text1: 'Đã điểm danh' });
-      await reloadAroundSelected(); // lấy lại status mới từ BE
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'Điểm danh thất bại', text2: String(e) });
-    } finally {
-      setPending(null);
-    }
-  }, [dispatch, reloadAroundSelected]);
-
-  const handleCheckOut = useCallback(async (shift) => {
-    const slotKey = `${shift.date}-${shift.slotId}`;
-    try {
-      setPending({ type: 'out', slotKey });
-      // await dispatch(checkOutWorkSlot({ date: shift.date, slotId: shift.slotId })).unwrap();
-      // hoặc nếu endpoint là /api/workslots/check-out:
-      // await dispatch(checkOutWorkSlot({ date: shift.date, slotId: shift.slotId })).unwrap();
-      Toast.show({ type: 'success', text1: 'Đã kết thúc ca' });
-      await reloadAroundSelected();
-    } catch (e) {
-      Toast.show({ type: 'error', text1: 'Kết ca thất bại' });
-    } finally {
-      setPending(null);
-    }
-  }, [dispatch, reloadAroundSelected]);
-
-  // week selector
   const dateListRef = useRef(null);
   const twoWeekDates = useMemo(() => {
     const base = new Date(selectedDate);
@@ -150,33 +148,30 @@ export default function TechnicianSchedule() {
   }, [selectedDate]);
 
   useEffect(() => {
-    const idx = twoWeekDates.findIndex((d) => d.toDateString() === selectedDate.toDateString());
+    const idx = twoWeekDates.findIndex(
+      (d) => d.toDateString() === selectedDate.toDateString()
+    );
     if (idx < 0 || !dateListRef.current) return;
-    const x = 16 + idx * (60 + 10); // ước lượng width 60 + gap 10
+    const x = 16 + idx * (60 + 10);
     requestAnimationFrame(() => {
       dateListRef?.current?.scrollTo({ x, animated: true });
     });
   }, [twoWeekDates, selectedDate]);
 
-  // data ngày đang chọn
   const dayData = useMemo(() => {
     const arr = dotnetArr(scheduleRaw);
-    // console.log("const arr = dotnetArr", pretty(arr));
     return arr.find((d) => d?.date === dateStr) || null;
   }, [scheduleRaw, dateStr]);
-
-  // console.log("const dayData", pretty(dayData));
 
   const shifts = useMemo(() => {
     if (!dayData) return [];
     const slotsArr = dotnetArr(dayData.slots);
-    // console.log('slot arr',slotsArr)
     return slotsArr
       .map((sl) => {
         const info = slotMap[sl.slotId] || {};
         const fromTime = info.fromTime || '00:00:00';
         const toTime = info.toTime || '00:00:00';
-        const tws = dotnetArr(sl.technicianWorkSlots)?.[0] || null; // 1 kỹ thuật/slot (hiện tại)
+        const tws = dotnetArr(sl.technicianWorkSlots)?.[0] || null;
         const key = `${dayData.date}-${sl.slotId}`;
         const status = tws?.status || 'NotStarted';
         return {
@@ -197,16 +192,30 @@ export default function TechnicianSchedule() {
     [shifts]
   );
 
-  // console.log('[Data]: const shifts', pretty(shifts));
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await reloadAroundSelected();
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Làm mới lịch làm việc thất bại',
+        text2: String(e),
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reloadAroundSelected]);
+  
   return (
     <View style={styles.container}>
-      {/* Week selector */}
       <View style={styles.dateSelector}>
         <ScrollView
           ref={dateListRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dateScroll}>
+          contentContainerStyle={styles.dateScroll}
+        >
           {twoWeekDates.map((d, idx) => {
             const isSelected = d.toDateString() === selectedDate.toDateString();
             const isToday = d.toDateString() === new Date().toDateString();
@@ -218,13 +227,15 @@ export default function TechnicianSchedule() {
                   isSelected && styles.dateItemSelected,
                   isToday && !isSelected && styles.dateItemToday,
                 ]}
-                onPress={() => setSelectedDate(atMidnight(d))}>
+                onPress={() => setSelectedDate(atMidnight(d))}
+              >
                 <Text
                   style={[
                     styles.dayText,
                     isSelected && styles.dayTextSel,
                     isToday && !isSelected && styles.dayTextToday,
-                  ]}>
+                  ]}
+                >
                   {d.toLocaleDateString('vi-VN', { weekday: 'short' })}
                 </Text>
                 <Text
@@ -232,7 +243,8 @@ export default function TechnicianSchedule() {
                     styles.dateNum,
                     isSelected && styles.dayTextSel,
                     isToday && !isSelected && styles.dayTextToday,
-                  ]}>
+                  ]}
+                >
                   {d.getDate()}
                 </Text>
               </Pressable>
@@ -241,23 +253,20 @@ export default function TechnicianSchedule() {
         </ScrollView>
       </View>
 
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Lịch ngày {formatViDate(selectedDate)}</Text>
         <Text style={styles.subTitle}>
-          {shifts.length} ca • {totalAppointments} cuộc hẹn
+          {shifts.length} ca • {totalAppointments} cuộc hẹns
         </Text>
       </View>
 
-      {/* Loading / Error */}
-      {(slotsLoading || schedLoading) && (
-        <View style={{ paddingVertical: 16 }}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      )}
-
-      {/* Shift cards */}
-      <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {(!dayData || shifts.length === 0) && !schedLoading && (
           <View style={styles.emptyWrap}>
             <Icon name="list.bullet" size={24} color={colors.textSecondary} />
@@ -268,12 +277,13 @@ export default function TechnicianSchedule() {
         {shifts.map((shift) => {
           const startLabel = (shift.fromTime || '').slice(0, 5);
           const endLabel = (shift.toTime || '').slice(0, 5);
-          const endDate = dateAtLocal(shift.date, shift.toTime);
-          const minsToEnd = minutesFromNow(endDate);
+
+          const slotKey = `${shift.date}-${shift.slotId}`;
+          const loadingThis =
+            pending && pending.slotKey === slotKey ? pending.type : null;
 
           return (
             <View key={shift.id} style={styles.card}>
-              {/* Time & status */}
               <View style={styles.rowTop}>
                 <View style={styles.timeCol}>
                   <Icon name="clock" size={16} color={colors.textSecondary} />
@@ -284,44 +294,65 @@ export default function TechnicianSchedule() {
                 <Badge status={shift.status} style={styles.statusChip} />
               </View>
 
-              {/* Actions */}
               <View style={styles.actionsRow}>
-                {/* {isNotStarted(shift) && allowCheckIn(shift) && ( */}
                 {isNotStarted(shift) && (
-                  <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => handleCheckIn(shift)}>
+                  <Pressable
+                    style={[
+                      styles.btn,
+                      styles.btnPrimary,
+                      loadingThis === 'in' && { opacity: 0.6 },
+                    ]}
+                    onPress={() => router.push('/(technician)/check-in-qr')}
+                  >
                     <Icon name="play.circle" size={16} color="#fff" />
-                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Điểm danh</Text>
-                  </Pressable>
-                )}
-                {/* vắng */}
-                {/* {isNotStarted(shift) && tooLateForCheckIn(shift) && (
-                  <View style={[styles.btn, { backgroundColor: '#F3F4F6', opacity: 0.8 }]}>
-                    <Icon name="xmark.circle" size={16} color="#9CA3AF" />
-                    <Text style={[styles.btnText, { color: '#9CA3AF', fontWeight: '800' }]}>Vắng</Text>
-                  </View>
-                )} */}
-                {allowCheckOut(shift) && (
-                  <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleCheckOut(shift)}>
-                    <Icon name="stop.circle" size={16} color="#fff" />
-                    <Text style={[styles.btnText, styles.btnPrimaryText]}>Điểm danh kết thúc ca</Text>
-                  </Pressable>
-                )}
-
-                {isWorking(shift) && !allowCheckOut(shift) && (
-                  <View style={styles.hint}>
-                    <Icon name="circle" size={14} color={colors.warning} />
-                    <Text style={styles.hintText}>
-                      {(() => {
-                        const endDate = dateAtLocal(shift.date, shift.toTime);
-                        const minsToEnd = minutesFromNow(endDate);
-                        return `Check-out khả dụng trong ${Math.max(minsToEnd - 30, 0)} phút nữa`;
-                      })()}
+                    <Text style={[styles.btnText, styles.btnPrimaryText]}>
+                      Điểm danh
                     </Text>
-                  </View>
+                  </Pressable>
                 )}
-              </View> 
 
-              {/* Appointments */}
+                {isWorking(shift) && (
+                  <Pressable
+                    style={[
+                      styles.btn,
+                      styles.btnDanger,
+                      loadingThis === 'out' && { opacity: 0.6 },
+                    ]}
+                    onPress={() => router.push('/(technician)/checkout-qr')}
+                  >
+                    {loadingThis === 'out' ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Icon name="stop.circle" size={16} color="#fff" />
+                        <Text style={[styles.btnText, styles.btnPrimaryText]}>
+                          Điểm danh kết thúc ca
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                )}
+                {isCompleted(shift) && (
+                  <Pressable
+                    style={[
+                      styles.btn,
+                      styles.btnSecondary
+                    ]}
+                  >
+                    {loadingThis === 'out' ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Icon name="stop.circle" size={16} color="#fff" />
+                        <Text style={[styles.btnText, styles.btnPrimaryText]}>
+                          Ca đã hoàn thành
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+
               <View style={styles.apptHeader}>
                 <Text style={styles.apptTitle}>Cuộc hẹn trong ca</Text>
                 <Text style={styles.apptCount}>{shift.appointments.length} mục</Text>
@@ -347,7 +378,6 @@ export default function TechnicianSchedule() {
   );
 }
 
-/* ============== styles ============== */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
 
@@ -422,19 +452,9 @@ const styles = StyleSheet.create({
   },
   btnPrimary: { backgroundColor: colors.primary },
   btnDanger: { backgroundColor: colors.danger },
+  btnSecondary: { backgroundColor: '#6e6e6e' },
   btnText: { fontSize: 13, fontWeight: '700' },
   btnPrimaryText: { color: '#fff' },
-
-  hint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 10,
-  },
-  hintText: { color: colors.warning, fontSize: 12, fontWeight: '600' },
 
   apptHeader: {
     flexDirection: 'row',

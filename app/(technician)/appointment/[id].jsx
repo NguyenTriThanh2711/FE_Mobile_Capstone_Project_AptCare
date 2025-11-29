@@ -214,10 +214,8 @@ export default function AppointmentDetailsScreen() {
     };
   }, [currentRequest, appointment?.appointmentId]);
 
-  // Buổi đầu tiên của request
   const baseInspectionAppointmentId = firstAppointmentId;
 
-  // Inspection report ids của buổi đầu tiên
   const baseInspectionReportIds = useAppSelector((s) =>
     baseInspectionAppointmentId
       ? selectReportIdsByAppointment(s, baseInspectionAppointmentId)
@@ -229,7 +227,6 @@ export default function AppointmentDetailsScreen() {
       : false
   );
 
-  // Nếu buổi đầu khác buổi hiện tại thì fetch báo cáo khảo sát buổi đầu
   useEffect(() => {
     if (
       baseInspectionAppointmentId &&
@@ -241,7 +238,6 @@ export default function AppointmentDetailsScreen() {
     }
   }, [baseInspectionAppointmentId, id, dispatch]);
 
-  // Report buổi hiện tại (dùng để check Approved, list, v.v.)
   const lastInspectionReportForThisAppt = useMemo(() => {
     if (!inspectionReportIds || inspectionReportIds.length === 0) return null;
     const list = inspectionReportIds
@@ -255,7 +251,6 @@ export default function AppointmentDetailsScreen() {
     }, list[0]);
   }, [inspectionReportIds, inspectionReportsById]);
 
-  // Report buổi đầu tiên
   const baseInspectionReport = useMemo(() => {
     if (!baseInspectionReportIds || baseInspectionReportIds.length === 0) {
       return null;
@@ -272,12 +267,9 @@ export default function AppointmentDetailsScreen() {
     }, list[0]);
   }, [baseInspectionReportIds, inspectionReportsById]);
 
-  // Report dùng cho phần "Thông tin" + scenario:
-  // Ưu tiên buổi đầu → nếu không có thì fallback buổi hiện tại
   const inspectionInfo =
     baseInspectionReport || lastInspectionReportForThisAppt || null;
 
-  // Repair report cuối
   const lastRepairReport = useMemo(() => {
     if (!repairReportIds || repairReportIds.length === 0) return null;
     const list = repairReportIds
@@ -290,8 +282,15 @@ export default function AppointmentDetailsScreen() {
       return t2 > t1 ? cur : latest;
     }, list[0]);
   }, [repairReportIds, repairReportsById]);
-
-  // Chuẩn hóa solution / faultOwner từ inspectionInfo
+   const acceptanceBaseDateStr = useMemo(() => {
+    if (!lastRepairReport || lastRepairReport.status !== 'Approved') return null;
+    return (
+      lastRepairReport.approvedAt ||
+      lastRepairReport.updatedAt ||
+      lastRepairReport.createdAt ||
+      null
+    );
+  }, [lastRepairReport]);
   const solutionTypeRaw = inspectionInfo?.solutionType;
   const solutionTypeNorm =
     solutionTypeRaw === 1 || solutionTypeRaw === 'Repair'
@@ -509,7 +508,6 @@ export default function AppointmentDetailsScreen() {
           acceptanceTime,
         })
       ).unwrap();
-
       Toast.show({
         type: 'success',
         text1: 'Đã hoàn tất lịch hẹn',
@@ -525,7 +523,6 @@ export default function AppointmentDetailsScreen() {
     }
   };
 
-  // Hoàn tất & flag sẽ có lịch hẹn tiếp theo (KHÔNG tự tạo lịch mới)
   const handleCompleteAndPlanNext = () => {
     if (!id) return;
 
@@ -1243,18 +1240,6 @@ export default function AppointmentDetailsScreen() {
             )}
           </>
         )}
-
-        {/* Completed:
-            - Non-outsource: vẫn cho tạo hóa đơn
-            - Outsource: KHÔNG còn nút tạo lịch hẹn mới */}
-        {appointment?.status === 'Completed' && !isOutsource && (
-          <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
-            <Icon name="doc.text" size={20} color={THEME.background} />
-            <Text style={styles.primaryBtnText}>
-              {hasInvoice ? 'Tạo thêm hóa đơn' : 'Tạo hóa đơn'}
-            </Text>
-          </Pressable>
-        )}
       </View>
 
       <AcceptanceAfterDaysPicker
@@ -1263,6 +1248,7 @@ export default function AppointmentDetailsScreen() {
         title="Chọn nghiệm thu sau bao nhiêu ngày"
         cancelText="Huỷ"
         confirmText="Chọn"
+        baseDateStr={acceptanceBaseDateStr}
         onConfirm={(dateStr) => handleAcceptancePicked(dateStr)}
       />
     </View>

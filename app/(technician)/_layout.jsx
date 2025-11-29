@@ -65,6 +65,13 @@ export default function TechnicianStackLayout() {
         }}
       />
       <Stack.Screen
+        name="checkout-qr"
+        options={{
+          title: 'Quét mã QR điểm danh kết thúc ca',
+          headerShown: false, // vì bạn đã tự render header trong file
+        }}
+      />
+      <Stack.Screen
         name="invoice/[id]"
         options={{
           title: 'Chi tiết hóa đơn',

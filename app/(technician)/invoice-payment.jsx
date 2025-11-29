@@ -68,7 +68,7 @@ const schema = yup
       .array()
       .of(
         yup.object({
-          name: yup.string().trim().required('Nhập tên dịch vụ'),
+          name: yup.string().trim().required('Nhập tên công việc'),
           price: toNumber()
             .typeError('price phải là số')
             .min(0, 'Không âm'),
@@ -78,7 +78,7 @@ const schema = yup
   })
   .test(
     'chargeable-has-something',
-    'Khi tính phí, cần thêm ít nhất 1 dòng nguyên vật liệu hoặc dịch vụ',
+    'Khi tính phí, cần thêm ít nhất 1 dòng nguyên vật liệu hoặc công việc',
     (values) => {
       if (!values) return false;
       if (!values.isChargeable) return true; // không tính phí thì không bắt buộc
@@ -189,7 +189,7 @@ export default function CreateInvoiceScreen() {
     remove: svcRemove,
   } = useFieldArray({ control, name: 'services' });
 
-  // Tổng dịch vụ
+  // Tổng công việc
   const servicesTotal = (services || []).reduce(
     (sum, s) => sum + (Number(s?.price) || 0),
     0
@@ -396,7 +396,7 @@ export default function CreateInvoiceScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="hammer" size={18} color={appleBlue} />
-            <Text style={styles.cardTitle}>Dịch vụ</Text>
+            <Text style={styles.cardTitle}>Công việc</Text>
             <Pressable
               onPress={() => svcAppend({ name: '', price: '' })}
               style={styles.addBtn}
@@ -408,7 +408,7 @@ export default function CreateInvoiceScreen() {
 
           {svcFields.length === 0 ? (
             <Text style={{ color: zincColors[500] }}>
-              Chưa có dòng dịch vụ nào.
+              Chưa có dòng công việc nào.
             </Text>
           ) : null}
 
@@ -420,7 +420,7 @@ export default function CreateInvoiceScreen() {
                 name={`services.${idx}.name`}
                 render={({ field: { value, onChange, onBlur } }) => (
                   <View style={{ flex: 1.2 }}>
-                    <Text style={styles.smallLabel}>Tên dịch vụ</Text>
+                    <Text style={styles.smallLabel}>Tên công việc</Text>
                     <TextInput
                       value={value}
                       onBlur={onBlur}
@@ -479,7 +479,7 @@ export default function CreateInvoiceScreen() {
 
           <View style={{ height: 8 }} />
 
-          <Text style={styles.totalLabel}>Tổng tiền dịch vụ (nháp)</Text>
+          <Text style={styles.totalLabel}>Tổng tiền công việc (nháp)</Text>
           <Text style={styles.totalValue}>
             {servicesTotal.toLocaleString('vi-VN')} vnđ
           </Text>

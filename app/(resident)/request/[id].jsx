@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSelector } from 'react-redux';
@@ -24,6 +25,9 @@ import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
 import { useAppDispatch, useAppSelector } from '@/src/store';
 import { timeDate } from '@/src/utils/date';
 import { fetchInvoicesByRepairRequestId, selectInvoicesByRepairRequest, selectInvoicesLoadingByRepairRequest } from '@/src/features/invoices/invoiceSlice';
+import { createFeedback, fetchFeedbackByRepairRequest, selectFeedbackByRepairRequest, selectFeedbackLoadingByRepairRequest } from '@/src/features/feedback/feedbacksSlice';
+import { pretty } from '@/src/helper/prettyLog';
+import Toast from 'react-native-toast-message';
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
@@ -40,6 +44,14 @@ export default function RequestDetail() {
 
   const invoices = useAppSelector((s) => selectInvoicesByRepairRequest(s, repairRequestId));
   const invoicesLoading = useAppSelector((s) => selectInvoicesLoadingByRepairRequest(s, repairRequestId));
+
+  const feedbackThread = useAppSelector((s) =>selectFeedbackByRepairRequest(s, repairRequestId));
+  console.log('[feedbackThread]', pretty(feedbackThread));
+  const feedbackLoading = useAppSelector((s) =>selectFeedbackLoadingByRepairRequest(s, repairRequestId));
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
   const medias = useMemo(() => {
     if (!data) return [];
     return dotnetArr(data.medias);
@@ -54,6 +66,10 @@ export default function RequestDetail() {
     );
   }, [data]);
 
+  const latestTrackingStatus = trackings?.length > 0 ? trackings[trackings.length - 1].status : null;
+  const canSendFeedback =
+      (latestTrackingStatus === 'AcceptancePendingVerify' ||latestTrackingStatus === 'Completed');
+  console.log('[canSendFeedback]',canSendFeedback)
   const appts = useMemo(() => {
     if (!data) return [];
     return dotnetArr(data.appointments);
@@ -77,6 +93,7 @@ export default function RequestDetail() {
         setInitialLoading(true);
         await dispatch(getRequest(id)).unwrap?.();
         await dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap?.();
+        await dispatch(fetchFeedbackByRepairRequest(repairRequestId)).unwrap?.();
       } catch (e) {
         console.log('[getRequest error]', e);
       } finally {
@@ -100,12 +117,55 @@ export default function RequestDetail() {
       ).unwrap();
       await dispatch(getRequest(id)).unwrap();
       await dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap?.();
+      await dispatch(fetchFeedbackByRepairRequest(repairRequestId)).unwrap?.();
     } catch (e) {
       console.log('[request detail refresh error]', e?.normalized || e);
     } finally {
       setRefreshing(false);
     }
   }, [id, dispatch]);
+
+  const handleSubmitFeedback = useCallback(async () => {
+    if (!repairRequestId) return;
+
+    if (!rating) {
+      Toast.show({
+        type: 'error',
+        text1: 'Vui lòng chọn số sao đánh giá',
+      });
+      return;
+    }
+
+    try {
+      setSubmittingFeedback(true);
+      await dispatch(
+        createFeedback({
+          repairRequestId,
+          rating,
+          comment: comment.trim(),
+        })
+      ).unwrap?.();
+
+      Toast.show({
+        type: 'success',
+        text1: 'Gửi đánh giá thành công',
+      });
+
+      setRating(0);
+      setComment('');
+
+      await dispatch(fetchFeedbackByRepairRequest(repairRequestId)).unwrap?.();
+    } catch (e) {
+      console.log('[createFeedback error]', e?.normalized || e);
+      Toast.show({
+        type: 'error',
+        text1: 'Không gửi được đánh giá',
+        text2: e?.message || 'Vui lòng thử lại sau',
+      });
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  }, [repairRequestId, rating, comment, dispatch]);
 
   if (initialLoading) {
     return (
@@ -417,7 +477,172 @@ export default function RequestDetail() {
             </View>
           )}
         </View>
+        {canSendFeedback && (
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Icon name="star.fill" size={16} color="#F59E0B" />
+              <Text style={styles.cardLabel}>Danh sách đánh giá</Text>
+            </View>
 
+            {feedbackLoading ? (
+              <View style={{ paddingVertical: 10 }}>
+                <ActivityIndicator size="small" color="#1e88e5" />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: '#6B7280',
+                    marginTop: 4,
+                  }}
+                >
+                  Đang tải đánh giá...
+                </Text>
+              </View>
+            ) : null}
+
+            {feedbackThread?.rootFeedbacks?.length > 0 && (
+              <View style={{ marginTop: 10 }}>
+                {feedbackThread?.rootFeedbacks.map((fb) => (
+                  <View
+                    key={fb.feedbackId}
+                    style={styles.feedbackItem}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Text style={styles.feedbackAuthor}>
+                        {fb.userName || 'Bạn'}
+                      </Text>
+                      {!!fb.rating && (
+                        <View style={styles.feedbackRating}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Icon
+                              key={star}
+                              name={
+                                star <= fb.rating
+                                  ? 'star.fill'
+                                  : 'star'
+                              }
+                              size={12}
+                              color={
+                                star <= fb.rating
+                                  ? '#F59E0B'
+                                  : '#E5E7EB'
+                              }
+                            />
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                    {!!fb.comment && (
+                      <Text style={styles.feedbackComment}>
+                        {fb.comment}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+        </View>
+        )}
+        {canSendFeedback && (
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Icon name="star.fill" size={16} color="#F59E0B" />
+              <Text style={styles.cardLabel}>Đánh giá dịch vụ</Text>
+            </View>
+            {/* Form gửi feedback */}
+            <View style={{ marginTop: 12 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: '#374151',
+                marginBottom: 6,
+              }}
+            >
+              Mức độ hài lòng:
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Pressable
+                  key={star}
+                  onPress={() => setRating(star)}
+                  hitSlop={8}
+                >
+                  <Icon
+                    name={star <= rating ? 'star.fill' : 'star'}
+                    size={24}
+                    color={
+                      star <= rating ? '#F59E0B' : '#D1D5DB'
+                    }
+                  />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={{ marginTop: 10 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                color: '#374151',
+                marginBottom: 4,
+              }}
+            >
+              Nhận xét thêm (không bắt buộc)
+            </Text>
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: '#E5E7EB',
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                backgroundColor: '#F9FAFB',
+              }}
+            >
+              <TextInput
+                style={{
+                  minHeight: 80,
+                  fontSize: 14,
+                  color: '#111827',
+                  textAlignVertical: 'top',
+                }}
+                multiline
+                placeholder="Bạn thấy dịch vụ như thế nào?"
+                value={comment}
+                onChangeText={setComment}
+              />
+            </View>
+          </View>
+
+          <Pressable
+            onPress={handleSubmitFeedback}
+            disabled={submittingFeedback}
+            style={[
+              styles.feedbackBtn,
+              submittingFeedback && { opacity: 0.7 },
+            ]}
+          >
+            {submittingFeedback ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.feedbackBtnText}>
+                Gửi đánh giá
+              </Text>
+            )}
+          </Pressable>
+        </View>
+        )}
         {/* Requester */}
         {data?.user && (
           <View style={styles.card}>
@@ -556,4 +781,38 @@ const styles = StyleSheet.create({
   backBtnText: { color: '#fff', fontWeight: '700' },
 
   smallValue: { fontSize: 13, color: '#374151' },
+
+  feedbackItem: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  feedbackAuthor: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  feedbackComment: {
+    fontSize: 13,
+    color: '#374151',
+    marginTop: 4,
+  },
+  feedbackRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  feedbackBtn: {
+    marginTop: 12,
+    backgroundColor: '#1e88e5',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
 });
