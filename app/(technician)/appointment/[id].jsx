@@ -155,7 +155,8 @@ export default function AppointmentDetailsScreen() {
     }
   }, [repairRequestId, dispatch]);
 
-  // Tính index buổi hẹn, buổi đầu tiên, flag buổi >= 3
+  const isMaintenance = !!appointment?.repairRequest?.maintenanceScheduleId;
+  const commonArea = appointment?.repairRequest?.commonArea;
   const {
     hasPreviousAppointment,
     appointmentIndex,
@@ -978,48 +979,76 @@ export default function AppointmentDetailsScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Căn hộ</Text>
+              <Text style={styles.sectionTitle}>
+                {isMaintenance ? 'Khu vực' : 'Căn hộ'}
+              </Text>
+
               <View style={styles.infoBlock}>
-                <Item
-                  icon="building.2"
-                  label="Căn hộ"
-                  value={
-                    appointment?.repairRequest?.apartment?.room || '-'
-                  }
-                />
-                <Item
-                  icon="door.left.hand.closed"
-                  label="Lầu"
-                  value={
-                    appointment?.repairRequest?.apartment?.floor || '-'
-                  }
-                />
-                <Item
-                  icon=""
-                  label="Diện tích"
-                  value={
-                    appointment?.repairRequest?.apartment?.area
-                      ? `${appointment?.repairRequest?.apartment?.area} m²`
-                      : '-'
-                  }
-                />
-                <Item
-                  icon="person.fill"
-                  label="Mô tả"
-                  value={
-                    appointment?.repairRequest?.apartment?.description ||
-                    '-'
-                  }
-                />
-                {appointment?.startTime ? (
-                  <Item
-                    icon="clock.fill"
-                    label="Lịch hẹn"
-                    value={timeDayDate(appointment?.startTime)}
-                  />
-                ) : null}
+                {isMaintenance ? (
+                  <>
+                    <Item
+                      icon="building.2"
+                      label="Khu vực chung"
+                      value={commonArea?.name || '-'}
+                    />
+                    <Item
+                      icon="map.pin"
+                      label="Vị trí"
+                      value={commonArea?.location || '-'}
+                    />
+                    <Item
+                      icon="text.justify"
+                      label="Mô tả khu vực"
+                      value={commonArea?.description || '-'}
+                    />
+                    {appointment?.startTime ? (
+                      <Item
+                        icon="clock.fill"
+                        label="Lịch bảo trì"
+                        value={timeDayDate(appointment?.startTime)}
+                      />
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Item
+                      icon="building.2"
+                      label="Căn hộ"
+                      value={appointment?.repairRequest?.apartment?.room || '-'}
+                    />
+                    <Item
+                      icon="door.left.hand.closed"
+                      label="Lầu"
+                      value={appointment?.repairRequest?.apartment?.floor || '-'}
+                    />
+                    <Item
+                      icon=""
+                      label="Diện tích"
+                      value={
+                        appointment?.repairRequest?.apartment?.area
+                          ? `${appointment?.repairRequest?.apartment?.area} m²`
+                          : '-'
+                      }
+                    />
+                    <Item
+                      icon="person.fill"
+                      label="Mô tả"
+                      value={
+                        appointment?.repairRequest?.apartment?.description || '-'
+                      }
+                    />
+                    {appointment?.startTime ? (
+                      <Item
+                        icon="clock.fill"
+                        label="Lịch hẹn"
+                        value={timeDayDate(appointment?.startTime)}
+                      />
+                    ) : null}
+                  </>
+                )}
               </View>
             </View>
+
           </View>
         )}
 

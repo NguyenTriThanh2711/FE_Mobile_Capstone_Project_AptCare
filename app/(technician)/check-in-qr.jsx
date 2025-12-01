@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { useAppDispatch } from '@/src/store';
-import { checkInWorkSlot } from '@/src/features/technician/workSlotsSlice';
+import { checkInWorkSlot, fetchMySchedule } from '@/src/features/technician/workSlotsSlice';
 import Toast from 'react-native-toast-message';
 import { Icon } from '@/src/components/Icon.native';
 
@@ -55,7 +55,16 @@ export default function TechCheckInScreen() {
         setCheckingIn(true);
 
         await dispatch(checkInWorkSlot({ slotId, date })).unwrap();
-
+        try {
+          await dispatch(
+            fetchMySchedule({
+              fromDate: date,
+              toDate: date,
+            })
+          ).unwrap();
+        } catch (e) {
+          console.log('Refresh schedule after check-in failed:', e);
+        }
         Toast.show({
           type: 'success',
           text1: 'Điểm danh thành công',

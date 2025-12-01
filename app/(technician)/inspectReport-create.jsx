@@ -78,7 +78,7 @@ const schema = yup.object({
     .string()
     .trim()
     .required('Vui lòng nhập phương án xử lý')
-    .min(10, ({ min }) => `Phương án xử lý tối thiểu ${min} ký tự`)
+    .min(3, ({ min }) => `Phương án xử lý tối thiểu ${min} ký tự`)
     .max(2000, 'Tối đa 2000 ký tự')
     .default(''),
 });

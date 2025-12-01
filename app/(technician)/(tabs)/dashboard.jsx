@@ -18,6 +18,7 @@ import { useAppDispatch, useAppSelector } from '@/src/store';
 import { pad2 } from '@/src/helper/appointResident';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { allowCheckIn, allowCheckOut } from '@/src/helper/canShowCheckIn-Out';
+import { pretty } from '@/src/helper/prettyLog';
 
 const StatCard = ({ colors, children, start, end }) => (
   <LinearGradient colors={colors} start={start} end={end} style={styles.statCard}>
@@ -36,7 +37,7 @@ export default function TechnicianDashboard() {
   const scheduleRaw = useAppSelector(selectWorkSlotsRaw);
   const schedLoading = useAppSelector(selectWorkSlotsLoading);
   const schedError = useAppSelector(selectWorkSlotsError);
-
+  console.log('[scheduleRaw]', pretty(scheduleRaw));
   useEffect(() => {
     dispatch(fetchSlots());
     const today = new Date();
@@ -109,6 +110,8 @@ export default function TechnicianDashboard() {
             ? 'Inspection'
             : 'Repair';
 
+        const isMaintenance = !!req.maintenanceScheduleId;
+
         const contactPhone =
           apt.residentPhone ||
           apt.phoneNumber ||
@@ -120,7 +123,9 @@ export default function TechnicianDashboard() {
           id: appt.appointmentId,
           _startKey: startIso,
           apartment: { apartmentId, floor },
-          title: req.object || appt.title || 'Công việc',
+          title: req.object || appt.title || 'Công việc',   // object
+          description: req.description || '',               // description
+          isMaintenance,
           type,
           priority,
           time: timeLabel,
@@ -136,6 +141,7 @@ export default function TechnicianDashboard() {
     return jobs.sort((a, b) => new Date(a._startKey) - new Date(b._startKey));
   }, [todayShifts]);
 
+
   const stats = useMemo(() => {
     const todayTotal = allJobs.length;
     const inspectionsToday = allJobs.filter((j) => j.type === 'Inspection').length;
@@ -146,7 +152,7 @@ export default function TechnicianDashboard() {
   }, [allJobs]);
 
   const todayJobs = useMemo(() => allJobs.slice(0, 3), [allJobs]);
-
+  console.log('Today jobs:', pretty(todayJobs));
   const getPriorityColor = (priorityVi) => {
     switch (priorityVi) {
       case 'Khẩn cấp':
@@ -333,7 +339,11 @@ export default function TechnicianDashboard() {
           <View key={job.id} style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.leftHeader}>
-                <Text style={styles.apartment}>{job.apartment.apartmentId}</Text>
+                <Text style={styles.apartment}>
+                  {job.isMaintenance
+                    ? job.title                          
+                    : (job.apartment.apartmentId || job.title)} 
+                </Text>
                 <View
                   style={[
                     styles.badge,
@@ -342,6 +352,7 @@ export default function TechnicianDashboard() {
                 >
                   <Text style={styles.badgeText}>{job.priority}</Text>
                 </View>
+
                 <View
                   style={[
                     styles.typePill,
@@ -349,7 +360,11 @@ export default function TechnicianDashboard() {
                   ]}
                 >
                   <Text style={styles.typeText}>
-                    {job.type === 'Inspection' ? 'Kiểm tra' : 'Sửa chữa'}
+                    {job.isMaintenance
+                      ? 'Bảo trì'
+                      : job.type === 'Inspection'
+                      ? 'Kiểm tra'
+                      : 'Sửa chữa'}
                   </Text>
                 </View>
               </View>
@@ -357,28 +372,45 @@ export default function TechnicianDashboard() {
             </View>
 
             <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Icon name="building.2" size={14} color="#6b7280" />
-                <Text style={styles.metaText}>
-                  Lầu: <Text style={styles.metaStrong}>{job.apartment.floor}</Text>
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Icon name="door.left.hand.closed" size={14} color="#6b7280" />
-                <Text style={styles.metaText}>
-                  Phòng:{' '}
-                  <Text style={styles.metaStrong}>{job.apartment.apartmentId}</Text>
-                </Text>
-              </View>
-              {!!job.contact?.phone && (
-                <Pressable style={styles.metaItem} onPress={() => callPhone(job.contact.phone)}>
-                  <Icon name="phone" size={14} color="#007AFF" />
-                  <Text style={[styles.metaText, styles.metaStrong]}>{job.contact.phone}</Text>
-                </Pressable>
+              {!job.isMaintenance && (
+                <>
+                  <View style={styles.metaItem}>
+                    <Icon name="building.2" size={14} color="#6b7280" />
+                    <Text style={styles.metaText}>
+                      <Text style={styles.metaStrong}>
+                        {job.apartment.floor ? `Lầu ${job.apartment.floor}` : job.apartment.floor}
+                      </Text>
+                    </Text>
+                  </View>
+
+                  <View style={styles.metaItem}>
+                    <Icon name="door.left.hand.closed" size={14} color="#6b7280" />
+                    <Text style={styles.metaText}>
+                      Phòng:{' '}
+                      <Text style={styles.metaStrong}>{job.apartment.apartmentId}</Text>
+                    </Text>
+                  </View>
+
+                  {!!job.contact?.phone && (
+                    <Pressable
+                      style={styles.metaItem}
+                      onPress={() => callPhone(job.contact.phone)}
+                    >
+                      <Icon name="phone" size={14} color="#007AFF" />
+                      <Text style={[styles.metaText, styles.metaStrong]}>
+                        {job.contact.phone}
+                      </Text>
+                    </Pressable>
+                  )}
+                </>
               )}
             </View>
 
-            <Text style={styles.jobTitle}>{job.title}</Text>
+            <Text style={styles.jobTitle}>
+              {job.isMaintenance
+                ? (job.description || 'Không có mô tả')
+                : (job.title || 'Không có tiêu đề')}
+            </Text>
 
             <View style={styles.cardFooter}>
               <View style={styles.statusChip} />
