@@ -42,7 +42,7 @@ export default function TechnicianDashboard() {
     const today = new Date();
     const from = new Date(today);
     const to = new Date(today);
-    from.setDate(from.getDate() - 1); // chỉ cần -1, +1 cho dashboard
+    from.setDate(from.getDate() - 1);
     to.setDate(to.getDate() + 1);
     dispatch(fetchMySchedule({ fromDate: ymd(from), toDate: ymd(to) }));
   }, [dispatch]);
@@ -83,8 +83,6 @@ export default function TechnicianDashboard() {
       .sort((a, b) => (a.fromTime || '').localeCompare(b.fromTime || ''));
   }, [todayData, slotMap]);
 
-  console.log('[[today shifts]]', todayShifts);
-
   const allJobs = useMemo(() => {
     if (!todayShifts.length) return [];
     const jobs = [];
@@ -99,7 +97,7 @@ export default function TechnicianDashboard() {
 
         const startIso =
           appt.startTime || `${shift.date}T${shift.fromTime || '00:00:00'}`;
-        const timeLabel = startIso.slice(11, 16); // HH:mm
+        const timeLabel = startIso.slice(11, 16);
 
         const isEmergency = req.isEmergency === true;
         const priority = isEmergency ? 'Khẩn cấp' : 'Bình thường';
@@ -195,8 +193,9 @@ export default function TechnicianDashboard() {
     () =>
       todayShifts.find(
         (s) =>
-          (s.status === 'Working' || s.status === 'InProgress') &&
-          allowCheckOut(s)
+          (s.status === 'Working' || s.status === 'InProgress') 
+        
+          // && allowCheckOut(s)
       ),
     [todayShifts]
   );
@@ -206,11 +205,11 @@ export default function TechnicianDashboard() {
     () =>
       !!todayShifts.find(
         (s) => s.status === 'NotStarted'
-        // && allowCheckIn(s)
       ),
     [todayShifts]
   );
 
+  const hasShiftToCheckOut = !!quickCheckOutShift;
 
   const checkInLabel = !hasAnyShiftToday
     ? 'Không có ca hôm nay'
@@ -219,14 +218,15 @@ export default function TechnicianDashboard() {
     : 'Đã check-in';
 
   const checkInDisabled = !hasAnyShiftToday || !canCheckInNow;
+  const checkOutDisabled = !hasShiftToCheckOut;
 
   const handleQuickCheckIn = () => router.push('/(technician)/check-in-qr');
+  const handleQuickCheckOut = () => router.push('/(technician)/checkout-qr');
 
   const { data, loading, error } = useWeather();
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={true}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.greeting}>
           {greetingText + ' ' + (user?.lastName || '')}
@@ -236,7 +236,6 @@ export default function TechnicianDashboard() {
 
       <WeatherCard weather={data} loading={loading} error={error} />
 
-      {/* Tổng quan hôm nay */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Tổng quan hôm nay</Text>
 
@@ -275,7 +274,6 @@ export default function TechnicianDashboard() {
         </View>
       </View>
 
-      {/* Thao tác nhanh */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
         <View style={styles.quickActions}>
@@ -294,7 +292,21 @@ export default function TechnicianDashboard() {
             />
             <Text style={styles.quickActionText}>{checkInLabel}</Text>
           </Pressable>
-
+          <Pressable
+            style={[
+              styles.quickActionButton,
+              checkOutDisabled && styles.quickActionButtonDisabled,
+            ]}
+            onPress={hasShiftToCheckOut ? handleQuickCheckOut : undefined}
+            disabled={checkOutDisabled}
+          >
+            <Icon
+              name="stop.circle.fill"
+              size={26}
+              color={checkOutDisabled ? '#9CA3AF' : '#8E8E93'}
+            />
+            <Text style={styles.quickActionText}>Kết thúc ngày</Text>
+          </Pressable>
           <Pressable
             style={styles.quickActionButton}
             onPress={() => handleQuickAction('Khẩn cấp')}
@@ -311,17 +323,9 @@ export default function TechnicianDashboard() {
             <Text style={styles.quickActionText}>Nghỉ giải lao</Text>
           </Pressable>
 
-          <Pressable
-            style={styles.quickActionButton}
-            onPress={() => handleQuickAction('Kết thúc ngày')}
-          >
-            <Icon name="stop.circle.fill" size={26} color="#8E8E93" />
-            <Text style={styles.quickActionText}>Kết thúc ngày</Text>
-          </Pressable>
         </View>
       </View>
 
-      {/* Công việc hôm nay (gần nhất) */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Công việc hôm nay (gần nhất)</Text>
 

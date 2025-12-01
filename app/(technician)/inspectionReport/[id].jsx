@@ -123,7 +123,6 @@ export default function InspectReportDetailScreen() {
     <View
       style={{ flex: 1, backgroundColor: THEME.background, paddingTop: 40 }}
     >
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
@@ -165,7 +164,6 @@ export default function InspectReportDetailScreen() {
         <ScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
         >
-          {/* Thông tin báo cáo */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Thông tin báo cáo</Text>
             <Row
@@ -182,7 +180,6 @@ export default function InspectReportDetailScreen() {
             <Row label="Khu vực" value={report.areaName || '-'} />
           </View>
 
-          {/* Kết quả khảo sát */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Kết quả khảo sát</Text>
             <Row
@@ -215,9 +212,8 @@ export default function InspectReportDetailScreen() {
             </Text>
           </View>
 
-          {/* Căn hộ & yêu cầu sửa */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Căn hộ & yêu cầu sửa</Text>
+            <Text style={styles.sectionTitle}>Căn hộ & yêu cầu sửa chữa</Text>
             <Row
               label="Căn hộ"
               value={apartment?.room || '-'}
@@ -340,8 +336,9 @@ export default function InspectReportDetailScreen() {
                 </>
               )}
               { invoice.status !== 'Draft' && (
+                <View style={{ alignItems: 'center', marginTop: 12 }}>
                 <Pressable
-                  style={styles.invoiceBtn}
+                  style={[styles.invoiceBtn]}
                   onPress={handleGoInvoiceDetail}
                 >
                   <Icon
@@ -353,6 +350,7 @@ export default function InspectReportDetailScreen() {
                     Xem chi tiết hóa đơn
                   </Text>
                 </Pressable>
+                </View>
               )}
             </View>
           )}
@@ -472,7 +470,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,

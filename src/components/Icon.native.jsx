@@ -150,6 +150,23 @@ const MAP = {
   "note-text-outline": "document-text-outline",
   "text-box-outline": "document-text-outline",
   "banknote": "cash-outline",
+  "square.grid.2x2": "grid-outline",         // danh sách khu vực
+  "square.grid.2x2.fill": "grid",            // phiên bản fill nếu cần
+
+  // Mã khu vực / mã đối tượng
+  "doc.plaintext": "document-outline",       // khác với "doc.text" đã map document-text-outline
+
+  // Vị trí (khác với "location" đang dùng là pin cơ bản)
+  "map.pin": "location-outline",             // pin bản đồ
+
+  // Filter / sort
+  "slider.horizontal.3": "options-outline",
+
+  // Submit / gửi (có thể dùng cho nút Gửi báo cáo)
+  "paperplane.fill": "send",                 // icon gửi
+  "paperplane": "send-outline",
+  "hammer.fill": "hammer",
+  "hammer": "hammer-outline",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

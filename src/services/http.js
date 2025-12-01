@@ -3,11 +3,12 @@ import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from './secu
 import { Platform } from 'react-native';
 import { pretty } from '../helper/prettyLog';
 import Toast from 'react-native-toast-message';
-const BASE_URL = Platform.select({
-  android: process.env.EXPO_PUBLIC_API_URL,
-  default: 'https://aptcare.click',
-});
+
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://aptcare.click';
+console.log('[HTTP] ENV EXPO_PUBLIC_API_URL =', process.env.EXPO_PUBLIC_API_URL);
+console.log('[HTTP] BASE_URL =', BASE_URL);
 console.log("[HTTP] BASE_URL =", BASE_URL);
+
 const http = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,

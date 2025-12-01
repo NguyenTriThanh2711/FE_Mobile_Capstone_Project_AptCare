@@ -14,8 +14,30 @@ export default function ResidentStackLayout() {
           headerShown: false, // vì bạn đã tự render header trong file
         }}
       />
+      <Stack.Screen
+        name="report-create"
+        options={{
+          title: 'Tạo báo cáo',
+          headerShown: false, 
+        }}
+      />
+      <Stack.Screen
+        name="select-common-area"
+        options={{
+          title: 'Chọn khu vực chung',
+          headerShown: false, 
+        }}
+      />
+      <Stack.Screen
+        name="my-reports"
+        options={{
+          title: 'Báo cáo của tôi',
+          headerShown: false, 
+        }}
+      />
       {/* <Stack.Screen name="device/[id]" options={{ headerShown: false }} /> */}
       <Stack.Screen name="request/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
     </Stack>
   );

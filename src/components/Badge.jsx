@@ -44,7 +44,7 @@ const STATUS_LABEL = {
   InRepair:   'Đang sửa chữa',
   Working:     'Đang trong ca',
   Confirmed:   'Đã xác nhận',
-  AwaitingIRApproval: 'Chờ duyệt báo cáo',
+  AwaitingIRApproval: 'Chờ duyệt b/cáo',
   Draft : 'Bản nháp',
   AwaitingPayment: 'Chờ thanh toán',
   Scheduling : 'Đang lên lịch',

@@ -10,7 +10,7 @@ export default function MUITextField({
   onBlur,
   placeholder,
   variant = 'outlined', // "outlined" | "filled"
-  size = 'medium', // "small" | "medium"
+  size = 'medium', // "small" | "medium" | "large"
   error,
   helperText,
   disabled,
@@ -28,12 +28,20 @@ export default function MUITextField({
   const [showPwd, setShowPwd] = React.useState(false);
   const isPassword = !!secureTextEntry;
 
-  const height = size === 'small' ? 44  : size === 'large' ? 100 : 74;
-  const contentStyle = { minHeight: height, height };
+  // 👉 chỉnh height cho hợp lý hơn
+  const height =
+    size === 'small' ? 44 : size === 'large' ? 100 : 52;
+
+  const contentStyle = {
+    minHeight: height,
+    paddingVertical: size === 'small' ? 6 : 10,
+  };
 
   const left = startIcon ? (
     <PaperInput.Icon
-      icon={(props) => <Icon name={startIcon} size={props.size ?? 20} color={props.color} />}
+      icon={(props) => (
+        <Icon name={startIcon} size={props.size ?? 20} color={props.color} />
+      )}
     />
   ) : undefined;
   const right = isPassword ? (
@@ -43,7 +51,9 @@ export default function MUITextField({
     />
   ) : endIcon ? (
     <PaperInput.Icon
-      icon={(props) => <Icon name={endIcon} size={props.size ?? 20} color={props.color} />}
+      icon={(props) => (
+        <Icon name={endIcon} size={props.size ?? 20} color={props.color} />
+      )}
       onPress={rightOnPress}
     />
   ) : undefined;
@@ -70,7 +80,9 @@ export default function MUITextField({
         outlineStyle={variant === 'outlined' ? { borderRadius: 8 } : undefined}
         style={{
           backgroundColor:
-            variant === 'filled' ? (theme.colors?.backdrop || '#000') + '11' : undefined,
+            variant === 'filled'
+              ? (theme.colors?.backdrop || '#000') + '11'
+              : undefined,
         }}
       />
       {!!helperText && (

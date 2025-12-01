@@ -51,17 +51,12 @@ export default function ResidentHome() {
     { id: 1, title: "Yều cầu sửa chữa mới", icon: "plus.circle.fill", color: "#007AFF", action: () => router.push({ pathname: "/(resident)/request-create" }) },
     { id: 2, title: "Khẩn cấp",   icon: "exclamationmark.triangle.fill", color: "#FF3B30", action: () => router.push({ pathname: "/(resident)/request-create", params: { emergency: "true" } }) },
     { id: 3, title: "Phản hồi",    icon: "star.fill", color: "#FF9500", action: handleFeedback },
-    { id: 4, title: "Báo cáo sự cố tòa nhà",icon: "flag.fill", color: "#34C759", action: handleReportIssue },
+    { id: 4, title: "Báo cáo sự cố tòa nhà",icon: "flag.fill", color: "#34C759", action: () => router.push({ pathname: "/(resident)/my-reports" }) },
   ];
 
   const handleFeedback = () => {
     console.log("Opening feedback form");
     Alert.alert("Feedback", "Feedback feature coming soon!");
-  };
-
-  const handleReportIssue = () => {
-    console.log("Opening issue report");
-    Alert.alert("Report Issue", "Issue reporting feature coming soon!");
   };
 
   return (
@@ -106,7 +101,9 @@ export default function ResidentHome() {
             </Pressable>
           </View>
           {recentLoading ? (
-            <Text>Đang tải...</Text>
+            <View style={{ alignItems: "center", padding: 20 }}>
+              <Text>Đang tải...</Text>
+            </View>
           ) : recent?.length === 0 ? (
             <View style={{ alignItems: "center", padding: 20,  }}>
               <Text>Không có yêu cầu nào gần đây.</Text>
