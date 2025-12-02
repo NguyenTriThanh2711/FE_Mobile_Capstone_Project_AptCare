@@ -416,7 +416,7 @@ export default function RequestDetail() {
                     <Badge status={inv.status} />
                   </View>
                   <Text style={styles.invoiceMeta}>
-                    Tổng tiền: {inv.totalAmount + ' VND'}
+                    Tổng tiền: {  inv.totalAmount.toLocaleString('vi-VN') + ' VND'}
                   </Text>
                   {/* <Text style={styles.invoiceMeta}>
                     Loại: {inv.type || '-'}

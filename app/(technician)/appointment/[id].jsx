@@ -529,7 +529,7 @@ export default function AppointmentDetailsScreen() {
 
     Alert.alert(
       'Kết thúc buổi hiện tại',
-      'Bạn sẽ hẹn lịch mới cho lần sửa tiếp theo (không tạo lịch trên app).',
+      'Bạn sẽ hẹn lịch mới cho lần sửa tiếp theo.',
       [
         { text: 'Huỷ', style: 'cancel' },
         {
@@ -1022,7 +1022,7 @@ export default function AppointmentDetailsScreen() {
                       value={appointment?.repairRequest?.apartment?.floor || '-'}
                     />
                     <Item
-                      icon=""
+                      icon="map.pin"
                       label="Diện tích"
                       value={
                         appointment?.repairRequest?.apartment?.area
@@ -1126,14 +1126,14 @@ export default function AppointmentDetailsScreen() {
       </ScrollView>
 
       <View style={styles.actionBar}>
-        {canCreateInvoiceNow && (
+        {/* {canCreateInvoiceNow && (
           <Pressable style={styles.primaryBtn} onPress={handleCreateInvoice}>
             <Icon name="doc.text" size={20} color={THEME.background} />
             <Text style={styles.primaryBtnText}>
               {hasInvoice ? 'Tạo thêm báo giá' : 'Tạo báo giá'}
             </Text>
           </Pressable>
-        )}
+        )} */}
 
         {appointment?.status === 'Confirmed' && (
           <Pressable
@@ -1208,7 +1208,7 @@ export default function AppointmentDetailsScreen() {
                       color={appleGreen}
                     />
                     <Text style={styles.secondaryBtnText}>
-                      Hoàn tất & hẹn lịch mới
+                      Hoàn tất & lịch mới
                     </Text>
                   </Pressable>
                 ) : (

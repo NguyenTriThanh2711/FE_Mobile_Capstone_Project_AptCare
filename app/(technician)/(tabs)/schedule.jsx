@@ -29,11 +29,11 @@ import {
   selectWorkSlotsError,
 } from '@/src/features/technician/workSlotsSlice';
 import AppointmentCard from '@/src/components/AppointmentCard';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Badge from '@/src/components/Badge';
 import Toast from 'react-native-toast-message';
 import { pad2 } from '@/src/helper/appointResident';
-import { useFocusEffect } from 'expo-router';
+import { pretty } from '@/src/helper/prettyLog';
 
 const colors = {
   primary: '#007AFF',
@@ -79,7 +79,6 @@ export default function TechnicianSchedule() {
   const scheduleRaw = useAppSelector(selectWorkSlotsRaw);
   const schedLoading = useAppSelector(selectWorkSlotsLoading);
   const schedError = useAppSelector(selectWorkSlotsError);
-
   useEffect(() => {
     if (!schedError) return;
 
@@ -105,7 +104,7 @@ export default function TechnicianSchedule() {
 
   const reloadAroundSelected = useCallback(async () => {
     try {
-      setRefreshing(true); // 👈 để RefreshControl biết đang loading
+      setRefreshing(true);
       const from = new Date(selectedDate);
       from.setDate(from.getDate() - 7);
       const to = new Date(selectedDate);
@@ -120,7 +119,7 @@ export default function TechnicianSchedule() {
         text2: String(e),
       });
     } finally {
-      setRefreshing(false); 
+      setRefreshing(false);
     }
   }, [dispatch, selectedDate]);
 
@@ -163,29 +162,74 @@ export default function TechnicianSchedule() {
     return arr.find((d) => d?.date === dateStr) || null;
   }, [scheduleRaw, dateStr]);
 
+  console.log('[dayData]', pretty(dayData));
+  console.log('[slotMap]', slotMap);
+
   const shifts = useMemo(() => {
     if (!dayData) return [];
     const slotsArr = dotnetArr(dayData.slots);
+    console.log('[slotsArr]',pretty(slotsArr));
     return slotsArr
       .map((sl) => {
-        const info = slotMap[sl.slotId] || {};
-        const fromTime = info.fromTime || '00:00:00';
-        const toTime = info.toTime || '00:00:00';
+        console.log('[slot]', pretty(sl));
+        const info = slotMap?.[sl.slotId] || {};
+        console.log('[[info]]', info);
         const tws = dotnetArr(sl.technicianWorkSlots)?.[0] || null;
+
+        const appointments = dotnetArr(tws?.appointments) || [];
+
+        const slotFromTime = info.fromTime || null;
+        const slotToTime = info.toTime || null;
+
+        let actualFrom = null;
+        let actualTo = null;
+
+        if (appointments.length > 0) {
+          const byStart = [...appointments].sort(
+            (a, b) =>
+              new Date(a.startTime || a.createdAt || 0) -
+              new Date(b.startTime || b.createdAt || 0)
+          );
+          const byEnd = [...appointments].sort(
+            (a, b) =>
+              new Date(a.endTime || a.startTime || a.createdAt || 0) -
+              new Date(b.endTime || b.startTime || b.createdAt || 0)
+          );
+
+          const first = byStart[0];
+          const last = byEnd[byEnd.length - 1];
+
+          actualFrom = first?.startTime || null;
+          actualTo =
+            last?.endTime || last?.startTime || null;
+        }
+
         const key = `${dayData.date}-${sl.slotId}`;
         const status = tws?.status || 'NotStarted';
+
         return {
           id: key,
           date: dayData.date,
           slotId: sl.slotId,
-          fromTime,
-          toTime,
+          // giờ slot cấu hình
+          fromTime: slotFromTime,
+          toTime: slotToTime,
+          // giờ thực tế theo appointments
+          actualFrom,
+          actualTo,
           status,
-          appointments: dotnetArr(tws?.appointments) || [],
+          appointments,
         };
       })
-      .sort((a, b) => (a.fromTime || '').localeCompare(b.fromTime || ''));
+      // sort theo giờ ca (slotFromTime) để hiển thị từ sớm tới muộn
+      .sort((a, b) => {
+        const fa = a.fromTime || '00:00:00';
+        const fb = b.fromTime || '00:00:00';
+        return fa.localeCompare(fb);
+      });
   }, [dayData, slotMap]);
+
+  console.log('[shifts]', shifts);
 
   const totalAppointments = useMemo(
     () => shifts.reduce((sum, s) => sum + (s.appointments?.length || 0), 0),
@@ -206,7 +250,7 @@ export default function TechnicianSchedule() {
       setRefreshing(false);
     }
   }, [reloadAroundSelected]);
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.dateSelector}>
@@ -256,7 +300,7 @@ export default function TechnicianSchedule() {
       <View style={styles.header}>
         <Text style={styles.title}>Lịch ngày {formatViDate(selectedDate)}</Text>
         <Text style={styles.subTitle}>
-          {shifts.length} ca • {totalAppointments} cuộc hẹns
+          {shifts.length} ca • {totalAppointments} cuộc hẹn
         </Text>
       </View>
 
@@ -275,21 +319,35 @@ export default function TechnicianSchedule() {
         )}
 
         {shifts.map((shift) => {
-          const startLabel = (shift.fromTime || '').slice(0, 5);
-          const endLabel = (shift.toTime || '').slice(0, 5);
+          // Ưu tiên giờ thực tế theo appointment
+          const startLabel = shift.fromTime
+            ? shift.fromTime.slice(0, 5)
+            : '--:--';
+
+          const endLabel = shift.toTime
+            ? shift.toTime.slice(0, 5)
+            : '--:--';
 
           const slotKey = `${shift.date}-${shift.slotId}`;
           const loadingThis =
             pending && pending.slotKey === slotKey ? pending.type : null;
+
+          const slotInfo = slotMap?.[shift.slotId];
+          const slotName = slotInfo?.slotName || `Ca ${shift.slotId}`;
 
           return (
             <View key={shift.id} style={styles.card}>
               <View style={styles.rowTop}>
                 <View style={styles.timeCol}>
                   <Icon name="clock" size={16} color={colors.textSecondary} />
-                  <Text style={styles.timeText}>
-                    {startLabel} - {endLabel}
-                  </Text>
+                  <View>
+                    <Text style={styles.timeText}>
+                      {startLabel} - {endLabel}
+                    </Text>
+                    <Text style={styles.slotNameText}>
+                      {slotName}
+                    </Text>
+                  </View>
                 </View>
                 <Badge status={shift.status} style={styles.statusChip} />
               </View>
@@ -332,30 +390,24 @@ export default function TechnicianSchedule() {
                     )}
                   </Pressable>
                 )}
+
                 {isCompleted(shift) && (
                   <Pressable
-                    style={[
-                      styles.btn,
-                      styles.btnSecondary
-                    ]}
+                    style={[styles.btn, styles.btnSecondary]}
                   >
-                    {loadingThis === 'out' ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <>
-                        <Icon name="stop.circle" size={16} color="#fff" />
-                        <Text style={[styles.btnText, styles.btnPrimaryText]}>
-                          Ca đã hoàn thành
-                        </Text>
-                      </>
-                    )}
+                    <Icon name="stop.circle" size={16} color="#fff" />
+                    <Text style={[styles.btnText, styles.btnPrimaryText]}>
+                      Ca đã hoàn thành
+                    </Text>
                   </Pressable>
                 )}
               </View>
 
               <View style={styles.apptHeader}>
                 <Text style={styles.apptTitle}>Cuộc hẹn trong ca</Text>
-                <Text style={styles.apptCount}>{shift.appointments.length} mục</Text>
+                <Text style={styles.apptCount}>
+                  {shift.appointments.length} mục
+                </Text>
               </View>
 
               {shift.appointments.length === 0 ? (
@@ -365,7 +417,9 @@ export default function TechnicianSchedule() {
                   <View key={a.appointmentId} style={styles.apptBox}>
                     <AppointmentCard
                       appt={a}
-                      onPress={() => router.push(`/appointment/${a.appointmentId}`)}
+                      onPress={() =>
+                        router.push(`/appointment/${a.appointmentId}`)
+                      }
                     />
                   </View>
                 ))
@@ -398,9 +452,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  dateItemSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dateItemSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   dateItemToday: { borderColor: colors.primary, borderWidth: 2 },
-  dayText: { fontSize: 12, color: colors.textSecondary, marginBottom: 2, fontWeight: '500' },
+  dayText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+    fontWeight: '500',
+  },
   dayTextSel: { color: '#fff' },
   dayTextToday: { color: colors.primary },
   dateNum: { fontSize: 16, fontWeight: '700', color: colors.text },
@@ -417,7 +479,12 @@ const styles = StyleSheet.create({
 
   list: { flex: 1, padding: 16 },
 
-  emptyWrap: { alignItems: 'center', gap: 8, paddingVertical: 50, paddingHorizontal: 20 },
+  emptyWrap: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+  },
   emptyText: { color: colors.textSecondary },
 
   card: {
@@ -438,10 +505,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  timeCol: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  timeCol: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   timeText: { fontSize: 13, color: colors.textSecondary },
+  slotNameText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
 
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',

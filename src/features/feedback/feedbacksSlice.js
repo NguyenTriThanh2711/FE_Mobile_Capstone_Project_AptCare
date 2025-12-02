@@ -91,15 +91,15 @@ const feedbacksSlice = createSlice({
         state.creating = false;
         const fb = action.payload;
         if (!fb || !fb.repairRequestId) return;
-
-        const bucket =
-          state.byRequestId[fb.repairRequestId] ||
-          (state.byRequestId[fb.repairRequestId] = {
-            items: [],
-            loading: false,
-            error: null,
-          });
-        bucket.items.push(fb);
+        
+        // const bucket =
+        //   state.byRequestId[fb.repairRequestId] ||
+        //   (state.byRequestId[fb.repairRequestId] = {
+        //     items: [],
+        //     loading: false,
+        //     error: null,
+        //   });
+        // bucket.items.push(fb);
       })
       .addCase(createFeedback.rejected, (state) => {
         state.creating = false;

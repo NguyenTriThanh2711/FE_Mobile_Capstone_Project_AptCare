@@ -46,8 +46,9 @@ const SOLUTION_LABEL = {
 };
 
 const INVOICE_TYPE_LABEL = {
-  InternalRepair: 'Sửa chữa nội bộ',
+  InternalRepair: 'Nội bộ',
   ExternalRepair: 'Thuê ngoài',
+  ExternalContractor: 'Thuê ngoài',
 };
 
 const INVOICE_STATUS_LABEL = {

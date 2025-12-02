@@ -31,6 +31,7 @@ const INVOICE_STATUS_LABEL = {
   Unpaid: 'Chưa thanh toán',
   UNPAID: 'Chưa thanh toán',
   AwaitingPayment: 'Chờ thanh toán',
+  Approved: 'Đã duyệt',
   AWAITINGPAYMENT: 'Chờ thanh toán',
   PartiallyPaid: 'Thanh toán một phần',
   PARTIALLYPAID: 'Thanh toán một phần',
@@ -39,7 +40,6 @@ const INVOICE_STATUS_LABEL = {
   Cancelled: 'Đã hủy',
   CANCELED: 'Đã hủy',
 };
-
 export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams();
   const invoiceId = Number(id);

@@ -292,7 +292,6 @@ export default function CreateInspectionReportScreen() {
             price: Number(s.price) || 0,
           })),
         };
-
         await dispatch(createExternalInvoice(externalInvoicePayload)).unwrap();
       }
 
@@ -310,7 +309,6 @@ export default function CreateInspectionReportScreen() {
         solution: values.solution?.trim() || '',
         Files: filesCompressed,
       };
-
       await dispatch(generateInspectionReport(reportPayload)).unwrap();
 
       let extraText;
