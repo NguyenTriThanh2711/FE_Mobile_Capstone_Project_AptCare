@@ -104,12 +104,11 @@ export default function CreateInspectionReportScreen() {
     [isSecondOrLater]
   );
 
-  const [isChargeable, setIsChargeable] = useState(true);
-
   const [accessoriesMaster, setAccessoriesMaster] = useState([]);
   const [accLoading, setAccLoading] = useState(true);
   const [accError, setAccError] = useState(null);
   const [accSearch, setAccSearch] = useState('');
+  const [purchaseAccSearch, setPurchaseAccSearch] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -150,7 +149,8 @@ export default function CreateInspectionReportScreen() {
       solutionType: SolutionType.Repair,
       description: '',
       solution: '',
-      accessories: [],
+      accessories: [],        
+      purchaseAccessories: [],  
       services: [],
       extAccessories: [],
       extServices: [],
@@ -158,16 +158,26 @@ export default function CreateInspectionReportScreen() {
   });
 
   const solutionTypeWatch = watch('solutionType');
+  const faultOwnerWatch = watch('faultOwner');
   const accessoriesWatch = watch('accessories') || [];
+  const purchaseAccessoriesWatch = watch('purchaseAccessories') || [];
   const servicesWatch = watch('services') || [];
   const extAccessoriesWatch = watch('extAccessories') || [];
   const extServicesWatch = watch('extServices') || [];
+
+  const isChargeable = faultOwnerWatch === FaultOwner.ResidentFault;
 
   const {
     fields: accFields,
     append: accAppend,
     remove: accRemove,
   } = useFieldArray({ control, name: 'accessories' });
+
+  const {
+    fields: purchaseAccFields,
+    append: purchaseAccAppend,
+    remove: purchaseAccRemove,
+  } = useFieldArray({ control, name: 'purchaseAccessories' });
 
   const {
     fields: svcFields,
@@ -193,7 +203,6 @@ export default function CreateInspectionReportScreen() {
     solutionTypeWatch === SolutionType.Replacement;
 
   const showInternalInvoice = isRepairOrReplace && !!rrIdNum;
-
   const showExternalInvoice = isOutsource && isSecondOrLaterBool;
 
   const filteredAccessories = useMemo(() => {
@@ -204,19 +213,43 @@ export default function CreateInspectionReportScreen() {
     );
   }, [accSearch, accessoriesMaster]);
 
+  const filteredPurchaseAccessories = useMemo(() => {
+    const keyword = purchaseAccSearch.trim().toLowerCase();
+    if (!keyword) return [];
+    return accessoriesMaster.filter((a) =>
+      String(a.name || '').toLowerCase().includes(keyword)
+    );
+  }, [purchaseAccSearch, accessoriesMaster]);
+
   const servicesTotal = (servicesWatch || []).reduce(
     (sum, s) => sum + (Number(s?.price) || 0),
     0
   );
-  const accessoriesTotal = (accessoriesWatch || []).reduce((sum, row) => {
-    const currentId = row?.accessoryId;
-    const found = accessoriesMaster.find(
-      (a) => String(a.accessoryId) === String(currentId)
-    );
-    const price = Number(found?.price || 0);
-    const qty = Number(row?.quantity || 0);
-    return sum + price * qty;
-  }, 0);
+
+  const availableAccessoriesTotal = (accessoriesWatch || []).reduce(
+    (sum, row) => {
+      const currentId = row?.accessoryId;
+      const found = accessoriesMaster.find(
+        (a) => String(a.accessoryId) === String(currentId)
+      );
+      const price = Number(found?.price || 0);
+      const qty = Number(row?.quantity || 0);
+      return sum + price * qty;
+    },
+    0
+  );
+
+  const purchaseAccessoriesTotal = (purchaseAccessoriesWatch || []).reduce(
+    (sum, row) => {
+      const qty = Number(row?.quantity || 0);
+      const price = Number(row?.purchasePrice || 0);
+      return sum + qty * price;
+    },
+    0
+  );
+
+  const internalAccessoriesTotal =
+    availableAccessoriesTotal + purchaseAccessoriesTotal;
 
   const extAccessoriesTotal = (extAccessoriesWatch || []).reduce(
     (sum, row) =>
@@ -229,38 +262,95 @@ export default function CreateInspectionReportScreen() {
     0
   );
 
+  const validateQuantityList = (rows, getQty, contextLabel) => {
+    for (const row of rows || []) {
+      const qty = Number(getQty(row));
+      if (!Number.isFinite(qty) || qty < 1) {
+        Toast.show({
+          type: 'error',
+          text1: 'Số lượng không hợp lệ',
+          text2: `Số lượng ${contextLabel} phải lớn hơn hoặc bằng 1.`,
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
   const onSubmit = async (values) => {
     try {
+      if (
+        !validateQuantityList(
+          accessoriesWatch,
+          (r) => r?.quantity,
+          'nguyên vật liệu trong kho'
+        )
+      )
+        return;
+
+      if (
+        !validateQuantityList(
+          purchaseAccessoriesWatch,
+          (r) => r?.quantity,
+          'nguyên vật liệu mua ngoài kho'
+        )
+      )
+        return;
+
+      if (
+        !validateQuantityList(
+          extAccessoriesWatch,
+          (r) => r?.quantity,
+          'nguyên vật liệu hóa đơn bên thứ ba'
+        )
+      )
+        return;
+
       if (isRepairOrReplace && rrIdNum) {
         const hasAcc =
           Array.isArray(accessoriesWatch) && accessoriesWatch.length > 0;
+        const hasPurchaseAcc =
+          Array.isArray(purchaseAccessoriesWatch) &&
+          purchaseAccessoriesWatch.length > 0;
         const hasSvc =
           Array.isArray(servicesWatch) && servicesWatch.length > 0;
 
-        if (isChargeable && !hasAcc && !hasSvc) {
+        if (isChargeable && !hasAcc && !hasPurchaseAcc && !hasSvc) {
           Toast.show({
             type: 'error',
             text1: 'Thiếu dữ liệu báo giá',
             text2:
-              'Với trường hợp sửa chữa / thay thế, cần ít nhất 1 dòng nguyên vật liệu hoặc công việc khi tính phí cư dân.',
+              'Với trường hợp sửa chữa / thay thế, cần ít nhất 1 dòng nguyên vật liệu hoặc công việc khi cư dân chịu phí.',
           });
           return;
         }
 
-        const invoicePayload = {
+        const availableAccessories = (accessoriesWatch || []).map((a) => ({
+          accessoryId: Number(a.accessoryId),
+          quantity: Number(a.quantity),
+        }));
+
+        const accessoriesToPurchase = (purchaseAccessoriesWatch || []).map(
+          (a) => ({
+            accessoryId: Number(a.accessoryId) || 0,
+            name: String(a.name || '').trim(),
+            quantity: Number(a.quantity) || 0,
+            purchasePrice: Number(a.purchasePrice) || 0,
+          })
+        );
+
+        const internalInvoicePayload = {
           repairRequestId: rrIdNum,
           isChargeable: !!isChargeable,
-          accessories: (accessoriesWatch || []).map((a) => ({
-            accessoryId: Number(a.accessoryId),
-            quantity: Number(a.quantity),
-          })),
+          availableAccessories,
+          accessoriesToPurchase,
           services: (servicesWatch || []).map((s) => ({
             name: String(s.name || '').trim(),
             price: Number(s.price),
           })),
         };
 
-        await dispatch(createInternalInvoice(invoicePayload)).unwrap();
+        await dispatch(createInternalInvoice(internalInvoicePayload)).unwrap();
       }
 
       if (showExternalInvoice && rrIdNum) {
@@ -274,7 +364,7 @@ export default function CreateInspectionReportScreen() {
             type: 'error',
             text1: 'Thiếu dữ liệu hóa đơn bên thứ ba',
             text2:
-              'Khi tính phí cư dân, cần ít nhất 1 dòng nguyên vật liệu hoặc công việc.',
+              'Khi cư dân chịu phí, cần ít nhất 1 dòng nguyên vật liệu hoặc công việc.',
           });
           return;
         }
@@ -292,9 +382,11 @@ export default function CreateInspectionReportScreen() {
             price: Number(s.price) || 0,
           })),
         };
+
         await dispatch(createExternalInvoice(externalInvoicePayload)).unwrap();
       }
 
+      // 3) Báo cáo khảo sát
       const filesCompressed = await compressMany(images, {
         maxWidth: 1280,
         quality: 0.7,
@@ -313,7 +405,7 @@ export default function CreateInspectionReportScreen() {
 
       let extraText;
       if (isRepairOrReplace && rrIdNum) {
-        extraText = 'Báo giá nội bộ kèm theo đã được tạo.';
+        extraText = 'Biên lai nội bộ kèm theo đã được tạo.';
       } else if (showExternalInvoice) {
         extraText = 'Hóa đơn bên thứ ba đã được tạo.';
       }
@@ -464,11 +556,8 @@ export default function CreateInspectionReportScreen() {
             </View>
 
             <View style={styles.fieldRow}>
-              <Text style={styles.label}>Tính phí cho cư dân</Text>
-              <Pressable
-                onPress={() => setIsChargeable((v) => !v)}
-                style={styles.chargeableChip}
-              >
+              <Text style={styles.label}>Đối tượng chịu phí</Text>
+              <View style={styles.chargeableChip}>
                 <View
                   style={[
                     styles.dot,
@@ -476,17 +565,15 @@ export default function CreateInspectionReportScreen() {
                   ]}
                 />
                 <Text style={styles.chargeableText}>
-                  {isChargeable
-                    ? 'Có – cư dân chịu phí'
-                    : 'Không – tòa nhà chịu phí'}
+                  {isChargeable ? 'Cư dân chịu phí (Lỗi cư dân)' : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
                 </Text>
-              </Pressable>
+              </View>
             </View>
 
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Icon name="wrench" size={18} color={appleBlue} />
-                <Text style={styles.cardTitle}>Nguyên vật liệu</Text>
+                <Text style={styles.cardTitle}>Thiết bị / vật tư trong kho</Text>
               </View>
 
               <View style={{ marginBottom: 10 }}>
@@ -577,7 +664,7 @@ export default function CreateInspectionReportScreen() {
                       control={control}
                       name={`accessories.${idx}.quantity`}
                       render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ width: 110 }}>
+                        <View style={{ width: 70 }}>
                           <Text style={styles.smallLabel}>Số lượng</Text>
                           <TextInput
                             value={String(value ?? '')}
@@ -592,6 +679,141 @@ export default function CreateInspectionReportScreen() {
                     />
 
                     <Pressable onPress={() => accRemove(idx)} style={styles.delBtn}>
+                      <Icon name="trash" size={18} color="#B91C1C" />
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Icon name="cart" size={18} color={appleBlue} />
+                <Text style={styles.cardTitle}>Mua nguyên vật liệu ngoài kho</Text>
+                <Pressable
+                  onPress={() =>
+                    purchaseAccAppend({
+                      accessoryId: '',
+                      name: '',
+                      quantity: '',
+                      purchasePrice: '',
+                    })
+                  }
+                  style={styles.addBtn}
+                >
+                  <Icon name="plus.circle" size={18} color={appleBlue} />
+                  <Text style={styles.addTxt}>Thêm dòng trống</Text>
+                </Pressable>
+              </View>
+
+              <View style={{ marginBottom: 10 }}>
+                <Text style={styles.smallLabel}>Tìm theo tên (từ danh sách kho)</Text>
+                <TextInput
+                  value={purchaseAccSearch}
+                  onChangeText={setPurchaseAccSearch}
+                  placeholder="Nhập tên nguyên vật liệu..."
+                  style={styles.input}
+                />
+                {purchaseAccSearch.length > 0 &&
+                  filteredPurchaseAccessories.length > 0 && (
+                    <View style={styles.suggestionBox}>
+                      {filteredPurchaseAccessories.slice(0, 5).map((acc) => (
+                        <Pressable
+                          key={acc.accessoryId}
+                          style={styles.suggestionItem}
+                          onPress={() => {
+                            purchaseAccAppend({
+                              accessoryId: String(acc.accessoryId),
+                              name: acc.name || '',
+                              quantity: 1,
+                              purchasePrice: acc.price || 0,
+                            });
+                            setPurchaseAccSearch('');
+                          }}
+                        >
+                          <Text style={styles.suggestionName}>{acc.name}</Text>
+                          <Text style={styles.suggestionMeta}>
+                            #{acc.accessoryId} ·{' '}
+                            {Number(acc.price || 0).toLocaleString('vi-VN')} đ
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+              </View>
+
+              {purchaseAccFields.length === 0 ? (
+                <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ color: zincColors[500] }}>
+                    Chưa có dòng mua ngoài nào.
+                  </Text>
+                </View>
+              ) : null}
+
+              {purchaseAccFields.map((row, idx) => {
+                const formRow = purchaseAccessoriesWatch?.[idx];
+
+                return (
+                  <View key={row.id} style={styles.rowBlock}>
+                    <View style={{ flex: 1.6 }}>
+                      <Text style={styles.smallLabel}>Tên nguyên vật liệu</Text>
+                      <Controller
+                        control={control}
+                        name={`purchaseAccessories.${idx}.name`}
+                        render={({ field: { value, onChange, onBlur } }) => (
+                          <TextInput
+                            value={value}
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            placeholder="VD: Ống nước PVC 27mm"
+                            style={styles.input}
+                          />
+                        )}
+                      />
+                    </View>
+
+                    <View style={{ width: 60 }}>
+                      <Text style={styles.smallLabel}>SL</Text>
+                      <Controller
+                        control={control}
+                        name={`purchaseAccessories.${idx}.quantity`}
+                        render={({ field: { value, onChange, onBlur } }) => (
+                          <TextInput
+                            value={String(value ?? '')}
+                            onBlur={onBlur}
+                            onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                            keyboardType="numeric"
+                            placeholder="1"
+                            style={styles.input}
+                          />
+                        )}
+                      />
+                    </View>
+
+                    <View style={{ width: 100 }}>
+                      <Text style={styles.smallLabel}>Giá mua</Text>
+                      <Controller
+                        control={control}
+                        name={`purchaseAccessories.${idx}.purchasePrice`}
+                        render={({ field: { value, onChange, onBlur } }) => (
+                          <TextInput
+                            value={String(value ?? '')}
+                            onBlur={onBlur}
+                            onChangeText={(t) =>
+                              onChange(t.replace(/[^\d.]/g, ''))
+                            }
+                            keyboardType="decimal-pad"
+                            placeholder="0"
+                            style={styles.input}
+                          />
+                        )}
+                      />
+                    </View>
+
+                    <Pressable
+                      onPress={() => purchaseAccRemove(idx)}
+                      style={styles.delBtn}
+                    >
                       <Icon name="trash" size={18} color="#B91C1C" />
                     </Pressable>
                   </View>
@@ -643,7 +865,7 @@ export default function CreateInspectionReportScreen() {
                     control={control}
                     name={`services.${idx}.price`}
                     render={({ field: { value, onChange, onBlur } }) => (
-                      <View style={{ width: 140 }}>
+                      <View style={{ width: 100 }}>
                         <Text style={styles.smallLabel}>Giá</Text>
                         <TextInput
                           value={String(value ?? '')}
@@ -671,7 +893,7 @@ export default function CreateInspectionReportScreen() {
                 Tổng tiền nguyên vật liệu (nháp)
               </Text>
               <Text style={styles.totalValue}>
-                {accessoriesTotal.toLocaleString('vi-VN')} đ
+                {internalAccessoriesTotal.toLocaleString('vi-VN')} đ
               </Text>
 
               <View style={{ height: 8 }} />
@@ -691,15 +913,18 @@ export default function CreateInspectionReportScreen() {
               >
                 <Text style={styles.totalLabel}>Tổng tiền tạm tính</Text>
                 <Text style={styles.totalValue}>
-                  {(accessoriesTotal + servicesTotal).toLocaleString('vi-VN')} đ
+                  {(internalAccessoriesTotal + servicesTotal).toLocaleString(
+                    'vi-VN'
+                  )}{' '}
+                  đ
                 </Text>
               </View>
 
               <View style={{ marginTop: 8 }}>
                 <Text style={styles.smallLabel}>
                   {isChargeable
-                    ? '(Cư dân thanh toán)'
-                    : '(Tòa nhà thanh toán)'}
+                    ? '(Cư dân thanh toán – lỗi cư dân)'
+                    : '(Tòa nhà thanh toán – lỗi tòa nhà)'}
                 </Text>
               </View>
             </View>
@@ -716,11 +941,8 @@ export default function CreateInspectionReportScreen() {
             </View>
 
             <View style={styles.fieldRow}>
-              <Text style={styles.label}>Tính phí cho cư dân</Text>
-              <Pressable
-                onPress={() => setIsChargeable((v) => !v)}
-                style={styles.chargeableChip}
-              >
+              <Text style={styles.label}>Đối tượng chịu phí</Text>
+              <View style={styles.chargeableChip}>
                 <View
                   style={[
                     styles.dot,
@@ -728,11 +950,9 @@ export default function CreateInspectionReportScreen() {
                   ]}
                 />
                 <Text style={styles.chargeableText}>
-                  {isChargeable
-                    ? 'Có – cư dân chịu phí'
-                    : 'Không – tòa nhà chịu phí'}
+                  {isChargeable ? 'Cư dân chịu phí (Lỗi cư dân)' : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
                 </Text>
-              </Pressable>
+              </View>
             </View>
 
             <View style={styles.card}>
@@ -865,7 +1085,7 @@ export default function CreateInspectionReportScreen() {
                     control={control}
                     name={`extServices.${idx}.price`}
                     render={({ field: { value, onChange, onBlur } }) => (
-                      <View style={{ width: 100 }}>
+                      <View style={{ width: 70 }}>
                         <Text style={styles.smallLabel}>Giá</Text>
                         <TextInput
                           value={String(value ?? '')}
@@ -924,8 +1144,8 @@ export default function CreateInspectionReportScreen() {
               <View style={{ marginTop: 8 }}>
                 <Text style={styles.smallLabel}>
                   {isChargeable
-                    ? '(Cư dân thanh toán)'
-                    : '(Tòa nhà thanh toán)'}
+                    ? '(Cư dân thanh toán – lỗi cư dân)'
+                    : '(Tòa nhà thanh toán – lỗi tòa nhà)'}
                 </Text>
               </View>
             </View>

@@ -63,6 +63,13 @@ import InvoiceListItem from '@/src/components/InvoiceListItem';
 import { getRequest, selectCurrentRequest } from '@/src/features/requests/requestsSlice';
 import AcceptanceAfterDaysPicker from '@/src/components/AcceptanceAfterDaysPicker';
 import { pretty } from '@/src/helper/prettyLog';
+import {
+  fetchRepairRequestTasksByRepairRequest,
+  selectTasksByRepairRequestId,
+  selectTasksLoadingByRepairRequestId,
+  selectTasksErrorByRepairRequestId,
+} from '@/src/features/repairRequestTasks/repairRequestTasksSlice';
+
 const THEME = Colors.light;
 const OWNER_LABEL = {
   BuildingFault: 'Lỗi tòa nhà',
@@ -119,6 +126,7 @@ export default function AppointmentDetailsScreen() {
   const repairReportsById = useAppSelector((s) => s.repairReports.byId);
 
   const repairRequestId = appointment?.repairRequest?.repairRequestId;
+
   const invoices = useAppSelector((state) =>
     repairRequestId
       ? selectInvoicesByRepairRequest(state, repairRequestId)
@@ -140,6 +148,24 @@ export default function AppointmentDetailsScreen() {
   );
   const currentRequest = useAppSelector(selectCurrentRequest);
 
+  const commonArea = appointment?.repairRequest?.commonArea;
+  const isMaintenance =
+    !!appointment?.repairRequest?.maintenanceScheduleId || !!commonArea;
+
+  const maintenanceTasks = useAppSelector((s) =>
+    repairRequestId ? selectTasksByRepairRequestId(s, repairRequestId) : []
+  );
+  const maintenanceTasksLoading = useAppSelector((s) =>
+    repairRequestId
+      ? selectTasksLoadingByRepairRequestId(s, repairRequestId)
+      : false
+  );
+  const maintenanceTasksError = useAppSelector((s) =>
+    repairRequestId
+      ? selectTasksErrorByRepairRequestId(s, repairRequestId)
+      : null
+  );
+
   useEffect(() => {
     if (id) {
       dispatch(fetchAppointmentById(id));
@@ -155,8 +181,12 @@ export default function AppointmentDetailsScreen() {
     }
   }, [repairRequestId, dispatch]);
 
-  const isMaintenance = !!appointment?.repairRequest?.maintenanceScheduleId;
-  const commonArea = appointment?.repairRequest?.commonArea;
+  useEffect(() => {
+    if (repairRequestId && isMaintenance) {
+      dispatch(fetchRepairRequestTasksByRepairRequest(repairRequestId));
+    }
+  }, [repairRequestId, isMaintenance, dispatch]);
+
   const {
     hasPreviousAppointment,
     appointmentIndex,
@@ -283,7 +313,8 @@ export default function AppointmentDetailsScreen() {
       return t2 > t1 ? cur : latest;
     }, list[0]);
   }, [repairReportIds, repairReportsById]);
-   const acceptanceBaseDateStr = useMemo(() => {
+
+  const acceptanceBaseDateStr = useMemo(() => {
     if (!lastRepairReport || lastRepairReport.status !== 'Approved') return null;
     return (
       lastRepairReport.approvedAt ||
@@ -292,6 +323,7 @@ export default function AppointmentDetailsScreen() {
       null
     );
   }, [lastRepairReport]);
+
   const solutionTypeRaw = inspectionInfo?.solutionType;
   const solutionTypeNorm =
     solutionTypeRaw === 1 || solutionTypeRaw === 'Repair'
@@ -316,7 +348,6 @@ export default function AppointmentDetailsScreen() {
     return undefined;
   }, [inspectionInfo]);
 
-  // Scenario code (1002–1007) từ first inspection info
   const scenarioCode = useMemo(() => {
     if (!solutionTypeNorm || !faultOwnerNorm) return null;
     if (solutionTypeNorm === 'Repair' && faultOwnerNorm === 'BuildingFault')
@@ -334,7 +365,6 @@ export default function AppointmentDetailsScreen() {
     return null;
   }, [solutionTypeNorm, faultOwnerNorm]);
 
-  // Flags
   const hasInspectionReportForThisAppt =
     inspectionReportIds && inspectionReportIds.length > 0;
   const hasAnyInspectionReport = !!inspectionInfo;
@@ -345,7 +375,6 @@ export default function AppointmentDetailsScreen() {
   const inspectionApproved = lastInspectionReportForThisAppt?.status === 'Approved';
   const repairApproved = lastRepairReport?.status === 'Approved';
 
-  // Flow: tạo báo giá sớm (1002–1005) (không outsource, có inspectionInfo, chưa có invoice, InVisit/Await...)
   const canCreateInvoiceNow =
     !!repairRequestId &&
     !isOutsource &&
@@ -355,7 +384,6 @@ export default function AppointmentDetailsScreen() {
     (appointment?.status === 'InVisit' ||
       appointment?.status === 'AwaitingIRApproval');
 
-  // Refresh
   const onRefresh = useCallback(async () => {
     if (!id) return;
     setRefreshing(true);
@@ -376,6 +404,14 @@ export default function AppointmentDetailsScreen() {
         promises.push(
           dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap()
         );
+
+        if (isMaintenance) {
+          promises.push(
+            dispatch(
+              fetchRepairRequestTasksByRepairRequest(repairRequestId)
+            ).unwrap()
+          );
+        }
       }
 
       if (
@@ -400,9 +436,8 @@ export default function AppointmentDetailsScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [id, repairRequestId, baseInspectionAppointmentId, dispatch]);
+  }, [id, repairRequestId, baseInspectionAppointmentId, isMaintenance, dispatch]);
 
-  // Khi màn hình focus → auto refresh
   useFocusEffect(
     useCallback(() => {
       onRefresh();
@@ -410,7 +445,6 @@ export default function AppointmentDetailsScreen() {
     }, [onRefresh])
   );
 
-  // Đánh dấu initialLoaded khi tất cả data cần thiết xong
   useEffect(() => {
     if (initialLoaded) return;
 
@@ -693,7 +727,6 @@ export default function AppointmentDetailsScreen() {
     });
   };
 
-  // Pipeline & timeline
   const PIPELINE = [
     'Pending',
     'Assigned',
@@ -741,11 +774,9 @@ export default function AppointmentDetailsScreen() {
     return max;
   }
 
-  // ====== RENDER ======
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
@@ -789,7 +820,6 @@ export default function AppointmentDetailsScreen() {
         </View>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabContainer}>
         {['details', 'updates', 'chat'].map((tab) => (
           <Pressable
@@ -888,7 +918,52 @@ export default function AppointmentDetailsScreen() {
                 />
               </View>
             </View>
+            {isMaintenance && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Công việc bảo trì</Text>
 
+                {maintenanceTasksLoading ? (
+                  <Text
+                    style={{ color: zincColors[500], marginLeft: 40 }}
+                  >
+                    Đang tải checklist nhiệm vụ…
+                  </Text>
+                ) : maintenanceTasksError ? (
+                  <Text style={styles.invoiceError}>
+                    {maintenanceTasksError}
+                  </Text>
+                ) : !maintenanceTasks || maintenanceTasks.length === 0 ? (
+                  <Text
+                    style={{ color: zincColors[500], marginLeft: 40 }}
+                  >
+                    Chưa có nhiệm vụ nào trong checklist.
+                  </Text>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    {maintenanceTasks.map((task) => (
+                      <View
+                        key={task.repairRequestTaskId}
+                        style={styles.taskItem}
+                      >
+                        <View style={styles.taskHeaderRow}>
+                          <Text style={styles.taskName}>
+                            {task.taskName || 'Nhiệm vụ'}
+                          </Text>
+                          {task.status ? (
+                            <Badge status={task.status} />
+                          ) : null}
+                        </View>
+                        {task.taskDescription ? (
+                          <Text style={styles.taskDescription}>
+                            {task.taskDescription}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Báo cáo khảo sát</Text>
               {inspectionReportLoading ? (
@@ -1048,7 +1123,6 @@ export default function AppointmentDetailsScreen() {
                 )}
               </View>
             </View>
-
           </View>
         )}
 
@@ -1406,6 +1480,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
     maxWidth: '55%',
+  },
+
+  taskItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: zincColors[100],
+  },
+  taskHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  taskName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  taskDescription: {
+    fontSize: 13,
+    color: zincColors[700],
+    lineHeight: 18,
   },
 
   timeline: { paddingLeft: 8, marginTop: 6 },

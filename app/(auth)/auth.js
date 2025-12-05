@@ -322,7 +322,7 @@ export default function AuthScreen() {
               AptCare
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 15 }}>
-              Sửa chữa, bảo trì thông minh cho cuộc sống căn hộ
+              Sửa chữa, bảo trì cho cuộc sống căn hộ
             </Text>
           </View>
           {/* tabHeader */}

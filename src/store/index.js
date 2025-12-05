@@ -16,6 +16,7 @@ import notifications from '@/src/features/notifications/notificationsSlice';
 import feedbacks from '@/src/features/feedback/feedbacksSlice';
 import report from '@/src/features/report/reportSlice';
 import commonAreas from '@/src/features/commonArea/commonAreasSlice';
+import repairRequestTasks from '@/src/features/repairRequestTasks/repairRequestTasksSlice';
 // --- Chỉ persist "user" của auth (KHÔNG persist status/error/token)
 const authTransform = createTransform(
   (inboundState) => ({ user: inboundState.user }),
@@ -45,6 +46,7 @@ const rootReducer = combineReducers({
   feedbacks,
   report,
   commonAreas,
+  repairRequestTasks,
 });
 
 const persistConfig = {
