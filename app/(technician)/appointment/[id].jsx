@@ -1248,7 +1248,7 @@ export default function AppointmentDetailsScreen() {
             />
             <Text style={styles.primaryBtnText}>
               {hasInspectionReportForThisAppt
-                ? 'Thêm báo cáo k/sát'
+                ? 'Thêm báo cáo khảo sát'
                 : 'Báo cáo khảo sát'}
             </Text>
           </Pressable>

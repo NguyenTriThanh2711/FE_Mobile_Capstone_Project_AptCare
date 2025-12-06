@@ -36,10 +36,42 @@ export const fetchRepairRequestTasksByRepairRequest = createAsyncThunk(
   }
 );
 
+export const updateRepairRequestTasksBatch = createAsyncThunk(
+  'repairRequestTasks/batchUpdate',
+  async ({ repairRequestId, items }, { rejectWithValue }) => {
+    try {
+      const { data } = await http.put(
+        `/api/repairrequesttasks/repair-request/${repairRequestId}/batch-update`,
+        items
+      );
+
+      return {
+        repairRequestId: Number(repairRequestId),
+        message: data,
+      };
+    } catch (err) {
+      const res = err?.response;
+      const message =
+        res?.data?.detail ||
+        res?.data?.message ||
+        res?.data ||
+        err?.message ||
+        'Cập nhật checklist nhiệm vụ thất bại';
+
+      return rejectWithValue({
+        repairRequestId: Number(repairRequestId),
+        status: res?.status,
+        message,
+      });
+    }
+  }
+);
 const initialState = {
   byRepairRequestId: {},
   loadingByRepairRequestId: {},
   errorByRepairRequestId: {},
+  updatingByRepairRequestId: {},
+  updateErrorByRepairRequestId: {},
 };
 
 const repairRequestTasksSlice = createSlice({
@@ -52,6 +84,8 @@ const repairRequestTasksSlice = createSlice({
       delete state.byRepairRequestId[id];
       delete state.loadingByRepairRequestId[id];
       delete state.errorByRepairRequestId[id];
+      delete state.updatingByRepairRequestId[id];
+      delete state.updateErrorByRepairRequestId[id];
     },
   },
   extraReducers: (builder) => {
@@ -81,6 +115,33 @@ const repairRequestTasksSlice = createSlice({
         state.loadingByRepairRequestId[id] = false;
         state.errorByRepairRequestId[id] =
           action.payload?.message || action.error?.message || 'Lỗi lấy checklist';
+      })
+
+      // updateRepairRequestTasksBatch
+      .addCase(updateRepairRequestTasksBatch.pending, (state, action) => {
+        const id = Number(action.meta.arg?.repairRequestId);
+        if (!Number.isFinite(id)) return;
+        state.updatingByRepairRequestId[id] = true;
+        state.updateErrorByRepairRequestId[id] = null;
+      })
+      .addCase(updateRepairRequestTasksBatch.fulfilled, (state, action) => {
+        const id = Number(action.payload?.repairRequestId);
+        if (!Number.isFinite(id)) return;
+        state.updatingByRepairRequestId[id] = false;
+        state.updateErrorByRepairRequestId[id] = null;
+        // tuỳ nếu BE trả lại tasks mới thì mình có thể merge,
+        // hiện tại API docs nói trả về string -> không cập nhật byRepairRequestId ở đây.
+      })
+      .addCase(updateRepairRequestTasksBatch.rejected, (state, action) => {
+        const id = Number(
+          action.payload?.repairRequestId ?? action.meta.arg?.repairRequestId
+        );
+        if (!Number.isFinite(id)) return;
+        state.updatingByRepairRequestId[id] = false;
+        state.updateErrorByRepairRequestId[id] =
+          action.payload?.message ||
+          action.error?.message ||
+          'Cập nhật checklist nhiệm vụ thất bại';
       });
   },
 });
@@ -102,5 +163,15 @@ export const selectTasksErrorByRepairRequestId = (state, repairRequestId) => {
   if (!Number.isFinite(id)) return null;
   return state.repairRequestTasks?.errorByRepairRequestId?.[id] || null;
 };
+export const selectTasksUpdatingByRepairRequestId = (state,repairRequestId) => {
+  const id = Number(repairRequestId);
+  if (!Number.isFinite(id)) return false;
+  return !!state.repairRequestTasks?.updatingByRepairRequestId?.[id];
+};
 
+export const selectTasksUpdateErrorByRepairRequestId = (state,repairRequestId) => {
+  const id = Number(repairRequestId);
+  if (!Number.isFinite(id)) return null;
+  return state.repairRequestTasks?.updateErrorByRepairRequestId?.[id] || null;
+};
 export default repairRequestTasksSlice.reducer;

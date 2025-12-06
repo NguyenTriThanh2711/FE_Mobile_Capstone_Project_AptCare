@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
+import { pretty } from '@/src/helper/prettyLog';
 
 export const fetchInvoicesByRepairRequestId = createAsyncThunk(
   'invoices/fetchByRepairRequestId',
@@ -24,8 +25,9 @@ export const createInternalInvoice = createAsyncThunk(
   'invoices/createInternal',
   async (payload, { rejectWithValue }) => {
     try {
-      const res = await http.post(`/api/invoices/internal`, payload);
-      return res.data;
+      console.log('[payload]',pretty(payload));
+       const res = await http.post(`/api/invoices/internal`, payload);
+       return res.data;
     } catch (err) {
       const msg =
         err?.response?.data?.detail ||

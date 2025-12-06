@@ -24,6 +24,7 @@ const PALETTE = {
   acceptancePendingVerify: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng nhạt
   paid: { bg: '#34C759', fg: '#FFFFFF' }, // xanh lá
   externalContractor: { bg: '#800080', fg: '#FFFFFF' }, // tím
+  accessoryPurchase: { bg: '#c7d2fe', fg: '#FFFFF' }, // vàng nhạt
 };
 
 const STATUS_LABEL = {
@@ -44,7 +45,8 @@ const STATUS_LABEL = {
   InRepair:   'Đang sửa chữa',
   Working:     'Đang trong ca',
   Confirmed:   'Đã xác nhận',
-  AwaitingIRApproval: 'Chờ duyệt b/cáo',
+  AwaitingIRApproval: 'Chờ duyệt báo cáo',
+  AccessoryPurchase: 'Mua vật liệu',
   Draft : 'Bản nháp',
   AwaitingPayment: 'Chờ thanh toán',
   Scheduling : 'Đang lên lịch',
@@ -103,6 +105,8 @@ function mapStatusToTone(status) {
       return 'paid';
     case 'ExternalContractor':
       return 'externalContractor';
+    case 'AccessoryPurchase':
+      return 'accessoryPurchase';
     default:
       return 'muted';
   }

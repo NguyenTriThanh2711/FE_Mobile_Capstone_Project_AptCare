@@ -21,7 +21,7 @@ import { Colors, zincColors, appleBlue, borderColor } from '@/src/utils/colors';
 import { compressMany } from '@/src/utils/imageCompression';
 import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { generateInspectionReport } from '@/src/features/inspectionReport/inspectionRPSlice';
-import { useAppDispatch } from '@/src/store';
+import { useAppDispatch, useAppSelector } from '@/src/store';
 import http from '@/src/services/http';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import {
@@ -30,9 +30,15 @@ import {
 } from '@/src/features/invoices/invoiceSlice';
 import { fetchAppointmentById } from '@/src/features/appointments/appointmentsSlice';
 import { pretty } from '@/src/helper/prettyLog';
+import {
+  fetchRepairRequestTasksByRepairRequest,
+  selectTasksByRepairRequestId,
+  selectTasksLoadingByRepairRequestId,
+  selectTasksErrorByRepairRequestId,
+  updateRepairRequestTasksBatch,
+} from '@/src/features/repairRequestTasks/repairRequestTasksSlice';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
-
 const ACCESSORY_LIST_ENDPOINT = '/api/accessorys/list';
 
 const FaultOwner = {
@@ -110,6 +116,21 @@ export default function CreateInspectionReportScreen() {
   const [accSearch, setAccSearch] = useState('');
   const [purchaseAccSearch, setPurchaseAccSearch] = useState('');
 
+  const [includeInternalInvoice, setIncludeInternalInvoice] = useState(false);
+
+  const maintenanceTasksFromStore = useAppSelector((s) =>
+    rrIdNum ? selectTasksByRepairRequestId(s, rrIdNum) : []
+  );
+  const maintenanceTasksLoading = useAppSelector((s) =>
+    rrIdNum ? selectTasksLoadingByRepairRequestId(s, rrIdNum) : false
+  );
+  const maintenanceTasksError = useAppSelector((s) =>
+    rrIdNum ? selectTasksErrorByRepairRequestId(s, rrIdNum) : null
+  );
+  const isMaintenance =
+    Array.isArray(maintenanceTasksFromStore) &&
+    maintenanceTasksFromStore.length > 0;
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -136,6 +157,11 @@ export default function CreateInspectionReportScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!rrIdNum) return;
+    dispatch(fetchRepairRequestTasksByRepairRequest(rrIdNum));
+  }, [rrIdNum, dispatch]);
+
   const {
     control,
     handleSubmit,
@@ -149,11 +175,12 @@ export default function CreateInspectionReportScreen() {
       solutionType: SolutionType.Repair,
       description: '',
       solution: '',
-      accessories: [],        
-      purchaseAccessories: [],  
+      accessories: [],
+      purchaseAccessories: [],
       services: [],
       extAccessories: [],
       extServices: [],
+      maintenanceTasks: [],
     },
   });
 
@@ -164,8 +191,19 @@ export default function CreateInspectionReportScreen() {
   const servicesWatch = watch('services') || [];
   const extAccessoriesWatch = watch('extAccessories') || [];
   const extServicesWatch = watch('extServices') || [];
+  const maintenanceTasksWatch = watch('maintenanceTasks') || [];
 
+  const isOutsource = solutionTypeWatch === SolutionType.Outsource;
+  const isRepairOrReplace =
+    solutionTypeWatch === SolutionType.Repair ||
+    solutionTypeWatch === SolutionType.Replacement;
   const isChargeable = faultOwnerWatch === FaultOwner.ResidentFault;
+
+  const canInternalInvoice = isRepairOrReplace && !!rrIdNum;
+  const showInternalInvoice = isMaintenance
+    ? canInternalInvoice && includeInternalInvoice
+    : canInternalInvoice;
+  const showExternalInvoice = isOutsource && isSecondOrLaterBool;
 
   const {
     fields: accFields,
@@ -197,13 +235,26 @@ export default function CreateInspectionReportScreen() {
     remove: extSvcRemove,
   } = useFieldArray({ control, name: 'extServices' });
 
-  const isOutsource = solutionTypeWatch === SolutionType.Outsource;
-  const isRepairOrReplace =
-    solutionTypeWatch === SolutionType.Repair ||
-    solutionTypeWatch === SolutionType.Replacement;
+  const {
+    fields: maintenanceTaskFields,
+    replace: maintenanceTasksReplace,
+  } = useFieldArray({ control, name: 'maintenanceTasks' });
 
-  const showInternalInvoice = isRepairOrReplace && !!rrIdNum;
-  const showExternalInvoice = isOutsource && isSecondOrLaterBool;
+  useEffect(() => {
+    if (!maintenanceTasksFromStore || !maintenanceTasksFromStore.length) {
+      maintenanceTasksReplace([]);
+      return;
+    }
+    const mapped = maintenanceTasksFromStore.map((t) => ({
+      repairRequestTaskId: t.repairRequestTaskId,
+      taskName: t.taskName || '',
+      taskDescription: t.taskDescription || '',
+      status: t.status || 'Pending',
+      technicianNote: '',
+      inspectionResult: '',
+    }));
+    maintenanceTasksReplace(mapped);
+  }, [maintenanceTasksFromStore, maintenanceTasksReplace]);
 
   const filteredAccessories = useMemo(() => {
     const keyword = accSearch.trim().toLowerCase();
@@ -279,34 +330,67 @@ export default function CreateInspectionReportScreen() {
 
   const onSubmit = async (values) => {
     try {
-      if (
-        !validateQuantityList(
-          accessoriesWatch,
-          (r) => r?.quantity,
-          'nguyên vật liệu trong kho'
-        )
-      )
-        return;
+      if (isMaintenance && rrIdNum) {
+        if (!maintenanceTasksWatch.length) {
+          Toast.show({
+            type: 'error',
+            text1: 'Thiếu checklist nhiệm vụ',
+            text2: 'Không tìm thấy nhiệm vụ bảo trì nào để cập nhật.',
+          });
+          return;
+        }
 
-      if (
-        !validateQuantityList(
-          purchaseAccessoriesWatch,
-          (r) => r?.quantity,
-          'nguyên vật liệu mua ngoài kho'
-        )
-      )
-        return;
+        const hasPending = maintenanceTasksWatch.some(
+          (t) => !t.status || t.status === 'Pending'
+        );
+        if (hasPending) {
+          Toast.show({
+            type: 'error',
+            text1: 'Chưa cập nhật đủ checklist',
+            text2:
+              'Vui lòng cập nhật trạng thái tất cả nhiệm vụ (không để "Chưa thực hiện").',
+          });
+          return;
+        }
 
-      if (
-        !validateQuantityList(
-          extAccessoriesWatch,
-          (r) => r?.quantity,
-          'nguyên vật liệu hóa đơn bên thứ ba'
-        )
-      )
-        return;
+        const batchItems = maintenanceTasksWatch.map((t) => ({
+          repairRequestTaskId: Number(t.repairRequestTaskId),
+          status: t.status,
+          technicianNote: String(t.technicianNote || '').trim(),
+          inspectionResult: String(t.inspectionResult || '').trim(),
+        }));
 
-      if (isRepairOrReplace && rrIdNum) {
+        await dispatch(
+          updateRepairRequestTasksBatch({
+            repairRequestId: rrIdNum,
+            items: batchItems,
+          })
+        ).unwrap();
+      }
+
+      const shouldCreateInternalInvoice =
+        (!isMaintenance && canInternalInvoice) ||
+        (isMaintenance && canInternalInvoice && includeInternalInvoice);
+
+      if (shouldCreateInternalInvoice) {
+        if (
+          !validateQuantityList(
+            accessoriesWatch,
+            (r) => r?.quantity,
+            'nguyên vật liệu trong kho'
+          )
+        )
+          return;
+
+        if (
+          !validateQuantityList(
+            purchaseAccessoriesWatch,
+            (r) => r?.quantity,
+            'nguyên vật liệu mua ngoài kho'
+          )
+        )
+          return;
+
         const hasAcc =
           Array.isArray(accessoriesWatch) && accessoriesWatch.length > 0;
         const hasPurchaseAcc =
@@ -354,6 +438,15 @@ export default function CreateInspectionReportScreen() {
       }
 
       if (showExternalInvoice && rrIdNum) {
+        if (
+          !validateQuantityList(
+            extAccessoriesWatch,
+            (r) => r?.quantity,
+            'nguyên vật liệu hóa đơn bên thứ ba'
+          )
+        )
+          return;
+
         const hasExtAcc =
           Array.isArray(extAccessoriesWatch) && extAccessoriesWatch.length > 0;
         const hasExtSvc =
@@ -386,7 +479,6 @@ export default function CreateInspectionReportScreen() {
         await dispatch(createExternalInvoice(externalInvoicePayload)).unwrap();
       }
 
-      // 3) Báo cáo khảo sát
       const filesCompressed = await compressMany(images, {
         maxWidth: 1280,
         quality: 0.7,
@@ -403,20 +495,23 @@ export default function CreateInspectionReportScreen() {
       };
       await dispatch(generateInspectionReport(reportPayload)).unwrap();
 
-      let extraText;
-      if (isRepairOrReplace && rrIdNum) {
-        extraText = 'Biên lai nội bộ kèm theo đã được tạo.';
+      let extraText = '';
+      if (isMaintenance && rrIdNum) {
+        extraText += 'Checklist bảo trì đã được cập nhật. ';
+      }
+      if (shouldCreateInternalInvoice) {
+        extraText += 'Báo giá / hoá đơn nội bộ kèm theo đã được tạo.';
       } else if (showExternalInvoice) {
-        extraText = 'Hóa đơn bên thứ ba đã được tạo.';
+        extraText += 'Hóa đơn bên thứ ba đã được tạo.';
       }
 
       Toast.show({
         type: 'success',
         text1: 'Đã tạo báo cáo khảo sát',
-        text2: extraText,
+        text2: extraText || undefined,
       });
       dispatch(fetchAppointmentById(Number(appointmentId)));
-      router.back();
+      // router.back();
     } catch (err) {
       console.log('[inspection + invoice error]', pretty(err?.response || err));
 
@@ -540,6 +635,124 @@ export default function CreateInspectionReportScreen() {
           <Text style={styles.errText}>{errors.solution.message}</Text>
         )}
 
+        {isMaintenance && (
+          <View style={[styles.invoiceBlock, { marginTop: 12 }]}>
+            <Text style={styles.invoiceTitle}>Checklist bảo trì khu vực chung</Text>
+            <Text style={styles.invoiceSub}>
+              Cập nhật trạng thái cho từng nhiệm vụ trước khi tạo báo cáo khảo sát.
+            </Text>
+
+            {maintenanceTasksLoading ? (
+              <Text style={{ color: zincColors[500], marginTop: 8 }}>
+                Đang tải danh sách nhiệm vụ...
+              </Text>
+            ) : maintenanceTasksError ? (
+              <Text style={{ color: '#B91C1C', marginTop: 8 }}>
+                {String(maintenanceTasksError)}
+              </Text>
+            ) : maintenanceTaskFields.length === 0 ? (
+              <Text style={{ color: zincColors[500], marginTop: 8 }}>
+                Chưa có nhiệm vụ bảo trì nào cho yêu cầu này.
+              </Text>
+            ) : (
+              maintenanceTaskFields.map((row, idx) => {
+                const formRow = maintenanceTasksWatch[idx] || {};
+                return (
+                  <View key={row.id} style={styles.maintenanceCard}>
+                    <Text style={styles.maintenanceTaskTitle}>
+                      {formRow.taskName || `Nhiệm vụ #${idx + 1}`}
+                    </Text>
+                    {!!formRow.taskDescription && (
+                      <Text style={styles.maintenanceTaskDesc}>
+                        {formRow.taskDescription}
+                      </Text>
+                    )}
+
+                    <Text style={styles.smallLabel}>Trạng thái</Text>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {['Pending', 'Completed', 'Failed'].map((st) => (
+                        <Controller
+                          key={st}
+                          control={control}
+                          name={`maintenanceTasks.${idx}.status`}
+                          render={({ field: { value, onChange } }) => (
+                            <Pressable
+                              onPress={() => onChange(st)}
+                              style={[
+                                styles.statusChip,
+                                value === st && styles.statusChipActive,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusChipText,
+                                  value === st && styles.statusChipTextActive,
+                                ]}
+                              >
+                                {st === 'Pending'
+                                  ? 'Chưa thực hiện'
+                                  : st === 'Completed'
+                                  ? 'Đã hoàn thành'
+                                  : 'Thất bại'}
+                              </Text>
+                            </Pressable>
+                          )}
+                        />
+                      ))}
+                    </View>
+
+                    <Text style={styles.smallLabel}>Ghi chú kỹ thuật viên</Text>
+                    <Controller
+                      control={control}
+                      name={`maintenanceTasks.${idx}.technicianNote`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          value={value}
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          placeholder="VD: Đã vệ sinh bể nước, không thấy rò rỉ."
+                          style={[styles.input, { minHeight: 60 }]}
+                          multiline
+                        />
+                      )}
+                    />
+
+                    <Text style={[styles.smallLabel, { marginTop: 8 }]}>
+                      Kết quả kiểm tra
+                    </Text>
+                    <Controller
+                      control={control}
+                      name={`maintenanceTasks.${idx}.inspectionResult`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          value={value}
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          placeholder='VD: "OK", "Cần sửa chữa", "Cần thay thế"...'
+                          style={styles.input}
+                          multiline
+                        />
+                      )}
+                    />
+                  </View>
+                );
+              })
+            )}
+
+            <Text style={styles.maintenanceNote}>
+              Lưu ý: Tất cả nhiệm vụ cần được cập nhật (không để "Chưa thực hiện")
+              trước khi tạo báo cáo.
+            </Text>
+          </View>
+        )}
+
         <ImagePickerStrip
           style={{ marginTop: 14 }}
           mode="update"
@@ -548,6 +761,30 @@ export default function CreateInspectionReportScreen() {
           maxCount={10}
           title="Ảnh khảo sát"
         />
+
+        {isMaintenance && canInternalInvoice && (
+          <Pressable
+            style={[
+              styles.invoiceToggle,
+              includeInternalInvoice && styles.invoiceToggleActive,
+            ]}
+            onPress={() => setIncludeInternalInvoice((v) => !v)}
+          >
+            <Icon
+              name={includeInternalInvoice ? 'checkmark.square' : 'square'}
+              size={18}
+              color={includeInternalInvoice ? appleBlue : zincColors[500]}
+            />
+            <Text
+              style={[
+                styles.invoiceToggleText,
+                includeInternalInvoice && { color: appleBlue },
+              ]}
+            >
+              Kèm báo giá / hoá đơn nội bộ
+            </Text>
+          </Pressable>
+        )}
 
         {showInternalInvoice && (
           <View style={styles.invoiceBlock}>
@@ -565,7 +802,9 @@ export default function CreateInspectionReportScreen() {
                   ]}
                 />
                 <Text style={styles.chargeableText}>
-                  {isChargeable ? 'Cư dân chịu phí (Lỗi cư dân)' : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
+                  {isChargeable
+                    ? 'Cư dân chịu phí (Lỗi cư dân)'
+                    : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
                 </Text>
               </View>
             </View>
@@ -655,8 +894,8 @@ export default function CreateInspectionReportScreen() {
                         <Text style={styles.accName}>{matchedAcc.name}</Text>
                         <Text style={styles.accMeta}>
                           #{matchedAcc.accessoryId} ·{' '}
-                          {Number(matchedAcc.price || 0).toLocaleString('vi-VN')} đ ·
-                          tồn {matchedAcc.quantity}
+                          {Number(matchedAcc.price || 0).toLocaleString('vi-VN')} đ
+                          · tồn {matchedAcc.quantity}
                         </Text>
                       </View>
                     )}
@@ -750,75 +989,71 @@ export default function CreateInspectionReportScreen() {
                 </View>
               ) : null}
 
-              {purchaseAccFields.map((row, idx) => {
-                const formRow = purchaseAccessoriesWatch?.[idx];
-
-                return (
-                  <View key={row.id} style={styles.rowBlock}>
-                    <View style={{ flex: 1.6 }}>
-                      <Text style={styles.smallLabel}>Tên nguyên vật liệu</Text>
-                      <Controller
-                        control={control}
-                        name={`purchaseAccessories.${idx}.name`}
-                        render={({ field: { value, onChange, onBlur } }) => (
-                          <TextInput
-                            value={value}
-                            onBlur={onBlur}
-                            onChangeText={onChange}
-                            placeholder="VD: Ống nước PVC 27mm"
-                            style={styles.input}
-                          />
-                        )}
-                      />
-                    </View>
-
-                    <View style={{ width: 60 }}>
-                      <Text style={styles.smallLabel}>SL</Text>
-                      <Controller
-                        control={control}
-                        name={`purchaseAccessories.${idx}.quantity`}
-                        render={({ field: { value, onChange, onBlur } }) => (
-                          <TextInput
-                            value={String(value ?? '')}
-                            onBlur={onBlur}
-                            onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
-                            keyboardType="numeric"
-                            placeholder="1"
-                            style={styles.input}
-                          />
-                        )}
-                      />
-                    </View>
-
-                    <View style={{ width: 100 }}>
-                      <Text style={styles.smallLabel}>Giá mua</Text>
-                      <Controller
-                        control={control}
-                        name={`purchaseAccessories.${idx}.purchasePrice`}
-                        render={({ field: { value, onChange, onBlur } }) => (
-                          <TextInput
-                            value={String(value ?? '')}
-                            onBlur={onBlur}
-                            onChangeText={(t) =>
-                              onChange(t.replace(/[^\d.]/g, ''))
-                            }
-                            keyboardType="decimal-pad"
-                            placeholder="0"
-                            style={styles.input}
-                          />
-                        )}
-                      />
-                    </View>
-
-                    <Pressable
-                      onPress={() => purchaseAccRemove(idx)}
-                      style={styles.delBtn}
-                    >
-                      <Icon name="trash" size={18} color="#B91C1C" />
-                    </Pressable>
+              {purchaseAccFields.map((row, idx) => (
+                <View key={row.id} style={styles.rowBlock}>
+                  <View style={{ flex: 1.6 }}>
+                    <Text style={styles.smallLabel}>Tên nguyên vật liệu</Text>
+                    <Controller
+                      control={control}
+                      name={`purchaseAccessories.${idx}.name`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          value={value}
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          placeholder="VD: Ống nước PVC 27mm"
+                          style={styles.input}
+                        />
+                      )}
+                    />
                   </View>
-                );
-              })}
+
+                  <View style={{ width: 60 }}>
+                    <Text style={styles.smallLabel}>SL</Text>
+                    <Controller
+                      control={control}
+                      name={`purchaseAccessories.${idx}.quantity`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          value={String(value ?? '')}
+                          onBlur={onBlur}
+                          onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                          keyboardType="numeric"
+                          placeholder="1"
+                          style={styles.input}
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <View style={{ width: 100 }}>
+                    <Text style={styles.smallLabel}>Giá mua</Text>
+                    <Controller
+                      control={control}
+                      name={`purchaseAccessories.${idx}.purchasePrice`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          value={String(value ?? '')}
+                          onBlur={onBlur}
+                          onChangeText={(t) =>
+                            onChange(t.replace(/[^\d.]/g, ''))
+                          }
+                          keyboardType="decimal-pad"
+                          placeholder="0"
+                          style={styles.input}
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <Pressable
+                    onPress={() => purchaseAccRemove(idx)}
+                    style={styles.delBtn}
+                  >
+                    <Icon name="trash" size={18} color="#B91C1C" />
+                  </Pressable>
+                </View>
+              ))}
             </View>
 
             <View style={styles.card}>
@@ -950,7 +1185,9 @@ export default function CreateInspectionReportScreen() {
                   ]}
                 />
                 <Text style={styles.chargeableText}>
-                  {isChargeable ? 'Cư dân chịu phí (Lỗi cư dân)' : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
+                  {isChargeable
+                    ? 'Cư dân chịu phí (Lỗi cư dân)'
+                    : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
                 </Text>
               </View>
             </View>
@@ -1112,7 +1349,9 @@ export default function CreateInspectionReportScreen() {
             </View>
 
             <View style={styles.totalBox}>
-              <Text style={styles.totalLabel}>Tổng tiền nguyên vật liệu (nháp)</Text>
+              <Text style={styles.totalLabel}>
+                Tổng tiền nguyên vật liệu (nháp)
+              </Text>
               <Text style={styles.totalValue}>
                 {extAccessoriesTotal.toLocaleString('vi-VN')} đ
               </Text>
@@ -1374,5 +1613,66 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: THEME.text,
+  },
+
+  maintenanceCard: {
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: borderColor,
+    backgroundColor: '#F9FAFB',
+  },
+  maintenanceTaskTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.text,
+    marginBottom: 4,
+  },
+  maintenanceTaskDesc: {
+    fontSize: 12,
+    color: zincColors[600],
+    marginBottom: 10,
+  },
+  maintenanceNote: {
+    fontSize: 12,
+    color: zincColors[500],
+    marginTop: 4,
+  },
+
+  statusChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: borderColor,
+    backgroundColor: '#FFF',
+  },
+  statusChipActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: appleBlue,
+  },
+  statusChipText: {
+    fontSize: 12,
+    color: zincColors[600],
+    fontWeight: '600',
+  },
+  statusChipTextActive: {
+    color: appleBlue,
+  },
+
+  invoiceToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  invoiceToggleActive: {},
+  invoiceToggleText: {
+    fontSize: 14,
+    color: zincColors[700],
+    fontWeight: '600',
   },
 });

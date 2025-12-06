@@ -47,7 +47,7 @@ export const checkInAppointment = createAsyncThunk(
       await http.post(`/api/appointments/${appointmentId}/check-in`, {});
       return appointmentId;
     } catch (err) {
-      return rejectWithValue(err?.response?.data?.detail || 'Check-in thất bại');
+      return rejectWithValue(err?.response?.message || 'Check-in thất bại');
     }
   }
 );
