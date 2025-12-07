@@ -335,7 +335,7 @@ export default function TechnicianDashboard() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Công việc hôm nay (gần nhất)</Text>
 
-        {todayJobs.map((job) => (
+        {todayJobs.length > 0 ? todayJobs.map((job) => (
           <View key={job.id} style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.leftHeader}>
@@ -420,7 +420,11 @@ export default function TechnicianDashboard() {
               </Pressable>
             </View>
           </View>
-        ))}
+        )): (
+          <View style={{ height: 25, alignItems: 'center', color: '#666' }} >
+            <Text>Không có công việc nào hôm nay.</Text>
+          </View>
+        )}
       </View>
 
       <View style={{ height: 20 }} />

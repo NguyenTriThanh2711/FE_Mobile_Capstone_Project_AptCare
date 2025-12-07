@@ -169,6 +169,9 @@ const MAP = {
   "hammer": "hammer-outline",
   "cart.fill": "cart",
   "cart": "cart-outline",
+  "close": "close-outline",
+  "close.circle.fill": "close-circle",
+  "close.circle": "close-circle-outline",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

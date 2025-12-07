@@ -256,9 +256,12 @@ export default function CreateInspectionReportScreen() {
       repairRequestTaskId: t.repairRequestTaskId,
       taskName: t.taskName || '',
       taskDescription: t.taskDescription || '',
-      status: '',
-      technicianNote: '',
-      inspectionResult: '',
+      status:
+        t.status === 'Completed' || t.status === 'Failed'
+          ? t.status
+          : '',
+      technicianNote: t.technicianNote || '',
+      inspectionResult: t.inspectionResult || '',
     }));
     maintenanceTasksReplace(mapped);
   }, [maintenanceTasksFromStore, maintenanceTasksReplace]);
@@ -524,7 +527,7 @@ export default function CreateInspectionReportScreen() {
           })),
         };
 
-        //await dispatch(createInternalInvoice(internalInvoicePayload)).unwrap();
+        await dispatch(createInternalInvoice(internalInvoicePayload)).unwrap();
       }
 
       if (showExternalInvoice && rrIdNum) {
@@ -625,27 +628,17 @@ export default function CreateInspectionReportScreen() {
         Files: filesCompressed,
       };
 
-      // if (isMaintenance) {
-      //   await dispatch(
-      //     generateInspectionMaintenanceReport(commonPayload)
-      //   ).unwrap();
-      // } else {
-      //   await dispatch(
-      //     generateInspectionReport({
-      //       ...commonPayload,
-      //       faultOwner: String(values.faultOwner),
-      //     })
-      //   ).unwrap();
-      // }
-
-      let extraText = '';
-      if (isMaintenance && rrIdNum) {
-        extraText += 'Checklist bảo trì đã được cập nhật. ';
-      }
-      if (shouldCreateInternalInvoice) {
-        extraText += 'Báo giá / hoá đơn nội bộ kèm theo đã được tạo.';
-      } else if (showExternalInvoice) {
-        extraText += 'Hóa đơn bên thứ ba đã được tạo.';
+      if (isMaintenance) {
+        await dispatch(
+          generateInspectionMaintenanceReport(commonPayload)
+        ).unwrap();
+      } else {
+        await dispatch(
+          generateInspectionReport({
+            ...commonPayload,
+            faultOwner: String(values.faultOwner),
+          })
+        ).unwrap();
       }
 
       Toast.show({
@@ -653,15 +646,17 @@ export default function CreateInspectionReportScreen() {
         text1: isMaintenance
           ? 'Đã tạo báo cáo kiểm tra bảo trì'
           : 'Đã tạo báo cáo khảo sát',
-        //text2: extraText || undefined,
       });
       dispatch(fetchAppointmentById(Number(appointmentId)));
-      //router.back();
+      router.back();
     } catch (err) {
       console.log('[inspection + invoice error]', pretty(err));
 
       const msg =
-        err?.message || err?.message?.title ||err?.data?.detail || String(err) || 'Tạo báo cáo thất bại';
+        err?.response?.data?.detail ||
+        err?.message?.title ||
+        err?.message ||
+        'Tạo báo cáo thất bại';
       Toast.show({
         type: 'error',
         text1: 'Lỗi gửi báo cáo',
@@ -943,7 +938,7 @@ export default function CreateInspectionReportScreen() {
                 includeInternalInvoice && { color: appleBlue },
               ]}
             >
-              Kèm báo giá / hoá đơn nội bộ
+              Kèm báo giá
             </Text>
           </Pressable>
         )}
@@ -1096,7 +1091,7 @@ export default function CreateInspectionReportScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Icon name="cart" size={18} color={appleBlue} />
-                <Text style={styles.cardTitle}>Mua nguyên vật liệu ngoài kho</Text>
+                <Text style={styles.cardTitle}>Mua vật liệu</Text>
                 <Pressable
                   onPress={() =>
                     purchaseAccAppend({
@@ -1114,7 +1109,7 @@ export default function CreateInspectionReportScreen() {
               </View>
 
               <View style={{ marginBottom: 10 }}>
-                <Text style={styles.smallLabel}>Tìm theo tên (từ danh sách kho)</Text>
+                <Text style={styles.smallLabel}>Tìm theo tên (hoặc tự nhập)</Text>
                 <TextInput
                   value={purchaseAccSearch}
                   onChangeText={setPurchaseAccSearch}

@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
+  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSelector } from 'react-redux';
@@ -24,33 +25,60 @@ import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
 import { useAppDispatch, useAppSelector } from '@/src/store';
 import { timeDate } from '@/src/utils/date';
-import { fetchInvoicesByRepairRequestId, selectInvoicesByRepairRequest, selectInvoicesLoadingByRepairRequest } from '@/src/features/invoices/invoiceSlice';
-import { createFeedback, fetchFeedbackByRepairRequest, selectFeedbackByRepairRequest, selectFeedbackLoadingByRepairRequest } from '@/src/features/feedback/feedbacksSlice';
-import { pretty } from '@/src/helper/prettyLog';
+import {
+  fetchInvoicesByRepairRequestId,
+  selectInvoicesByRepairRequest,
+  selectInvoicesLoadingByRepairRequest,
+} from '@/src/features/invoices/invoiceSlice';
+import {
+  createFeedback,
+  fetchFeedbackByRepairRequest,
+  selectFeedbackByRepairRequest,
+  selectFeedbackLoadingByRepairRequest,
+} from '@/src/features/feedback/feedbacksSlice';
 import Toast from 'react-native-toast-message';
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
   const repairRequestId = Number(id);
   const rawData = useSelector(selectCurrentRequest);
-  const data = useMemo(
-    () => unwrapDotNetValuesDeep(rawData),
-    [rawData]
-  );
+  const data = useMemo(() => unwrapDotNetValuesDeep(rawData), [rawData]);
 
   const dispatch = useAppDispatch();
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  const invoices = useAppSelector((s) => selectInvoicesByRepairRequest(s, repairRequestId));
-  const invoicesLoading = useAppSelector((s) => selectInvoicesLoadingByRepairRequest(s, repairRequestId));
+  const invoices = useAppSelector((s) =>
+    selectInvoicesByRepairRequest(s, repairRequestId)
+  );
+  const invoicesLoading = useAppSelector((s) =>
+    selectInvoicesLoadingByRepairRequest(s, repairRequestId)
+  );
 
-  const feedbackThread = useAppSelector((s) =>selectFeedbackByRepairRequest(s, repairRequestId));
-  console.log('[feedbackThread]', pretty(feedbackThread));
-  const feedbackLoading = useAppSelector((s) =>selectFeedbackLoadingByRepairRequest(s, repairRequestId));
+  const feedbackThread = useAppSelector((s) =>
+    selectFeedbackByRepairRequest(s, repairRequestId)
+  );
+  const feedbackLoading = useAppSelector((s) =>
+    selectFeedbackLoadingByRepairRequest(s, repairRequestId)
+  );
+
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  const [showCreateFeedbackForm, setShowCreateFeedbackForm] = useState(false);
+  const [replyModalVisible, setReplyModalVisible] = useState(false);
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [replyComment, setReplyComment] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const internalInvoices = useMemo(
+    () =>
+      Array.isArray(invoices)
+        ? invoices.filter((inv) => inv.type === 'InternalRepair')
+        : [],
+    [invoices]
+  );
 
   const medias = useMemo(() => {
     if (!data) return [];
@@ -66,10 +94,12 @@ export default function RequestDetail() {
     );
   }, [data]);
 
-  const latestTrackingStatus = trackings?.length > 0 ? trackings[trackings.length - 1].status : null;
+  const latestTrackingStatus =
+    trackings?.length > 0 ? trackings[trackings.length - 1].status : null;
   const canSendFeedback =
-      (latestTrackingStatus === 'AcceptancePendingVerify' ||latestTrackingStatus === 'Completed');
-  console.log('[canSendFeedback]',canSendFeedback)
+    latestTrackingStatus === 'AcceptancePendingVerify' ||
+    latestTrackingStatus === 'Completed';
+
   const appts = useMemo(() => {
     if (!data) return [];
     return dotnetArr(data.appointments);
@@ -92,8 +122,12 @@ export default function RequestDetail() {
       try {
         setInitialLoading(true);
         await dispatch(getRequest(id)).unwrap?.();
-        await dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap?.();
-        await dispatch(fetchFeedbackByRepairRequest(repairRequestId)).unwrap?.();
+        await dispatch(
+          fetchInvoicesByRepairRequestId(repairRequestId)
+        ).unwrap?.();
+        await dispatch(
+          fetchFeedbackByRepairRequest(repairRequestId)
+        ).unwrap?.();
       } catch (e) {
         console.log('[getRequest error]', e);
       } finally {
@@ -104,7 +138,7 @@ export default function RequestDetail() {
     return () => {
       active = false;
     };
-  }, [id, dispatch]);
+  }, [id, dispatch, repairRequestId]);
 
   const reload = useCallback(async () => {
     try {
@@ -116,14 +150,18 @@ export default function RequestDetail() {
         })
       ).unwrap();
       await dispatch(getRequest(id)).unwrap();
-      await dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap?.();
-      await dispatch(fetchFeedbackByRepairRequest(repairRequestId)).unwrap?.();
+      await dispatch(
+        fetchInvoicesByRepairRequestId(repairRequestId)
+      ).unwrap?.();
+      await dispatch(
+        fetchFeedbackByRepairRequest(repairRequestId)
+      ).unwrap?.();
     } catch (e) {
       console.log('[request detail refresh error]', e?.normalized || e);
     } finally {
       setRefreshing(false);
     }
-  }, [id, dispatch]);
+  }, [id, dispatch, repairRequestId]);
 
   const handleSubmitFeedback = useCallback(async () => {
     if (!repairRequestId) return;
@@ -153,8 +191,11 @@ export default function RequestDetail() {
 
       setRating(0);
       setComment('');
+      setShowCreateFeedbackForm(false);
 
-      await dispatch(fetchFeedbackByRepairRequest(repairRequestId)).unwrap?.();
+      await dispatch(
+        fetchFeedbackByRepairRequest(repairRequestId)
+      ).unwrap?.();
     } catch (e) {
       console.log('[createFeedback error]', e?.normalized || e);
       Toast.show({
@@ -166,6 +207,146 @@ export default function RequestDetail() {
       setSubmittingFeedback(false);
     }
   }, [repairRequestId, rating, comment, dispatch]);
+
+  const openReplyModal = useCallback((fb) => {
+    if (!fb) return;
+    setReplyTarget(fb);
+    setReplyComment('');
+    setReplyModalVisible(true);
+  }, []);
+
+  const closeReplyModal = useCallback(() => {
+    setReplyModalVisible(false);
+    setReplyTarget(null);
+    setReplyComment('');
+  }, []);
+
+  const handleSubmitReply = useCallback(async () => {
+    if (!repairRequestId || !replyTarget) return;
+
+    if (!replyComment.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Vui lòng nhập nội dung trả lời',
+      });
+      return;
+    }
+
+    try {
+      setSubmittingReply(true);
+      await dispatch(
+        createFeedback({
+          repairRequestId,
+          parentFeedbackId: replyTarget.feedbackId,
+          rating: replyTarget.rating || 5,
+          comment: replyComment.trim(),
+        })
+      ).unwrap?.();
+
+      Toast.show({
+        type: 'success',
+        text1: 'Đã gửi trả lời feedback',
+      });
+
+      closeReplyModal();
+      await dispatch(
+        fetchFeedbackByRepairRequest(repairRequestId)
+      ).unwrap?.();
+    } catch (e) {
+      console.log('[replyFeedback error]', e?.normalized || e);
+      Toast.show({
+        type: 'error',
+        text1: 'Không gửi được trả lời',
+        text2: e?.message || 'Vui lòng thử lại sau',
+      });
+    } finally {
+      setSubmittingReply(false);
+    }
+  }, [dispatch, repairRequestId, replyTarget, replyComment, closeReplyModal]);
+
+  const renderFeedbackItem = useCallback(
+    (fb) => {
+      const replies = dotnetArr(fb.replies);
+      return (
+        <View key={fb.feedbackId} style={styles.feedbackItem}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Text style={styles.feedbackAuthor}>
+              {fb.userName || 'Bạn'}
+            </Text>
+            {!!fb.rating && (
+              <View style={styles.feedbackRating}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Icon
+                    key={star}
+                    name={star <= fb.rating ? 'star.fill' : 'star'}
+                    size={12}
+                    color={star <= fb.rating ? '#F59E0B' : '#E5E7EB'}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+          {!!fb.comment && (
+            <Text style={styles.feedbackComment}>{fb.comment}</Text>
+          )}
+          <View style={styles.feedbackActionsRow}>
+            <Text style={styles.feedbackTime}>
+              {fb.createdAt ? timeDate(fb.createdAt) : ''}
+            </Text>
+            <Pressable
+              onPress={() => openReplyModal(fb)}
+              hitSlop={8}
+            >
+              <Text style={styles.replyBtnText}>Trả lời</Text>
+            </Pressable>
+          </View>
+
+          {replies.length > 0 && (
+            <View style={styles.replyList}>
+              {replies.map((rep) => (
+                <View
+                  key={rep.feedbackId}
+                  style={styles.replyItem}
+                >
+                  <Text style={styles.replyBranch}>|___</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.replyHeader}>
+                      <Text style={styles.feedbackAuthor}>
+                        {rep.userName || 'Người trả lời'}
+                      </Text>
+                    </View>
+                    {!!rep.comment && (
+                      <Text style={styles.feedbackComment}>
+                        {rep.comment}
+                      </Text>
+                    )}
+                    <View style={styles.replyMetaRow}>
+                      <Text style={styles.feedbackTime}>
+                        {rep.createdAt ? timeDate(rep.createdAt) : ''}
+                      </Text>
+                      <Pressable
+                        onPress={() => openReplyModal(rep)}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.replyBtnText}>Trả lời</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    },
+    [openReplyModal]
+  );
 
   if (initialLoading) {
     return (
@@ -212,7 +393,10 @@ export default function RequestDetail() {
           <Text style={styles.emptySub}>
             Hãy mở lại từ danh sách yêu cầu.
           </Text>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable
+            style={styles.backBtn}
+            onPress={() => router.back()}
+          >
             <Icon name="chevron.left" size={18} color="#fff" />
             <Text style={styles.backBtnText}>Quay lại</Text>
           </Pressable>
@@ -223,7 +407,6 @@ export default function RequestDetail() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
@@ -251,7 +434,6 @@ export default function RequestDetail() {
         alwaysBounceVertical
         overScrollMode="always"
       >
-        {/* Title row */}
         <View style={styles.titleRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.titleText} numberOfLines={2}>
@@ -265,7 +447,11 @@ export default function RequestDetail() {
             </View>
           </View>
           <View
-            style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}
+            style={{
+              flexDirection: 'row',
+              gap: 8,
+              alignItems: 'center',
+            }}
           >
             <Badge
               status={data?.appointments?.[0]?.status}
@@ -278,7 +464,6 @@ export default function RequestDetail() {
           </View>
         </View>
 
-        {/* Issue & Apartment */}
         <View style={styles.card}>
           <View style={styles.row}>
             <Icon
@@ -309,7 +494,6 @@ export default function RequestDetail() {
           </Text>
         </View>
 
-        {/* Description */}
         <View style={styles.card}>
           <View style={styles.row}>
             <Icon name="doc.text" size={16} color="#6B7280" />
@@ -318,7 +502,6 @@ export default function RequestDetail() {
           <Text style={styles.descText}>{data?.description || '—'}</Text>
         </View>
 
-        {/* Medias */}
         <ImagePickerStrip
           mode="view"
           title="Hình ảnh"
@@ -327,7 +510,6 @@ export default function RequestDetail() {
           mapKey={(m, i) => String(m.mediaId || i)}
         />
 
-        {/* Appointments */}
         {appts?.length ? (
           <View style={styles.card}>
             <View style={styles.row}>
@@ -377,7 +559,7 @@ export default function RequestDetail() {
             })}
           </View>
         ) : null}
-        {/* Invoices */}
+
         <View style={styles.card}>
           <View style={styles.row}>
             <Icon name="doc.text" size={16} color="#0C4A6E" />
@@ -387,20 +569,25 @@ export default function RequestDetail() {
           {invoicesLoading ? (
             <View style={{ paddingVertical: 10 }}>
               <ActivityIndicator size="small" color="#1e88e5" />
-              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: '#6B7280',
+                  marginTop: 4,
+                }}
+              >
                 Đang tải danh sách hoá đơn...
               </Text>
             </View>
-          ) : invoices.length === 0 ? (
+          ) : internalInvoices.length === 0 ? (
             <Text style={styles.emptyLine}>
               Chưa có hoá đơn cho yêu cầu này.
             </Text>
           ) : (
-            invoices.map((inv) => (
+            internalInvoices.map((inv) => (
               <Pressable
                 key={inv.invoiceId}
                 style={[styles.invoiceItem, { marginTop: 10 }]}
-                // onPress={() => handleOpenInvoice(inv)}
               >
                 <View style={{ flex: 1 }}>
                   <View
@@ -416,22 +603,19 @@ export default function RequestDetail() {
                     <Badge status={inv.status} />
                   </View>
                   <Text style={styles.invoiceMeta}>
-                    Tổng tiền: {  inv.totalAmount.toLocaleString('vi-VN') + ' VND'}
+                    Tổng tiền:{' '}
+                    {inv.totalAmount.toLocaleString('vi-VN') + ' VND'}
                   </Text>
-                  {/* <Text style={styles.invoiceMeta}>
-                    Loại: {inv.type || '-'}
-                  </Text> */}
                   <Text style={styles.invoiceMeta}>
                     Ngày tạo:{' '}
                     {inv.createdAt ? timeDate(inv.createdAt) : '-'}
                   </Text>
                 </View>
-                {/* <Icon name="chevron.right" size={18} color="#9CA3AF" /> */}
               </Pressable>
             ))
           )}
         </View>
-        {/* Tracking timeline */}
+
         <View style={styles.card}>
           <View style={styles.row}>
             <Icon
@@ -477,6 +661,7 @@ export default function RequestDetail() {
             </View>
           )}
         </View>
+
         {canSendFeedback && (
           <View style={styles.card}>
             <View style={styles.row}>
@@ -484,7 +669,7 @@ export default function RequestDetail() {
               <Text style={styles.cardLabel}>Danh sách đánh giá</Text>
             </View>
 
-            {feedbackLoading ? (
+            {feedbackLoading && (
               <View style={{ paddingVertical: 10 }}>
                 <ActivityIndicator size="small" color="#1e88e5" />
                 <Text
@@ -497,153 +682,140 @@ export default function RequestDetail() {
                   Đang tải đánh giá...
                 </Text>
               </View>
+            )}
+
+            {feedbackThread?.rootFeedbacks?.length > 0 ? (
+              <View style={{ marginTop: 10 }}>
+                {feedbackThread.rootFeedbacks.map((fb) =>
+                  renderFeedbackItem(fb)
+                )}
+              </View>
+            ) : !feedbackLoading ? (
+              <Text style={styles.emptyLine}>
+                Chưa có đánh giá nào.
+              </Text>
             ) : null}
 
-            {feedbackThread?.rootFeedbacks?.length > 0 && (
-              <View style={{ marginTop: 10 }}>
-                {feedbackThread?.rootFeedbacks.map((fb) => (
-                  <View
-                    key={fb.feedbackId}
-                    style={styles.feedbackItem}
-                  >
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <Text style={styles.feedbackAuthor}>
-                        {fb.userName || 'Bạn'}
-                      </Text>
-                      {!!fb.rating && (
-                        <View style={styles.feedbackRating}>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Icon
-                              key={star}
-                              name={
-                                star <= fb.rating
-                                  ? 'star.fill'
-                                  : 'star'
-                              }
-                              size={12}
-                              color={
-                                star <= fb.rating
-                                  ? '#F59E0B'
-                                  : '#E5E7EB'
-                              }
-                            />
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                    {!!fb.comment && (
-                      <Text style={styles.feedbackComment}>
-                        {fb.comment}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-        </View>
+            <Pressable
+              style={styles.addFeedbackBtn}
+              onPress={() => setShowCreateFeedbackForm(true)}
+            >
+              <Icon
+                name="plus.circle"
+                size={16}
+                color="#1e88e5"
+              />
+              <Text style={styles.addFeedbackBtnText}>
+                Thêm đánh giá mới
+              </Text>
+            </Pressable>
+          </View>
         )}
-        {canSendFeedback && (
+
+        {canSendFeedback && showCreateFeedbackForm && (
           <View style={styles.card}>
             <View style={styles.row}>
               <Icon name="star.fill" size={16} color="#F59E0B" />
               <Text style={styles.cardLabel}>Đánh giá dịch vụ</Text>
             </View>
-            {/* Form gửi feedback */}
+
             <View style={{ marginTop: 12 }}>
               <Text
                 style={{
                   fontSize: 14,
                   color: '#374151',
-                marginBottom: 6,
-              }}
-            >
-              Mức độ hài lòng:
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Pressable
-                  key={star}
-                  onPress={() => setRating(star)}
-                  hitSlop={8}
-                >
-                  <Icon
-                    name={star <= rating ? 'star.fill' : 'star'}
-                    size={24}
-                    color={
-                      star <= rating ? '#F59E0B' : '#D1D5DB'
-                    }
-                  />
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          <View style={{ marginTop: 10 }}>
-            <Text
-              style={{
-                fontSize: 14,
-                color: '#374151',
-                marginBottom: 4,
-              }}
-            >
-              Nhận xét thêm (không bắt buộc)
-            </Text>
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: '#E5E7EB',
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                backgroundColor: '#F9FAFB',
-              }}
-            >
-              <TextInput
-                style={{
-                  minHeight: 80,
-                  fontSize: 14,
-                  color: '#111827',
-                  textAlignVertical: 'top',
+                  marginBottom: 6,
                 }}
-                multiline
-                placeholder="Bạn thấy dịch vụ như thế nào?"
-                value={comment}
-                onChangeText={setComment}
-              />
-            </View>
-          </View>
-
-          <Pressable
-            onPress={handleSubmitFeedback}
-            disabled={submittingFeedback}
-            style={[
-              styles.feedbackBtn,
-              submittingFeedback && { opacity: 0.7 },
-            ]}
-          >
-            {submittingFeedback ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.feedbackBtnText}>
-                Gửi đánh giá
+              >
+                Mức độ hài lòng:
               </Text>
-            )}
-          </Pressable>
-        </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Pressable
+                    key={star}
+                    onPress={() => setRating(star)}
+                    hitSlop={8}
+                  >
+                    <Icon
+                      name={star <= rating ? 'star.fill' : 'star'}
+                      size={24}
+                      color={
+                        star <= rating ? '#F59E0B' : '#D1D5DB'
+                      }
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ marginTop: 10 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: '#374151',
+                  marginBottom: 4,
+                }}
+              >
+                Nhận xét thêm (không bắt buộc)
+              </Text>
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: '#F9FAFB',
+                }}
+              >
+                <TextInput
+                  style={{
+                    minHeight: 80,
+                    fontSize: 14,
+                    color: '#111827',
+                    textAlignVertical: 'top',
+                  }}
+                  multiline
+                  placeholder="Bạn thấy dịch vụ như thế nào?"
+                  value={comment}
+                  onChangeText={setComment}
+                />
+              </View>
+            </View>
+
+            <Pressable
+              onPress={handleSubmitFeedback}
+              disabled={submittingFeedback}
+              style={[
+                styles.feedbackBtn,
+                submittingFeedback && { opacity: 0.7 },
+              ]}
+            >
+              {submittingFeedback ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.feedbackBtnText}>
+                  Gửi đánh giá
+                </Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => setShowCreateFeedbackForm(false)}
+              disabled={submittingFeedback}
+              style={styles.cancelCreateBtn}
+            >
+              <Text style={styles.cancelCreateBtnText}>Hủy</Text>
+            </Pressable>
+          </View>
         )}
-        {/* Requester */}
+
         {data?.user && (
           <View style={styles.card}>
             <View style={styles.row}>
@@ -678,13 +850,80 @@ export default function RequestDetail() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={replyModalVisible}
+        animationType="fade"
+        onRequestClose={closeReplyModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Trả lời feedback</Text>
+            {replyTarget && (
+              <View style={styles.modalOriginalBox}>
+                <Text style={styles.modalOriginalLabel}>
+                  Feedback gốc
+                </Text>
+                <Text style={styles.modalOriginalAuthor}>
+                  {replyTarget.userName || 'Người dùng'}
+                </Text>
+                {!!replyTarget.comment && (
+                  <Text style={styles.modalOriginalComment}>
+                    {replyTarget.comment}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.modalLabel}>Nội dung trả lời</Text>
+              <View style={styles.modalInputWrapper}>
+                <TextInput
+                  style={styles.modalInput}
+                  multiline
+                  placeholder="Nhập nội dung trả lời..."
+                  value={replyComment}
+                  onChangeText={setReplyComment}
+                  textAlignVertical="top"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={closeReplyModal}
+                disabled={submittingReply}
+              >
+                <Text style={styles.modalCancelText}>Hủy</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.modalSubmitBtn,
+                  submittingReply && { opacity: 0.7 },
+                ]}
+                onPress={handleSubmitReply}
+                disabled={submittingReply}
+              >
+                {submittingReply ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>
+                    Gửi trả lời
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FA' },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -696,10 +935,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, width: 92 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: 92,
+  },
   headerBack: { fontSize: 16, color: '#1a1a1a' },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#1a1a1a' },
-
   loadingWrap: {
     flex: 1,
     alignItems: 'center',
@@ -710,7 +953,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
-
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -719,10 +961,19 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 5,
   },
-  titleText: { fontSize: 18, fontWeight: '700', color: '#111827', lineHeight: 22 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  titleText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    lineHeight: 22,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
   metaText: { fontSize: 12, color: '#6B7280' },
-
   card: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -738,27 +989,44 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardLabel: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  cardValue: { fontSize: 15, color: '#111827', marginTop: 6, fontWeight: '600' },
-
+  cardValue: {
+    fontSize: 15,
+    color: '#111827',
+    marginTop: 6,
+    fontWeight: '600',
+  },
   descText: { fontSize: 14, color: '#374151', marginTop: 6, lineHeight: 20 },
-
   apptItem: {
     marginTop: 10,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
-  apptRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  apptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
   apptTime: { fontSize: 14, color: '#111827', fontWeight: '600' },
-  apptTechs: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  apptTechs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
   apptTechsText: { fontSize: 13, color: '#374151' },
-
   trackRow: { flexDirection: 'row', gap: 12, paddingVertical: 8 },
-  trackDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB', marginTop: 6 },
+  trackDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2563EB',
+    marginTop: 6,
+  },
   trackTime: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   trackBy: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   emptyLine: { fontSize: 13, color: '#6B7280', marginTop: 6 },
-
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
@@ -779,9 +1047,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   backBtnText: { color: '#fff', fontWeight: '700' },
-
   smallValue: { fontSize: 13, color: '#374151' },
-
   feedbackItem: {
     marginTop: 10,
     paddingTop: 8,
@@ -814,5 +1080,176 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 15,
+  },
+  feedbackActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  feedbackTime: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  replyList: {
+    marginTop: 6,
+    paddingLeft: 8,
+  },
+  replyItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+  },
+  replyBranch: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginRight: 6,
+    marginTop: 2,
+  },
+  replyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  replyMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  replyBtnText: {
+    fontSize: 12,
+    color: '#1e88e5',
+    fontWeight: '600',
+  },
+  addFeedbackBtn: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#1e88e5',
+    backgroundColor: '#EFF6FF',
+  },
+  addFeedbackBtnText: {
+    fontSize: 13,
+    color: '#1e88e5',
+    fontWeight: '600',
+  },
+  cancelCreateBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#9CA3AF',
+    backgroundColor: '#F9FAFB',
+  },
+  cancelCreateBtnText: {
+    fontSize: 13,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  invoiceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  invoiceTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  invoiceMeta: { fontSize: 13, color: '#4B5563', marginTop: 2 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  modalOriginalBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  modalOriginalLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  modalOriginalAuthor: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  modalOriginalComment: {
+    fontSize: 13,
+    color: '#374151',
+    marginTop: 4,
+  },
+  modalLabel: {
+    fontSize: 13,
+    color: '#374151',
+    marginBottom: 4,
+  },
+  modalInputWrapper: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#F9FAFB',
+  },
+  modalInput: {
+    minHeight: 80,
+    fontSize: 14,
+    color: '#111827',
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 14,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#9CA3AF',
+    backgroundColor: '#F9FAFB',
+  },
+  modalCancelText: {
+    fontSize: 13,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  modalSubmitBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#1e88e5',
+  },
+  modalSubmitText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '700',
   },
 });

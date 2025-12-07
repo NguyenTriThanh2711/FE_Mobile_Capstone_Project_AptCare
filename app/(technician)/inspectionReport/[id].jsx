@@ -49,6 +49,7 @@ const INVOICE_TYPE_LABEL = {
   InternalRepair: 'Nội bộ',
   ExternalRepair: 'Thuê ngoài',
   ExternalContractor: 'Thuê ngoài',
+  AccessoryPurchase: 'Mua vật liệu',
 };
 
 const INVOICE_STATUS_LABEL = {
@@ -95,27 +96,19 @@ export default function InspectReportDetailScreen() {
     [report]
   );
 
-  const invoiceServices = useMemo(
-    () => dotnetArr(report?.invoice?.services),
-    [report]
-  );
-
-  const invoiceAccessories = useMemo(
-    () => dotnetArr(report?.invoice?.accessories),
-    [report]
-  );
-
   const apartment = report?.appointment?.repairRequest?.apartment;
   const repairRequest = report?.appointment?.repairRequest;
-  const invoice = report?.invoice?.$values?.length > 0 ? report?.invoice?.$values : false;
-  console.log('[invoice data]', pretty(invoice));
-  const handleGoInvoiceDetail = (id) => {
-    if (!invoice?.invoiceId) return;
+  const invoices = useMemo(() => dotnetArr(report?.invoice), [report]);
+
+  console.log('[invoice data]', pretty(invoices));
+
+  const handleGoInvoiceDetail = (inv) => {
+    if (!inv?.invoiceId) return;
     router.push({
       pathname: '/(technician)/invoice/[id]',
       params: {
-        id: String(id),
-        repairRequestId: String(invoice.repairRequestId ?? ''),
+        id: String(inv.invoiceId),
+        repairRequestId: String(inv.repairRequestId ?? ''),
       },
     });
   };
@@ -231,12 +224,8 @@ export default function InspectReportDetailScreen() {
               label="Mô tả căn hộ"
               value={apartment?.description || '-'}
             />
-            {/* <Row
-              label="Diện tích"
-              value={apartment?.area ? `${apartment.area} m²` : '-'}
-            /> */}
             <Row
-              label="Tiêu đề yêu cầu"
+              label="Đối tượng sửa chữa"
               value={repairRequest?.object || '-'}
             />
             <Row
@@ -245,7 +234,6 @@ export default function InspectReportDetailScreen() {
             />
           </View>
 
-          {/* Kỹ thuật viên */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Kỹ thuật viên</Text>
             <Text style={styles.paragraph}>
@@ -267,94 +255,109 @@ export default function InspectReportDetailScreen() {
               </>
             )}
           </View>
-          {invoice ? invoice?.map((inv) => (
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Hóa đơn liên quan</Text>
-              <Row label="Mã hóa đơn" value={inv.invoiceId} />
-              <Row
-                label="Loại hóa đơn"
-                value={
-                  INVOICE_TYPE_LABEL[inv.type] ||
-                  String(inv.type || '-')
-                }
-              />
-              <Row
-                label="Có tính phí"
-                value={inv.isChargeable ? 'Có' : 'Không'}
-              />
-              <Row
-                label="Tổng tiền"
-                value={formatCurrency(inv.totalAmount)}
-              />
-              <Row
-                label="Trạng thái"
-                value={<Badge status={inv.status} />}
-              />
 
-              {invoiceServices.length > 0 && (
-                <>
-                  <Text
-                    style={[styles.subTitle, { marginTop: 12 }]}
-                  >
-                    Công việc
-                  </Text>
-                  {invoiceServices.map((sv, idx) => (
-                    <View
-                      key={sv.invoiceServiceId ?? idx}
-                      style={styles.serviceRow}
-                    >
-                      <Text style={styles.serviceName}>
-                        {sv.name || `Công việc ${idx + 1}`}
-                      </Text>
-                      <Text style={styles.servicePrice}>
-                        {formatCurrency(sv.price)}
-                      </Text>
-                    </View>
-                  ))}
-                </>
-              )}
+          {invoices.length > 0 ? (
+            invoices.map((inv) => {
+              const services = dotnetArr(inv.services);
+              const accessories = dotnetArr(inv.accessories);
 
-              {invoiceAccessories.length > 0 && (
-                <>
-                  <Text
-                    style={[styles.subTitle, { marginTop: 12 }]}
-                  >
-                    Vật tư phụ tùng
-                  </Text>
-                  {invoiceAccessories.map((ac, idx) => (
-                    <View
-                      key={ac.invoiceAccessoryId ?? idx}
-                      style={styles.serviceRow}
-                    >
-                      <Text style={styles.serviceName}>
-                        {ac.name || `Phụ tùng ${idx + 1}`}
-                      </Text>
-                      <Text style={styles.servicePrice}>
-                        x{ac.quantity || 1}
-                      </Text>
-                    </View>
-                  ))}
-                </>
-              )}
-              { invoice.status !== 'Draft' && (
-                <View style={{ alignItems: 'center', marginTop: 12 }}>
-                <Pressable
-                  style={[styles.invoiceBtn]}
-                  onPress={() => handleGoInvoiceDetail(inv.invoiceId)}
-                >
-                  <Icon
-                    name="doc.text"
-                    size={18}
-                    color={appleBlue}
+              return (
+                <View key={inv.invoiceId} style={styles.card}>
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={styles.sectionTitle}>
+                      {inv.type === 'AccessoryPurchase'
+                        ? 'Hóa đơn mua vật liệu ngoài'
+                        : 'Hóa đơn tổng'}
+                    </Text>
+                  </View>
+                  <Row label="Mã hóa đơn" value={inv.invoiceId} />
+                  <Row
+                    label="Loại hóa đơn"
+                    value={
+                      INVOICE_TYPE_LABEL[inv.type] ||
+                      String(inv.type || '-')
+                    }
                   />
-                  <Text style={styles.invoiceBtnText}>
-                    Xem chi tiết hóa đơn
-                  </Text>
-                </Pressable>
+                  <Row
+                    label="Có tính phí"
+                    value={inv.isChargeable ? 'Có' : 'Không'}
+                  />
+                  <Row
+                    label="Tổng tiền"
+                    value={formatCurrency(inv.totalAmount)}
+                  />
+                  <Row
+                    label="Trạng thái"
+                    value={<Badge status={inv.status} />}
+                  />
+
+                  {services.length > 0 && (
+                    <>
+                      <Text
+                        style={[styles.subTitle, { marginTop: 12 }]}
+                      >
+                        Công việc
+                      </Text>
+                      {services.map((sv, idx) => (
+                        <View
+                          key={sv.invoiceServiceId ?? idx}
+                          style={styles.serviceRow}
+                        >
+                          <Text style={styles.serviceName}>
+                            {sv.name || `Công việc ${idx + 1}`}
+                          </Text>
+                          <Text style={styles.servicePrice}>
+                            {formatCurrency(sv.price)}
+                          </Text>
+                        </View>
+                      ))}
+                    </>
+                  )}
+
+                  {accessories.length > 0 && (
+                    <>
+                      <Text
+                        style={[styles.subTitle, { marginTop: 12 }]}
+                      >
+                        Vật tư phụ tùng
+                      </Text>
+                      {accessories.map((ac, idx) => (
+                        <View
+                          key={ac.invoiceAccessoryId ?? idx}
+                          style={styles.serviceRow}
+                        >
+                          <Text style={styles.serviceName}>
+                            {ac.name || `Phụ tùng ${idx + 1}`}
+                          </Text>
+                          <Text style={styles.servicePrice}>
+                            x{ac.quantity || 1} · {formatCurrency(ac.price)}
+                          </Text>
+                        </View>
+                      ))}
+                    </>
+                  )}
+
+                  {inv.status !== 'Draft' && (
+                    <View style={{ alignItems: 'center', marginTop: 12 }}>
+                      <Pressable
+                        style={[styles.invoiceBtn]}
+                        onPress={() => handleGoInvoiceDetail(inv)}
+                      >
+                        <Icon
+                          name="doc.text"
+                          size={18}
+                          color={appleBlue}
+                        />
+                        <Text style={styles.invoiceBtnText}>
+                          Xem chi tiết hóa đơn
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-          )) : (
+              );
+            })
+          ) : (
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Hóa đơn liên quan</Text>
               <Text style={{ color: zincColors[500] }}>
@@ -362,6 +365,7 @@ export default function InspectReportDetailScreen() {
               </Text>
             </View>
           )}
+
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Hình ảnh đính kèm</Text>
             {medias.length === 0 ? (
@@ -388,9 +392,13 @@ function Row({ label, value }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue} numberOfLines={2}>
-        {value ?? '-'}
-      </Text>
+      {typeof value === 'string' || typeof value === 'number' ? (
+        <Text style={styles.rowValue} numberOfLines={2}>
+          {value ?? '-'}
+        </Text>
+      ) : (
+        <View style={styles.rowValueContainer}>{value}</View>
+      )}
     </View>
   );
 }

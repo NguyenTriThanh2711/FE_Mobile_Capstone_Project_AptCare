@@ -94,34 +94,18 @@ export default function AppointmentDetailsScreen() {
 
   const dispatch = useAppDispatch();
 
-  const appointment = useAppSelector((state) =>
-    selectAppointmentById(state, id)
-  );
-  const loading = useAppSelector((state) =>
-    selectAppointmentLoading(state, id)
-  );
-  const error = useAppSelector((state) =>
-    selectAppointmentError(state, id)
-  );
+  const appointment = useAppSelector((state) =>selectAppointmentById(state, id));
+  const loading = useAppSelector((state) =>selectAppointmentLoading(state, id));
+  const error = useAppSelector((state) =>selectAppointmentError(state, id));
 
-  const inspectionReportIds = useAppSelector((s) =>
-    selectReportIdsByAppointment(s, id)
-  );
+  const inspectionReportIds = useAppSelector((s) =>selectReportIdsByAppointment(s, id));
   const inspectionReportsById = useAppSelector((s) => s.inspectionReports.byId);
-  const inspectionReportLoading = useAppSelector((s) =>
-    selectReportLoadingByAppointment(s, id)
-  );
+  const inspectionReportLoading = useAppSelector((s) =>selectReportLoadingByAppointment(s, id));
 
-  const checkingIn = useAppSelector((state) =>
-    selectAppointmentCheckingIn(state, id)
-  );
+  const checkingIn = useAppSelector((state) =>selectAppointmentCheckingIn(state, id));
 
-  const repairReportIds = useAppSelector((s) =>
-    selectRepairReportIdsByAppointment(s, id)
-  );
-  const repairReportLoading = useAppSelector((s) =>
-    selectRepairReportLoadingByAppointment(s, id)
-  );
+  const repairReportIds = useAppSelector((s) =>selectRepairReportIdsByAppointment(s, id));
+  const repairReportLoading = useAppSelector((s) =>selectRepairReportLoadingByAppointment(s, id));
   const repairReportsById = useAppSelector((s) => s.repairReports.byId);
 
   const repairRequestId = appointment?.repairRequest?.repairRequestId;

@@ -15,7 +15,7 @@ export default function ReportListItem({ index, report, onPress, type }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
         {approved ? <Icon name="checkmark.circle.fill" size={18} color="#16A34A" /> 
         : (rejected ? <Icon name="close.circle.fill" size={18} color="#DC2626" /> 
-        : <Icon name="circle.fill" size={18} color="#c7d2fe" />)}
+        : <Icon name="circle.fill" size={18} color="#ffcc00" />)}
         <Icon name="doc.text" size={18} color={appleBlue} />
         <Text style={styles.reportTitle} numberOfLines={1}>
           {`Báo cáo ${type == 'Inspection' ? 'khảo sát ' : 'sửa chữa '} ${index}`}
