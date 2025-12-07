@@ -167,6 +167,8 @@ const MAP = {
   "paperplane": "send-outline",
   "hammer.fill": "hammer",
   "hammer": "hammer-outline",
+  "cart.fill": "cart",
+  "cart": "cart-outline",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

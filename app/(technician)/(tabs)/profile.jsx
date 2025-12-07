@@ -475,14 +475,14 @@ export default function TechnicianProfile() {
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
 
-          <Pressable style={styles.menuItem}>
+          {/* <Pressable style={styles.menuItem}>
             <Icon name="doc.text" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Chứng chỉ</Text>
               <Text style={styles.menuItemSubtitle}>{profile.certifications}</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
-          </Pressable>
+          </Pressable> */}
         </View>
 
         {/* Thông báo */}

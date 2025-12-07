@@ -38,12 +38,10 @@ function Pill({ icon, children }) {
   );
 }
 
-/**
- * AppointmentCard (flat)
- * - KHÔNG vẽ box bên trong
- * - Để parent bọc box (mỗi appointment 1 box riêng)
- */
 function AppointmentCard({ appt, onPress }) {
+  const commonArea = appt?.repairRequest?.commonArea;
+  const isMaintenance =
+    !!appt?.repairRequest?.maintenanceScheduleId || !!commonArea;
   const status = appt?.status || 'New';
   const emergency = appt?.repairRequest?.isEmergency ? 'Emergency' : 'Normal';
   const room = appt?.repairRequest?.apartment?.room || '-';
@@ -53,9 +51,10 @@ function AppointmentCard({ appt, onPress }) {
     resident?.firstName || resident?.lastName
       ? `${resident?.firstName || ''} ${resident?.lastName || ''}`.trim()
       : '-';
-  const residentPhone = appt?.repairRequest?.apartment?.users?.phoneNumber || '-';
+   
   const timeLabel = `${fmtHM(appt?.startTime)}${appt?.endTime ? ` - ${fmtHM(appt.endTime)}` : ''}`;
   const title =  appt?.repairRequest?.object || appt?.object || 'Cuộc hẹn';
+  const maintenanceTitle = appt?.repairRequest?.description || '-';
   const openDetail = () => {
     if (onPress) return onPress();
     const id = appt?.repairRequestId ?? appt?.appointmentId;
@@ -73,7 +72,7 @@ function AppointmentCard({ appt, onPress }) {
           <Text style={sx.timeTxt}>{timeLabel}</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Badge status={emergency} />
+          {!isMaintenance ? <Badge status={emergency} /> : <Badge status="Maintenance" />}
           <Badge status={status} style={[sx.statusChip]} />
         </View>
       </View>
@@ -88,14 +87,28 @@ function AppointmentCard({ appt, onPress }) {
         </Text>
       </View>
 
-      {/* Meta row */}
-      <View style={sx.metaRow}>
+      { isMaintenance && (
+        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+          {'Bảo trì định kỳ'}
+        </Text>
+      ) }
+      {isMaintenance ? 
+      (
+        <View style={sx.metaRow}>
+          <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+            {maintenanceTitle}
+          </Text>
+        </View>
+      ) : (
+        <View style={sx.metaRow}>
         {floor !== undefined && floor !== null ? (
           <Pill icon="list.number">Tầng {String(floor)}</Pill>
         ) : null}
         <Pill icon="building.2">Căn hộ {room}</Pill>
         {!!appt?.appointmentId && <Pill icon="list.number">{`IdCH: ${appt.appointmentId}`}</Pill>}
       </View>
+      )}
+      
 
       {/* Resident */}
       {/* {(residentName || residentPhone) && (

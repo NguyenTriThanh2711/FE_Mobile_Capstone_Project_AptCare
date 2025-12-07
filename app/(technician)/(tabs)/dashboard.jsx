@@ -101,7 +101,7 @@ export default function TechnicianDashboard() {
         const timeLabel = startIso.slice(11, 16);
 
         const isEmergency = req.isEmergency === true;
-        const priority = isEmergency ? 'Khẩn cấp' : 'Bình thường';
+        const priority = isEmergency ? 'Khẩn cấp' : 'Thường';
 
         const typeRaw = appt.type || appt.appointmentType || req.type;
         const type =
@@ -157,10 +157,10 @@ export default function TechnicianDashboard() {
     switch (priorityVi) {
       case 'Khẩn cấp':
         return '#FF3B30';
-      case 'Bình thường':
+      case 'Thường':
         return '#007AFF';
       default:
-        return '#34C759';
+        return '#FF69B4';
     }
   };
 
@@ -344,6 +344,8 @@ export default function TechnicianDashboard() {
                     ? job.title                          
                     : (job.apartment.apartmentId || job.title)} 
                 </Text>
+                
+                {!job.isMaintenance? 
                 <View
                   style={[
                     styles.badge,
@@ -352,21 +354,16 @@ export default function TechnicianDashboard() {
                 >
                   <Text style={styles.badgeText}>{job.priority}</Text>
                 </View>
-
+                 : 
                 <View
                   style={[
-                    styles.typePill,
-                    job.type === 'Inspection' ? styles.typeInspect : styles.typeRepair,
+                    styles.badge,
+                    { backgroundColor: getPriorityColor(job.isMaintenance) },
                   ]}
                 >
-                  <Text style={styles.typeText}>
-                    {job.isMaintenance
-                      ? 'Bảo trì'
-                      : job.type === 'Inspection'
-                      ? 'Kiểm tra'
-                      : 'Sửa chữa'}
-                  </Text>
+                  <Text style={styles.badgeText}>Bảo trì</Text>
                 </View>
+                }
               </View>
               <Text style={styles.timeText}>{job.time}</Text>
             </View>

@@ -20,7 +20,6 @@ import {
   borderColor,
 } from '@/src/utils/colors';
 import { Icon } from '@/src/components/Icon.native';
-import { getOrderTypeLabel } from '@/src/helper/request-header';
 import { useAppDispatch, useAppSelector } from '@/src/store';
 import {
   fetchAppointmentById,
@@ -793,14 +792,13 @@ export default function AppointmentDetailsScreen() {
               color={appleBlue}
             />
             <Text style={styles.headerCategory}>
-              {getOrderTypeLabel(appointment?.repairRequest?.type) ||
-                'Loại appointment'}
+              {isMaintenance ? 'Bảo trì' : 'Cuộc hẹn'}
             </Text>
           </View>
 
           <Badge
             status={
-              appointment?.repairRequest?.isEmergency ? 'Emergency' : 'Normal'
+              isMaintenance ? 'Maintenance' : appointment?.repairRequest?.isEmergency ? 'Emergency' : 'Normal'
             }
           />
         </View>
@@ -876,8 +874,8 @@ export default function AppointmentDetailsScreen() {
                   label="ID cuộc hẹn"
                   value={appointment?.appointmentId || '-'}
                 />
-
-                <Item
+                {!isMaintenance &&(
+                    <Item
                   icon="flag"
                   label="Người chịu lỗi"
                   value={
@@ -887,7 +885,7 @@ export default function AppointmentDetailsScreen() {
                       : '-'
                   }
                 />
-
+                )}
                 <Item
                   icon="wrench"
                   label="Loại giải pháp"

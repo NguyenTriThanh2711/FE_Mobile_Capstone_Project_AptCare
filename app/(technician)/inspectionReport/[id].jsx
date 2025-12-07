@@ -107,14 +107,14 @@ export default function InspectReportDetailScreen() {
 
   const apartment = report?.appointment?.repairRequest?.apartment;
   const repairRequest = report?.appointment?.repairRequest;
-  const invoice = report?.invoice;
-
-  const handleGoInvoiceDetail = () => {
+  const invoice = report?.invoice?.$values?.length > 0 ? report?.invoice?.$values : false;
+  console.log('[invoice data]', pretty(invoice));
+  const handleGoInvoiceDetail = (id) => {
     if (!invoice?.invoiceId) return;
     router.push({
       pathname: '/(technician)/invoice/[id]',
       params: {
-        id: String(invoice.invoiceId),
+        id: String(id),
         repairRequestId: String(invoice.repairRequestId ?? ''),
       },
     });
@@ -267,28 +267,28 @@ export default function InspectReportDetailScreen() {
               </>
             )}
           </View>
-          {invoice && (
+          {invoice ? invoice?.map((inv) => (
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Hóa đơn liên quan</Text>
-              <Row label="Mã hóa đơn" value={invoice.invoiceId} />
+              <Row label="Mã hóa đơn" value={inv.invoiceId} />
               <Row
                 label="Loại hóa đơn"
                 value={
-                  INVOICE_TYPE_LABEL[invoice.type] ||
-                  String(invoice.type || '-')
+                  INVOICE_TYPE_LABEL[inv.type] ||
+                  String(inv.type || '-')
                 }
               />
               <Row
                 label="Có tính phí"
-                value={invoice?.isChargeable ? 'Có' : 'Không'}
+                value={inv.isChargeable ? 'Có' : 'Không'}
               />
               <Row
                 label="Tổng tiền"
-                value={formatCurrency(invoice.totalAmount)}
+                value={formatCurrency(inv.totalAmount)}
               />
               <Row
                 label="Trạng thái"
-                value={<Badge status={invoice.status} />}
+                value={<Badge status={inv.status} />}
               />
 
               {invoiceServices.length > 0 && (
@@ -340,7 +340,7 @@ export default function InspectReportDetailScreen() {
                 <View style={{ alignItems: 'center', marginTop: 12 }}>
                 <Pressable
                   style={[styles.invoiceBtn]}
-                  onPress={handleGoInvoiceDetail}
+                  onPress={() => handleGoInvoiceDetail(inv.invoiceId)}
                 >
                   <Icon
                     name="doc.text"
@@ -353,6 +353,13 @@ export default function InspectReportDetailScreen() {
                 </Pressable>
                 </View>
               )}
+            </View>
+          )) : (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Hóa đơn liên quan</Text>
+              <Text style={{ color: zincColors[500] }}>
+                Không có hóa đơn.
+              </Text>
             </View>
           )}
           <View style={styles.card}>

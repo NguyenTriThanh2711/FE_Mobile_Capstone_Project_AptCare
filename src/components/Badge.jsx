@@ -25,6 +25,7 @@ const PALETTE = {
   paid: { bg: '#34C759', fg: '#FFFFFF' }, // xanh lá
   externalContractor: { bg: '#800080', fg: '#FFFFFF' }, // tím
   accessoryPurchase: { bg: '#c7d2fe', fg: '#FFFFF' }, // vàng nhạt
+  maintenance: { bg: '#FF69B4', fg: '#FFFFFF' }, // hồng
 };
 
 const STATUS_LABEL = {
@@ -33,7 +34,7 @@ const STATUS_LABEL = {
   Completed:   'Đã hoàn tất',
   Pending:     'Chờ xử lý',
   Cancelled:   'Đã hủy',
-  Failed:      'Lỗi',
+  Failed:      'Không đạt',
   Rejected:    'Từ chối',
   Approved:    'Đã được duyệt',
   New:         'Mới',
@@ -52,7 +53,8 @@ const STATUS_LABEL = {
   Scheduling : 'Đang lên lịch',
   AcceptancePendingVerify : 'Chờ nghiệm thu',
   Paid : 'Đã thanh toán',
-  ExternalContractor: 'Bên thứ ba'
+  ExternalContractor: 'Bên thứ ba',
+  Maintenance: 'Bảo trì',
 };
 
 function mapStatusToTone(status) {
@@ -107,6 +109,8 @@ function mapStatusToTone(status) {
       return 'externalContractor';
     case 'AccessoryPurchase':
       return 'accessoryPurchase';
+    case 'Maintenance':
+      return 'maintenance';
     default:
       return 'muted';
   }

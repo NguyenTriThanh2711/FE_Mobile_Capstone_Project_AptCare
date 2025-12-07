@@ -30,7 +30,7 @@ function AuthGate() {
   const triedBootstrap = useRef(false);
   const [bootstrapped, setBootstrapped] = useState(false);
 
-  useChatGlobalRealtime();
+  //useChatGlobalRealtime();
 
   console.log('AuthGate: segments =', segments);
   useEffect(() => {

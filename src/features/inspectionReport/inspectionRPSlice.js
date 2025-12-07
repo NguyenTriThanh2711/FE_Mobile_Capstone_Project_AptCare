@@ -80,7 +80,44 @@ export const generateInspectionReport = createAsyncThunk(
     }
   }
 );
-
+export const generateInspectionMaintenanceReport = createAsyncThunk(
+  'inspectionReport/generateMaintenance',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const fd = new FormData();
+      fd.append('AppointmentId', Number(payload.appointmentId));
+      fd.append('SolutionType', String(payload.solutionType));
+      if (payload.description != null) {
+        fd.append('Description', payload.description);
+      }
+      if (payload.solution != null) {
+        fd.append('Solution', payload.solution);
+      }
+      if (Array.isArray(payload.Files)) {
+        payload.Files.forEach((file) => {
+          fd.append('Files', {
+            uri: file.uri,
+            name: file.name || 'photo.jpg',
+            type: file.type || 'image/jpeg',
+          });
+        });
+      }
+      const { data } = await http.post(
+        '/api/inspectionreports/inspection-maintenance-report',
+        fd,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          transformRequest: (formData) => formData,
+        }
+      );
+      return data;
+    } catch (error) {
+      return rejectWithValue(error);
+    }
+  }
+);
 const slice = createSlice({
   name: 'inspectionReports',
   initialState: {
@@ -160,6 +197,29 @@ const slice = createSlice({
         }
       }
     });
+    b.addCase(
+      generateInspectionMaintenanceReport.fulfilled,
+      (state, action) => {
+        const report = action.payload;
+        const reportId = report?.inspectionReportId ?? report?.id;
+        const appointmentId = report?.appointmentId;
+        if (reportId != null) {
+          state.byId[reportId] = report;
+        }
+        if (appointmentId != null) {
+          const arr = state.byAppointmentId[appointmentId] || [];
+          if (!arr.includes(reportId)) {
+            state.byAppointmentId[appointmentId] = [...arr, reportId];
+          }
+        }
+      }
+    );
+    b.addCase(
+      generateInspectionMaintenanceReport.rejected,
+      (state, action) => {
+        state.error = action.payload || action.error?.message || null;
+      }
+    );
   }
 });
 
