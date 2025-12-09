@@ -13,12 +13,18 @@ import {
   Image,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchProfile, logout, setUser } from "@/src/features/auth/authSlice";
+import {
+  fetchProfile,
+  logout,
+  setUser,
+  changeProfileImage,
+} from "@/src/features/auth/authSlice";
 import { useRouter } from "expo-router";
 import { persistor } from "@/src/store";
 import { getRoomsLabel } from "@/src/helper/room-labels-profile";
 import GradientButton from "@/src/components/common/GradientButton";
 import * as ImagePicker from "expo-image-picker";
+import { compressAndResizeImage } from "@/src/utils/imageCompression";
 
 const styles = StyleSheet.create({
   container: {
@@ -178,14 +184,14 @@ const styles = StyleSheet.create({
   },
   bottomSheetOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)", 
-    justifyContent: "flex-end",       
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
   },
   backdrop: {
-    flex: 1,                    
+    flex: 1,
   },
   avatarSheet: {
-    width: "100%",                   
+    width: "100%",
     backgroundColor: "white",
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -248,11 +254,13 @@ export default function ResidentProfile() {
   const { user, status, error } = useSelector((s) => ({
     user: s.auth.user,
     status: s.auth.status,
-    error:  s.auth.error,
+    error: s.auth.error,
   }));
+  console.log('[user]', user?.profileUrl);
   React.useEffect(() => {
-   if (!user) dispatch(fetchProfile());
+    if (!user) dispatch(fetchProfile());
   }, [user, dispatch]);
+
   const [isLogOut, setIsLogOut] = useState(false);
   const [notifications, setNotifications] = useState({
     pushNotifications: true,
@@ -265,7 +273,12 @@ export default function ResidentProfile() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState({
-    name: "", email: "", phone: "", emergencyContact: "", apartment: "", building: "",
+    name: "",
+    email: "",
+    phone: "",
+    emergencyContact: "",
+    apartment: "",
+    building: "",
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -273,14 +286,10 @@ export default function ResidentProfile() {
     confirmPassword: "",
   });
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  // bottom sheet avatar menu
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  // modal confirm đổi avatar (preview ảnh mới chọn)
   const [showConfirmAvatar, setShowConfirmAvatar] = useState(false);
   const [previewAvatarUri, setPreviewAvatarUri] = useState(null);
-  // modal xem avatar hiện tại
   const [showViewAvatar, setShowViewAvatar] = useState(false);
-
 
   const openEditFromUser = () => {
     const mapped = {
@@ -288,11 +297,12 @@ export default function ResidentProfile() {
       email: user?.Email ?? user?.email ?? "",
       phone: user?.Phone ?? user?.phone ?? "",
       emergencyContact: user?.EmergencyContact ?? user?.emergencyContact ?? "",
-      apartment: user?.Apartment ?? user?.apartment ?? "",//mocked
+      apartment: user?.Apartment ?? user?.apartment ?? "",
       building: user?.Building ?? user?.building ?? "",
     };
     setEditingProfile(mapped);
   };
+
   const handleEditProfile = () => {
     openEditFromUser();
     setShowEditModal(true);
@@ -303,24 +313,27 @@ export default function ResidentProfile() {
       Alert.alert("Lỗi ", "Vui lòng điền đầy đủ thông tin bắt buộc.");
       return;
     }
-    // chưa có API update → cập nhật tạm vào Redux để UI phản ánh ngay
+
     const merged = {
       ...user,
       FullName: editingProfile.name,
       Email: editingProfile.email,
       Phone: editingProfile.phone,
       EmergencyContact: editingProfile.emergencyContact,
-      Apartment: editingProfile.apartment, //mocked
+      Apartment: editingProfile.apartment,
       Building: editingProfile.building,
     };
     dispatch(setUser(merged));
     setShowEditModal(false);
-    // dispatch(updateProfile(payload)).unwrap()//khi có API /me //mocked
     Alert.alert("Thành công", "Thông tin cá nhân đã được cập nhật!");
   };
 
   const handleChangePassword = () => {
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
       Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin mật khẩu.");
       return;
     }
@@ -335,38 +348,35 @@ export default function ResidentProfile() {
       return;
     }
 
-    // Simulate password change
     setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setShowPasswordModal(false);
     Alert.alert("Thành công", "Mật khẩu đã được thay đổi thành công!");
   };
 
   const handleLogout = () => {
-    Alert.alert(
-        "Đăng xuất",
-        "Bạn có chắc chắn muốn đăng xuất không?",
-        [
-        { text: "Hủy", style: "cancel" },
-        {
-            text: "Đăng xuất",
-            style: "destructive",
-            onPress: async () => {
-            try {
-                setIsLogOut(true);
-                await dispatch(logout()).unwrap();
-                await persistor.purge();
-                router.replace("/(auth)/login");
-            } catch (e) {
-                Alert.alert("Lỗi", "Đăng xuất không thành công. Vui lòng thử lại.");
-            }
-            },
+    Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất không?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Đăng xuất",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setIsLogOut(true);
+            await dispatch(logout()).unwrap();
+            await persistor.purge();
+            router.replace("/(auth)/login");
+          } catch (e) {
+            Alert.alert("Lỗi", "Đăng xuất không thành công. Vui lòng thử lại.");
+          }
         },
-        ]
-    );
+      },
+    ]);
   };
+
   const pickAvatarFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
+    const { status: permStatus } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permStatus !== "granted") {
       Alert.alert(
         "Quyền truy cập",
         "Ứng dụng cần quyền truy cập thư viện ảnh để đổi ảnh đại diện."
@@ -376,7 +386,7 @@ export default function ResidentProfile() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+      quality: 1,
     });
 
     if (result.canceled) return;
@@ -384,8 +394,20 @@ export default function ResidentProfile() {
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
-    setPreviewAvatarUri(asset.uri);
-    setShowConfirmAvatar(true); 
+    try {
+      const compressed = await compressAndResizeImage(asset.uri, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.6,
+        format: "jpeg",
+      });
+
+      setPreviewAvatarUri(compressed.uri);
+      setShowConfirmAvatar(true);
+    } catch (e) {
+      console.log("compress error:", e);
+      Alert.alert("Lỗi", "Không thể xử lý ảnh, vui lòng thử lại.");
+    }
   };
 
   const toggleNotification = (key) => {
@@ -394,13 +416,16 @@ export default function ResidentProfile() {
       [key]: !notifications[key],
     });
   };
+
   const openAvatarMenu = () => {
     setShowAvatarMenu(true);
   };
+
   const handlePressChangeAvatar = async () => {
     setShowAvatarMenu(false);
     await pickAvatarFromLibrary();
   };
+
   const handlePressViewAvatar = () => {
     setShowAvatarMenu(false);
     if (user?.profileUrl) {
@@ -409,12 +434,14 @@ export default function ResidentProfile() {
       Alert.alert("Thông báo", "Bạn chưa có ảnh đại diện.");
     }
   };
+
   const handleConfirmAvatar = async () => {
     if (!previewAvatarUri) return;
 
     try {
       setUploadingAvatar(true);
       await dispatch(changeProfileImage({ uri: previewAvatarUri })).unwrap();
+      dispatch(fetchProfile());
       setShowConfirmAvatar(false);
       setPreviewAvatarUri(null);
     } catch (e) {
@@ -447,39 +474,74 @@ export default function ResidentProfile() {
         </Pressable>
 
         <Text style={styles.profileName}>
-          {((user?.firstName ?? "") + " " + (user?.lastName ?? "")) || "Unknown User"}
+          {((user?.firstName ?? "") + " " + (user?.lastName ?? "")) ||
+            "Unknown User"}
         </Text>
-        <Text style={styles.profileApartment}>Căn hộ {getRoomsLabel(user)}</Text>
+        <Text style={styles.profileApartment}>
+          Căn hộ {getRoomsLabel(user)}
+        </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
-          
+
           <Pressable style={styles.menuItem} onPress={handleEditProfile}>
-            <Icon name="person" size={24} color="#007AFF" style={styles.menuItemIcon} />
+            <Icon
+              name="person"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Chỉnh sửa hồ sơ</Text>
-              <Text style={styles.menuItemSubtitle}>Cập nhật thông tin cá nhân của bạn</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Cập nhật thông tin cá nhân của bạn
+              </Text>
             </View>
-            <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
+            <Icon
+              name="chevron.right"
+              size={16}
+              color="#ccc"
+              style={styles.menuItemArrow}
+            />
           </Pressable>
 
-          <Pressable style={styles.menuItem} onPress={() => setShowPasswordModal(true)}>
-            <Icon name="lock" size={24} color="#007AFF" style={styles.menuItemIcon} />
+          <Pressable
+            style={styles.menuItem}
+            onPress={() => setShowPasswordModal(true)}
+          >
+            <Icon
+              name="lock"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Đổi mật khẩu</Text>
-              <Text style={styles.menuItemSubtitle}>Cập nhật mật khẩu tài khoản của bạn</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Cập nhật mật khẩu tài khoản của bạn
+              </Text>
             </View>
-            <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
+            <Icon
+              name="chevron.right"
+              size={16}
+              color="#ccc"
+              style={styles.menuItemArrow}
+            />
           </Pressable>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông báo</Text>
-          
+
           <View style={styles.menuItem}>
-            <Icon name="bell" size={24} color="#007AFF" style={styles.menuItemIcon} />
+            <Icon
+              name="bell"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo </Text>
               <Text style={styles.menuItemSubtitle}>Nhận thông báo </Text>
@@ -493,67 +555,120 @@ export default function ResidentProfile() {
           </View>
 
           <View style={styles.menuItem}>
-            <Icon name="envelope" size={24} color="#007AFF" style={styles.menuItemIcon} />
+            <Icon
+              name="envelope"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo qua Email</Text>
-              <Text style={styles.menuItemSubtitle}>Nhận cập nhật qua email</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Nhận cập nhật qua email
+              </Text>
             </View>
             <Switch
               value={notifications.emailNotifications}
               onValueChange={() => toggleNotification("emailNotifications")}
               trackColor={{ false: "#767577", true: "#007AFF" }}
-              thumbColor={notifications.emailNotifications ? "#fff" : "#f4f3f4"}
+              thumbColor={
+                notifications.emailNotifications ? "#fff" : "#f4f3f4"
+              }
             />
           </View>
 
           <View style={styles.menuItem}>
-            <Icon name="wrench" size={24} color="#007AFF" style={styles.menuItemIcon} />
+            <Icon
+              name="wrench"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Maintenance Updates</Text>
-              <Text style={styles.menuItemSubtitle}>Get notified about request updates</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Get notified about request updates
+              </Text>
             </View>
             <Switch
               value={notifications.maintenanceUpdates}
               onValueChange={() => toggleNotification("maintenanceUpdates")}
               trackColor={{ false: "#767577", true: "#007AFF" }}
-              thumbColor={notifications.maintenanceUpdates ? "#fff" : "#f4f3f4"}
+              thumbColor={
+                notifications.maintenanceUpdates ? "#fff" : "#f4f3f4"
+              }
             />
           </View>
 
           <View style={styles.menuItem}>
-            <Icon name="creditcard" size={24} color="#007AFF" style={styles.menuItemIcon} />
+            <Icon
+              name="creditcard"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Nhắc nhở thanh toán</Text>
-              <Text style={styles.menuItemSubtitle}>Nhận nhắc nhở về các khoản thanh toán đến hạn</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Nhận nhắc nhở về các khoản thanh toán đến hạn
+              </Text>
             </View>
             <Switch
               value={notifications.paymentReminders}
               onValueChange={() => toggleNotification("paymentReminders")}
               trackColor={{ false: "#767577", true: "#007AFF" }}
-              thumbColor={notifications.paymentReminders ? "#fff" : "#f4f3f4"}
+              thumbColor={
+                notifications.paymentReminders ? "#fff" : "#f4f3f4"
+              }
             />
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hỗ Trợ</Text>
-          
+
           <Pressable style={styles.menuItem}>
-            <Icon name="questionmark.circle" size={24} color="#007AFF" style={styles.menuItemIcon} />
+            <Icon
+              name="questionmark.circle"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Trợ Giúp & Hỗ Trợ</Text>
-              <Text style={styles.menuItemSubtitle}>Nhận trợ giúp và liên hệ hỗ trợ</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Nhận trợ giúp và liên hệ hỗ trợ
+              </Text>
             </View>
-            <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
+            <Icon
+              name="chevron.right"
+              size={16}
+              color="#ccc"
+              style={styles.menuItemArrow}
+            />
           </Pressable>
 
           <Pressable style={styles.menuItem}>
-            <Icon name="doc.text" size={24} color="#007AFF" style={styles.menuItemIcon} />
+            <Icon
+              name="doc.text"
+              size={24}
+              color="#007AFF"
+              style={styles.menuItemIcon}
+            />
             <View style={styles.menuItemContent}>
-              <Text style={styles.menuItemTitle}>Điều Khoản & Chính Sách Bảo Mật</Text>
-              <Text style={styles.menuItemSubtitle}>Đọc điều khoản và chính sách bảo mật của chúng tôi</Text>
+              <Text style={styles.menuItemTitle}>
+                Điều Khoản & Chính Sách Bảo Mật
+              </Text>
+              <Text style={styles.menuItemSubtitle}>
+                Đọc điều khoản và chính sách bảo mật của chúng tôi
+              </Text>
             </View>
-            <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
+            <Icon
+              name="chevron.right"
+              size={16}
+              color="#ccc"
+              style={styles.menuItemArrow}
+            />
           </Pressable>
         </View>
 
@@ -568,17 +683,16 @@ export default function ResidentProfile() {
         />
       </ScrollView>
 
-      {/* Edit Profile Modal */}
       <Modal
         visible={showEditModal}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setShowEditModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Chỉnh sửa hồ sơ</Text>
-            
+
             <View style={styles.formGroup}>
               <Text style={styles.label}>Họ và Tên *</Text>
               <TextInput
@@ -617,18 +731,6 @@ export default function ResidentProfile() {
               />
             </View>
 
-            {/* <View style={styles.formGroup}>
-              <Text style={styles.label}>Người Liên Hệ Khẩn Cấp</Text>
-              <TextInput
-                style={styles.input}
-                value={editingProfile.emergencyContact}
-                onChangeText={(text) =>
-                  setEditingProfile({ ...editingProfile, emergencyContact: text })
-                }
-                placeholder="Tên và số điện thoại"
-              />
-            </View> */}
-
             <View style={styles.modalActions}>
               <Pressable
                 style={styles.cancelButton}
@@ -636,10 +738,7 @@ export default function ResidentProfile() {
               >
                 <Text style={styles.cancelButtonText}>Hủy</Text>
               </Pressable>
-              <Pressable
-                style={styles.submitButton}
-                onPress={handleSaveProfile}
-              >
+              <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
                 <Text style={styles.submitButtonText}>Lưu</Text>
               </Pressable>
             </View>
@@ -647,17 +746,16 @@ export default function ResidentProfile() {
         </View>
       </Modal>
 
-      {/* Change Password Modal */}
       <Modal
         visible={showPasswordModal}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setShowPasswordModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Đổi Mật Khẩu</Text>
-            
+
             <View style={styles.formGroup}>
               <Text style={styles.label}>Mật Khẩu Hiện Tại *</Text>
               <TextInput
@@ -667,7 +765,7 @@ export default function ResidentProfile() {
                   setPasswordData({ ...passwordData, currentPassword: text })
                 }
                 placeholder="Nhập mật khẩu hiện tại"
-                secureTextEntry={true}
+                secureTextEntry
               />
             </View>
 
@@ -680,7 +778,7 @@ export default function ResidentProfile() {
                   setPasswordData({ ...passwordData, newPassword: text })
                 }
                 placeholder="Nhập mật khẩu mới"
-                secureTextEntry={true}
+                secureTextEntry
               />
             </View>
 
@@ -693,7 +791,7 @@ export default function ResidentProfile() {
                   setPasswordData({ ...passwordData, confirmPassword: text })
                 }
                 placeholder="Xác nhận mật khẩu mới"
-                secureTextEntry={true}
+                secureTextEntry
               />
             </View>
 
@@ -714,7 +812,7 @@ export default function ResidentProfile() {
           </View>
         </View>
       </Modal>
-      {/* Avatar Menu Modal */}
+
       <Modal
         visible={showAvatarMenu}
         transparent
@@ -722,23 +820,32 @@ export default function ResidentProfile() {
         onRequestClose={() => setShowAvatarMenu(false)}
       >
         <View style={styles.bottomSheetOverlay}>
-          {/* Vùng tối phía trên – bấm để đóng */}
-          <Pressable style={styles.backdrop} onPress={() => setShowAvatarMenu(false)} />
-
-          {/* Bottom sheet full width */}
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setShowAvatarMenu(false)}
+          />
           <View style={styles.avatarSheet}>
-
-            <Pressable style={styles.avatarSheetButton} onPress={handlePressChangeAvatar}>
-              <Text style={styles.avatarSheetButtonText}>Đổi ảnh đại diện</Text>
+            <Pressable
+              style={styles.avatarSheetButton}
+              onPress={handlePressChangeAvatar}
+            >
+              <Text style={styles.avatarSheetButtonText}>
+                Đổi ảnh đại diện
+              </Text>
             </Pressable>
 
-            <Pressable style={styles.avatarSheetButton} onPress={handlePressViewAvatar}>
-              <Text style={styles.avatarSheetButtonText}>Xem ảnh đại diện</Text>
+            <Pressable
+              style={styles.avatarSheetButton}
+              onPress={handlePressViewAvatar}
+            >
+              <Text style={styles.avatarSheetButtonText}>
+                Xem ảnh đại diện
+              </Text>
             </Pressable>
           </View>
         </View>
       </Modal>
-      {/* Modal confirm dùng ảnh mới */}
+
       <Modal
         visible={showConfirmAvatar}
         transparent
@@ -774,6 +881,7 @@ export default function ResidentProfile() {
           </View>
         </View>
       </Modal>
+
       <Modal
         visible={showViewAvatar}
         transparent
@@ -781,7 +889,10 @@ export default function ResidentProfile() {
         onRequestClose={() => setShowViewAvatar(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable style={{ flex: 1 }} onPress={() => setShowViewAvatar(false)} />
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowViewAvatar(false)}
+          />
           <View style={styles.avatarViewBox}>
             {user?.profileUrl ? (
               <Image

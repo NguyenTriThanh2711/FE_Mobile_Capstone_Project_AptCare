@@ -118,7 +118,7 @@ export default function CreateInspectionReportScreen() {
   const [accError, setAccError] = useState(null);
   const [accSearch, setAccSearch] = useState('');
   const [purchaseAccSearch, setPurchaseAccSearch] = useState('');
-
+  const [isResidentFault, setIsResidentFault] = useState(false);
   const [includeInternalInvoice, setIncludeInternalInvoice] = useState(false);
 
   const maintenanceTasksFromStore = useAppSelector((s) =>
@@ -653,6 +653,7 @@ export default function CreateInspectionReportScreen() {
       console.log('[inspection + invoice error]', pretty(err));
 
       const msg =
+        err||
         err?.response?.data?.detail ||
         err?.message?.title ||
         err?.message ||
@@ -710,7 +711,7 @@ export default function CreateInspectionReportScreen() {
               name="faultOwner"
               render={({ field: { value, onChange } }) => (
                 <ChipRadioGroup
-                  label="Người chịu lỗi"
+                  label="Nguyên nhân sự cố"
                   value={value}
                   onChange={onChange}
                   options={FAULT_OWNER_OPTIONS}
@@ -750,6 +751,7 @@ export default function CreateInspectionReportScreen() {
               numberOfLines={4}
               value={value}
               onBlur={onBlur}
+              size="large"
               onChangeText={onChange}
               error={errors.description?.message}
             />
@@ -765,7 +767,7 @@ export default function CreateInspectionReportScreen() {
           render={({ field: { value, onChange, onBlur } }) => (
             <MUITextField
               label="Phương án xử lý"
-              placeholder="Mô tả cách xử lý/thiết bị thay thế/vật tư dự kiến…"
+              placeholder="Mô tả cách xử lý/đối tượng thay thế/vật tư dự kiến…"
               multiline
               numberOfLines={4}
               value={value}
@@ -971,7 +973,7 @@ export default function CreateInspectionReportScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Icon name="wrench" size={18} color={appleBlue} />
-                <Text style={styles.cardTitle}>Thiết bị / vật tư trong kho</Text>
+                <Text style={styles.cardTitle}>Vật tư trong kho</Text>
               </View>
 
               <View style={{ marginBottom: 10 }}>
@@ -1010,7 +1012,8 @@ export default function CreateInspectionReportScreen() {
                     {filteredAccessories.slice(0, 5).map((acc) => (
                       <Pressable
                         key={acc.accessoryId}
-                        style={styles.suggestionItem}
+                        style={[styles.suggestionItem, acc.quantity <= 0 ? { opacity: 0.5 } : null]}
+                        disabled={acc.quantity <= 0}
                         onPress={() => {
                           accAppend({
                             accessoryId: String(acc.accessoryId),
@@ -1092,7 +1095,7 @@ export default function CreateInspectionReportScreen() {
               <View style={styles.cardHeader}>
                 <Icon name="cart" size={18} color={appleBlue} />
                 <Text style={styles.cardTitle}>Mua vật liệu</Text>
-                <Pressable
+                {/* <Pressable
                   onPress={() =>
                     purchaseAccAppend({
                       accessoryId: '',
@@ -1105,7 +1108,7 @@ export default function CreateInspectionReportScreen() {
                 >
                   <Icon name="plus.circle" size={18} color={appleBlue} />
                   <Text style={styles.addTxt}>Thêm dòng trống</Text>
-                </Pressable>
+                </Pressable> */}
               </View>
 
               <View style={{ marginBottom: 10 }}>
@@ -1122,10 +1125,11 @@ export default function CreateInspectionReportScreen() {
                       {filteredPurchaseAccessories.slice(0, 5).map((acc) => (
                         <Pressable
                           key={acc.accessoryId}
-                          style={styles.suggestionItem}
+                          style={[styles.suggestionItem, acc.quantity > 0 ? { opacity: 0.5 } : null ]}
+                          disabled={acc.quantity > 0}
                           onPress={() => {
                             purchaseAccAppend({
-                              accessoryId: String(acc.accessoryId),
+                              accessoryId: String(acc.accessoryId ?? ''),
                               name: acc.name || '',
                               quantity: 1,
                               purchasePrice: acc.price || 0,
@@ -1828,7 +1832,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
 
-  accInfoLine: { marginBottom: 4, flex: 1 },
+  accInfoLine: { marginBottom: 4, flex: 1 , marginLeft: 15},
   accName: { fontSize: 13, fontWeight: '700', color: THEME.text },
   accMeta: { fontSize: 11, color: zincColors[600] },
 

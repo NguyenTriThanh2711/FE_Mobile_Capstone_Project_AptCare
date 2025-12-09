@@ -493,13 +493,13 @@ export default function AppointmentDetailsScreen() {
       dispatch(fetchAppointmentById(id));
       Toast.show({
         type: 'success',
-        text1: 'Đã check-in',
+        text1: 'Đã bắt đầu buổi hẹn',
         text2: 'Bạn có thể bắt đầu buổi hẹn.',
       });
     } catch (e) {
       Toast.show({
         type: 'error',
-        text1: 'Check-in thất bại',
+        text1: 'Bắt đầu buổi hẹn thất bại',
         text2: e || 'Vui lòng thử lại.',
       });
     }
@@ -858,7 +858,7 @@ export default function AppointmentDetailsScreen() {
                 {!isMaintenance &&(
                     <Item
                   icon="flag"
-                  label="Người chịu lỗi"
+                  label="Nguyên nhân sự cố"
                   value={
                     inspectionInfo
                       ? OWNER_LABEL[inspectionInfo.faultOwner] ??

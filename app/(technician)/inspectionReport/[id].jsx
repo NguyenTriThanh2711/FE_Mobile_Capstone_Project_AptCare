@@ -177,7 +177,7 @@ export default function InspectReportDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Kết quả khảo sát</Text>
             <Row
-              label="Người chịu lỗi"
+              label="Nguyên nhân sự cố"
               value={
                 OWNER_LABEL[report.faultOwner] ||
                 String(report.faultOwner || '-')
@@ -282,7 +282,7 @@ export default function InspectReportDetailScreen() {
                 : '-'}
             </Text>
 
-            {techniques.length > 0 && (
+            {/* {techniques.length > 0 && (
               <>
                 <Text style={[styles.subTitle, { marginTop: 12 }]}>
                   Kỹ năng phụ trách
@@ -291,7 +291,7 @@ export default function InspectReportDetailScreen() {
                   {techniques.join(', ')}
                 </Text>
               </>
-            )}
+            )} */}
           </View>
 
           {invoices.length > 0 ? (
@@ -357,7 +357,7 @@ export default function InspectReportDetailScreen() {
                       <Text
                         style={[styles.subTitle, { marginTop: 12 }]}
                       >
-                        Vật tư phụ tùng
+                        Vật tư
                       </Text>
                       {accessories.map((ac, idx) => (
                         <View
@@ -365,7 +365,7 @@ export default function InspectReportDetailScreen() {
                           style={styles.serviceRow}
                         >
                           <Text style={styles.serviceName}>
-                            {ac.name || `Phụ tùng ${idx + 1}`}
+                            {ac.name || `Vật tư ${idx + 1}`}
                           </Text>
                           <Text style={styles.servicePrice}>
                             x{ac.quantity || 1} · {formatCurrency(ac.price)}

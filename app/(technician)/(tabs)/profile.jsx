@@ -21,6 +21,7 @@ import { logout } from '@/src/features/auth/authSlice';
 import { persistor, useAppDispatch, useAppSelector } from '@/src/store';
 import http from '@/src/services/http';
 import { pretty } from '@/src/helper/prettyLog';
+import { compressAndResizeImage } from '@/src/utils/imageCompression';
 
 const styles = StyleSheet.create({
   container: {
@@ -216,7 +217,8 @@ const styles = StyleSheet.create({
 export default function TechnicianProfile() {
   const dispatch = useAppDispatch();
   const authUser = useAppSelector((s) => s.auth.user);
-  console.log('[[]]',pretty(authUser));
+  console.log('[[]]', pretty(authUser));
+
   const displayName =
     `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() ||
     authUser?.fullName ||
@@ -268,7 +270,6 @@ export default function TechnicianProfile() {
   });
   const [isLogOut, setIsLogOut] = useState(false);
 
-  // ========== Đổi avatar: PUT /api/usermanagements/update-user-profile-image ==========
   const handleChangeAvatar = async () => {
     if (!authUser?.userId) {
       Toast.show({
@@ -287,26 +288,29 @@ export default function TechnicianProfile() {
 
     const file = res.assets[0];
 
-    const form = new FormData();
-    form.append('userId', String(authUser.userId));
-    form.append('imageProfileUrl', {
-      uri: file.uri,
-      name: file.name || 'avatar.jpg',
-      type: file.mimeType || 'image/jpeg',
-    });
-
     try {
       setUploadingAvatar(true);
 
-      const { data } = await http.put(
-        '/api/usermanagements/update-user-profile-image',
-        form,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      const compressed = await compressAndResizeImage(file.uri, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.6,
+        format: 'jpeg',
+      });
+
+      const form = new FormData();
+      form.append('userId', String(authUser.userId));
+      form.append('imageProfileUrl', {
+        uri: compressed.uri,
+        name: file.name || 'avatar.jpg',
+        type: file.mimeType || 'image/jpeg',
+      });
+
+      const { data } = await http.put('/auth/change-profile-image', form, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
       const newUrl =
         (data && (data.imageProfileUrl || data.profileImageUrl)) || avatarUrl;
@@ -317,8 +321,6 @@ export default function TechnicianProfile() {
         type: 'success',
         text1: 'Cập nhật ảnh đại diện thành công',
       });
-
-      // dispatch(updateUserAvatar(newUrl));
     } catch (e) {
       console.log('Update avatar error', e?.response || e?.message || e);
       const msg =
@@ -351,7 +353,6 @@ export default function TechnicianProfile() {
       return;
     }
 
-    //dispath
     setProfile({ ...editingProfile });
     setShowEditModal(false);
     Alert.alert('Thành công', 'Cập nhật hồ sơ thành công!');
@@ -377,7 +378,6 @@ export default function TechnicianProfile() {
       return;
     }
 
-    //dispath
     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setShowPasswordModal(false);
     Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
@@ -414,7 +414,6 @@ export default function TechnicianProfile() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           style={styles.profileImage}
@@ -432,7 +431,6 @@ export default function TechnicianProfile() {
         <Text style={styles.profileId}>ID: {profile.employeeId}</Text>
       </View>
 
-      {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.completedRequests}</Text>
@@ -453,7 +451,6 @@ export default function TechnicianProfile() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Thông tin cá nhân */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
 
@@ -461,7 +458,9 @@ export default function TechnicianProfile() {
             <Icon name="person" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Chỉnh sửa hồ sơ</Text>
-              <Text style={styles.menuItemSubtitle}>Cập nhật thông tin cá nhân của bạn</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Cập nhật thông tin cá nhân của bạn
+              </Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -470,22 +469,14 @@ export default function TechnicianProfile() {
             <Icon name="lock" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Đổi Mật Khẩu</Text>
-              <Text style={styles.menuItemSubtitle}>Cập nhật mật khẩu tài khoản của bạn</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Cập nhật mật khẩu tài khoản của bạn
+              </Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
-
-          {/* <Pressable style={styles.menuItem}>
-            <Icon name="doc.text" size={24} color="#007AFF" style={styles.menuItemIcon} />
-            <View style={styles.menuItemContent}>
-              <Text style={styles.menuItemTitle}>Chứng chỉ</Text>
-              <Text style={styles.menuItemSubtitle}>{profile.certifications}</Text>
-            </View>
-            <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
-          </Pressable> */}
         </View>
 
-        {/* Thông báo */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông báo</Text>
 
@@ -521,7 +512,9 @@ export default function TechnicianProfile() {
             <Icon name="list.bullet" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo yêu cầu mới</Text>
-              <Text style={styles.menuItemSubtitle}>Nhận thông báo về các nhiệm vụ mới</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Nhận thông báo về các nhiệm vụ mới
+              </Text>
             </View>
             <Switch
               value={notifications.newRequestAlerts}
@@ -535,7 +528,9 @@ export default function TechnicianProfile() {
             <Icon name="calendar" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo lịch trình</Text>
-              <Text style={styles.menuItemSubtitle}>Nhận thông báo về các nhiệm vụ sắp tới</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Nhận thông báo về các nhiệm vụ sắp tới
+              </Text>
             </View>
             <Switch
               value={notifications.scheduleReminders}
@@ -554,7 +549,9 @@ export default function TechnicianProfile() {
             />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo khẩn cấp</Text>
-              <Text style={styles.menuItemSubtitle}>Nhận thông báo về các yêu cầu khẩn cấp</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Nhận thông báo về các yêu cầu khẩn cấp
+              </Text>
             </View>
             <Switch
               value={notifications.emergencyAlerts}
@@ -565,7 +562,6 @@ export default function TechnicianProfile() {
           </View>
         </View>
 
-        {/* Công cụ */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Công cụ</Text>
 
@@ -573,7 +569,9 @@ export default function TechnicianProfile() {
             <Icon name="calendar" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Lịch làm việc</Text>
-              <Text style={styles.menuItemSubtitle}>Xem và quản lý lịch làm việc của bạn</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Xem và quản lý lịch làm việc của bạn
+              </Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -582,7 +580,9 @@ export default function TechnicianProfile() {
             <Icon name="chart.bar" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Báo cáo hiệu suất</Text>
-              <Text style={styles.menuItemSubtitle}>Xem thống kê công việc của bạn</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Xem thống kê công việc của bạn
+              </Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -597,7 +597,6 @@ export default function TechnicianProfile() {
           </Pressable>
         </View>
 
-        {/* Hỗ trợ */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hỗ trợ</Text>
 
@@ -610,7 +609,9 @@ export default function TechnicianProfile() {
             />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Trợ giúp & Hỗ trợ</Text>
-              <Text style={styles.menuItemSubtitle}>Nhận trợ giúp và liên hệ với hỗ trợ</Text>
+              <Text style={styles.menuItemSubtitle}>
+                Nhận trợ giúp và liên hệ với hỗ trợ
+              </Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -638,7 +639,6 @@ export default function TechnicianProfile() {
         />
       </ScrollView>
 
-      {/* Edit Profile Modal */}
       <Modal
         visible={showEditModal}
         transparent
@@ -728,7 +728,6 @@ export default function TechnicianProfile() {
         </View>
       </Modal>
 
-      {/* Change Password Modal */}
       <Modal
         visible={showPasswordModal}
         transparent

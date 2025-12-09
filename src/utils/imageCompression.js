@@ -1,11 +1,5 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 
-/**
- * Nén + (tuỳ chọn) resize ảnh giữ tỉ lệ bằng manipuateAsync (API ổn định trên SDK cũ).
- * @param {string} uri
- * @param {{maxWidth?: number, maxHeight?: number, quality?: number, format?: 'jpeg'|'png'|'webp'}} opts
- * @returns {Promise<{ uri: string, width: number, height: number }>}
- */
 export async function compressAndResizeImage(uri, opts = {}) {
   const { maxWidth = 1280, maxHeight = 1280, quality = 0.7, format = 'jpeg' } = opts;
 

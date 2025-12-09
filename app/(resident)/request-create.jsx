@@ -359,10 +359,10 @@ export default function RequestCreate() {
         <Controller
           control={control}
           name="shortSummary"
-          rules={{ required: 'Vui lòng nhập tên thiết bị muốn sửa' }}
+          rules={{ required: 'Vui lòng nhập tên đối tượngmuốn sửa' }}
           render={({ field: { onChange, onBlur, value } }) => (
             <MUITextField
-              label="Nhập tên thiết bị muốn sửa *"
+              label="Nhập tên đối tượng muốn sửa *"
               placeholder="VD: Rò rỉ vòi nước bếp, ổ cắm phòng ngủ chập..."
               value={value}
               size='small'

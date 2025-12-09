@@ -152,7 +152,7 @@
 //   };
 
 //   const onDelete = async () => {
-//     Alert.alert("Xoá thiết bị", "Bạn chắc chắn muốn xoá thiết bị này?", [
+//     Alert.alert("Xoá thiết bị", "Bạn chắc chắn muốn xoá đối tượngnày?", [
 //       { text: "Hủy", style: "cancel" },
 //       {
 //         text: "Xoá",
@@ -162,7 +162,7 @@
 //             setSaving(true);
 //             // await http.delete(`/devices/${id}`);
 //             await new Promise((r) => setTimeout(r, 250)); // mock
-//             Alert.alert("Đã xoá", "Thiết bị đã được xoá.");
+//             Alert.alert("Đã xoá", "đối tượngđã được xoá.");
 //             router.back();
 //           } catch {
 //             Alert.alert("Lỗi", "Không xoá được thiết bị.");
@@ -217,7 +217,7 @@
 //           </View>
 
 //           {/* Form */}
-//           <Field label="Tên thiết bị *">
+//           <Field label="Tên đối tượng*">
 //             <TextInput
 //               value={draft.name}
 //               onChangeText={(t) => setDraft((d) => ({ ...d, name: t }))}
