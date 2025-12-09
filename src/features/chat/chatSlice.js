@@ -1,4 +1,3 @@
-// src/features/chat/chatSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import http from '@/src/services/http';
 import { dotnetArr } from '@/src/helper/dotnetArr';
@@ -412,6 +411,10 @@ export const selectConversationBox =
 export const selectChatSending = (s) => s.chat?.sending || false;
 
 export const selectUnreadByConv = (s) => s.chat?.unreadByConv || {};
+export const selectTotalUnreadMessages = (state) => {
+  const map = state.chat.unreadByConv || {};
+  return Object.values(map).reduce((sum, v) => sum + (v || 0), 0);
+};
 export const selectHasAnyUnread = (s) =>
   Object.values(s.chat?.unreadByConv || {}).some((n) => n > 0);
 export const selectCurrentConversationId = (s) =>

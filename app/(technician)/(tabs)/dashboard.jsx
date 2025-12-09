@@ -37,7 +37,7 @@ export default function TechnicianDashboard() {
   const scheduleRaw = useAppSelector(selectWorkSlotsRaw);
   const schedLoading = useAppSelector(selectWorkSlotsLoading);
   const schedError = useAppSelector(selectWorkSlotsError);
-  console.log('[scheduleRaw]', pretty(scheduleRaw));
+  //console.log('[scheduleRaw]', pretty(scheduleRaw));
   useEffect(() => {
     dispatch(fetchSlots());
     const today = new Date();
@@ -152,7 +152,7 @@ export default function TechnicianDashboard() {
   }, [allJobs]);
 
   const todayJobs = useMemo(() => allJobs.slice(0, 3), [allJobs]);
-  console.log('Today jobs:', pretty(todayJobs));
+  //console.log('Today jobs:', pretty(todayJobs));
   const getPriorityColor = (priorityVi) => {
     switch (priorityVi) {
       case 'Khẩn cấp':

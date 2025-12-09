@@ -1,10 +1,11 @@
 // src/services/pushNotifications.js
 import messaging from '@react-native-firebase/messaging';
-import { store } from '@/src/store';
+import { store, useAppDispatch } from '@/src/store';
 import {
   addNotificationFromPush,
   fetchUnreadCount,
 } from '@/src/features/notifications/notificationsSlice';
+import { registerFcm } from '../features/auth/authSlice';
 
 // đã có sẵn trong project:
 export async function registerForPushAsync() {
@@ -20,9 +21,9 @@ export async function registerForPushAsync() {
 
   const token = await messaging().getToken();
   console.log('[FCM Token ->]', token);
+  
   return token;
 }
-
 // foreground listener
 export function attachForegroundListener() {
   const unsubscribe = messaging().onMessage(async (remoteMessage) => {
@@ -40,7 +41,7 @@ export function attachForegroundListener() {
       type: data.type || 'General',
     };
 
-    store.dispatch(addNotificationFromPush(n));
+    //store.dispatch(addNotificationFromPush(n));
     store.dispatch(fetchUnreadCount());
   });
 

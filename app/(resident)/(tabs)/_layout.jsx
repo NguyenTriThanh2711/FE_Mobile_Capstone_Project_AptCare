@@ -12,12 +12,13 @@ import ResidentProfile from './profile';
 import ResidentChat from './chat';
 import ResidentScheduleScreen from './appointment';
 import ResidentNotificationsScreen from './notifications';
+import { selectTotalUnreadMessages } from '@/src/features/chat/chatSlice';
 
 const Tab = createBottomTabNavigator();
 
 export default function ResidentTabsLayout() {
   const unreadNoti = useAppSelector(selectNotificationsUnreadCount);
-
+  const unreadChat = useAppSelector(selectTotalUnreadMessages);
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -43,6 +44,8 @@ export default function ResidentTabsLayout() {
         tabBarBadge:
           route.name === 'notifications' && unreadNoti > 0
             ? unreadNoti
+            : route.name === 'chat' && unreadChat > 0
+            ? unreadChat
             : undefined,
 
         tabBarActiveTintColor: '#007AFF',

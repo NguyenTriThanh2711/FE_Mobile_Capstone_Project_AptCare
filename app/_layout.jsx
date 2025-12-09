@@ -5,7 +5,7 @@ import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-route
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor, useAppSelector, useAppDispatch } from '@/src/store';
-import { fetchProfile, logout } from '@/src/features/auth/authSlice';
+import { fetchProfile, logout, registerFcm } from '@/src/features/auth/authSlice';
 import '../global.css';
 import { MD3LightTheme, Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import {
 
 import useChatGlobalRealtime from '@/src/hooks/useChatGlobalRealtime';
 import { fetchMyNotifications, fetchUnreadCount } from '@/src/features/notifications/notificationsSlice';
+import { fetchMyConversations } from '@/src/features/chat/chatSlice';
 
 function AuthGate() {
   const user = useAppSelector((s) => s.auth.user);
@@ -30,7 +31,7 @@ function AuthGate() {
   const triedBootstrap = useRef(false);
   const [bootstrapped, setBootstrapped] = useState(false);
 
-  //useChatGlobalRealtime();
+  useChatGlobalRealtime();
 
   console.log('AuthGate: segments =', segments);
   useEffect(() => {
@@ -38,6 +39,7 @@ function AuthGate() {
     (async () => {
       const fcmToken = await registerForPushAsync();
       console.log('[FCM Token ->]', fcmToken);
+      dispatch(registerFcm({ fcmToken }));
       if (fcmToken) {
         attachForegroundListener();
       }
@@ -62,6 +64,7 @@ function AuthGate() {
   useEffect(() => {
   if (!user || !bootstrapped) return;
   dispatch(fetchMyNotifications({ page: 1, size: 20 }));
+  dispatch(fetchMyConversations());
   dispatch(fetchUnreadCount());
 }, [user, bootstrapped, dispatch]);
 

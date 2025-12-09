@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   FlatList,
   Pressable,
+  Keyboard,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '@/src/store';
@@ -21,6 +22,8 @@ import ChatComposer from '@/src/components/ChatComposer';
 import useConversation from '@/src/hooks/useConversation';
 import useChatRealtime from '@/src/hooks/useChatRealtime';
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 export default function ChatDetailBase({ variant = 'resident', headerTitle }) {
   const { id } = useLocalSearchParams();
   const conversationId = Number(id);
@@ -28,6 +31,8 @@ export default function ChatDetailBase({ variant = 'resident', headerTitle }) {
   const { box, listRef, loadMore } = useConversation(conversationId);
   const user = useAppSelector((s) => s.auth.user);
   const meId = user?.userId;
+
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -37,8 +42,23 @@ export default function ChatDetailBase({ variant = 'resident', headerTitle }) {
     };
   }, [conversationId, dispatch]);
 
-  // Realtime: join room + nhận message
   useChatRealtime(conversationId, box?.info);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return; 
+
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height+10 || 0);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const title = useMemo(() => {
     if (headerTitle) return headerTitle;
@@ -66,13 +86,11 @@ export default function ChatDetailBase({ variant = 'resident', headerTitle }) {
   };
 
   return (
-    <KeyboardAvoidingView
+    <View
       style={{
         flex: 1,
         backgroundColor: variant === 'resident' ? '#f8faf9' : '#fff',
       }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -94,36 +112,47 @@ export default function ChatDetailBase({ variant = 'resident', headerTitle }) {
         </Text>
         <View style={{ width: 28 }} />
       </View>
+      <View style={{ flex: 1 }}>
+        <FlatList
+          ref={listRef}
+          data={box?.messages || []}
+          keyExtractor={(m, index) =>
+            String(
+              m.messageId ??
+                m.localId ??
+                `${m.slug || ''}-${m.createdAt || ''}-${m.senderId || ''}-${index}`
+            )
+          }
+          renderItem={({ item }) => (
+            <MessageItem msg={item} meId={meId} showSender={true} />
+          )}
+          contentContainerStyle={{
+            padding: 14,
+            paddingBottom: 10,
+            minHeight: SCREEN_HEIGHT * 0.7,
+          }}
+          ListFooterComponent={
+            box?.loadingChat ? (
+              <Text style={styles.loading}>Đang tải…</Text>
+            ) : null
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.2}
+          onContentSizeChange={() =>
+            setTimeout(
+              () => listRef.current?.scrollToEnd({ animated: true }),
+              0
+            )
+          }
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        />
+      </View>
 
-      {/* Messages list */}
-      <FlatList
-        ref={listRef}
-        data={box?.messages || []} // newest-last
-        keyExtractor={(m) =>
-          String(m.messageId ?? m.localId ?? `${m.createdAt}-${m.senderId}`)
-        }
-        renderItem={({ item }) => (
-          <MessageItem msg={item} meId={meId} showSender={true} />
-        )}
-        contentContainerStyle={{ padding: 14, paddingBottom: 10 }}
-        // onEndReachedThreshold={0.01}
-        // onEndReached={loadMore}
-        ListFooterComponent={
-          box?.loadingChat ? (
-            <Text style={styles.loading}>Đang tải…</Text>
-          ) : null
-        }
-        onContentSizeChange={() =>
-          setTimeout(
-            () => listRef.current?.scrollToEnd({ animated: true }),
-            0
-          )
-        }
-      />
-
-      {/* Composer */}
-      <ChatComposer onSendText={onSendText} onSendFile={onSendFile} />
-    </KeyboardAvoidingView>
+      <View style={{ paddingBottom: keyboardHeight }}>
+        <ChatComposer onSendText={onSendText} onSendFile={onSendFile} />
+      </View>
+    </View>
   );
 }
 

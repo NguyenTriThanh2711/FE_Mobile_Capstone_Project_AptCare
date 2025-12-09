@@ -33,7 +33,7 @@
       "tsconfigPaths": true
     },
     "orientation": "portrait",
-    "icon": "./aptcareapp.png",
+    "icon": "./aptcareappicone.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -50,7 +50,7 @@
       "package": "com.aptcare.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./aptcareapp.png",
+        "foregroundImage": "./aptcareappicone.png",
         "backgroundColor": "#ffffff"
       }
     },

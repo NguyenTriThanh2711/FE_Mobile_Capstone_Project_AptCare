@@ -135,7 +135,20 @@ export const verifyOtp = createAsyncThunk(
     }
   }
 );
-
+export const registerFcm = createAsyncThunk(
+  'auth/registerFcm',
+  async ({ fcmToken }, { rejectWithValue }) => {
+    try {
+      const { data } = await http.post('/auth/register-fcm', { fcmToken , deviceInfo: await getDeviceId()});
+      console.log('resgister fcm token', data);
+      return data;
+    } catch (err) {
+      const message =
+        err?.response?.data?.detail || err?.response?.data?.message || 'Đăng ký FCM thất bại';
+      return rejectWithValue(message);
+    }
+  }
+);
 /**
  * POST /auth/resend-otp  -> gửi lại OTP
  * payload gợi ý: { accountId } hoặc { email }

@@ -1124,11 +1124,10 @@ const styles = StyleSheet.create({
   },
   addFeedbackBtn: {
     marginTop: 12,
-    alignSelf: 'flex-start',
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
+    display: 'flex',
     gap: 6,
-    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
@@ -1154,6 +1153,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#4B5563',
     fontWeight: '600',
+   
   },
   invoiceItem: {
     flexDirection: 'row',

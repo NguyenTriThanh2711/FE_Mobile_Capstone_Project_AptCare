@@ -107,7 +107,7 @@ export default function CreateRepairReportScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
         {/* Appointment Id (locked) */}
-        <Controller
+        {/* <Controller
           control={control}
           name="appointmentId"
           render={({ field: { value, onChange, onBlur } }) => (
@@ -123,7 +123,7 @@ export default function CreateRepairReportScreen() {
               error={errors.appointmentId?.message}
             />
           )}
-        />
+        /> */}
 
         {/* WorkDescription */}
         <Controller

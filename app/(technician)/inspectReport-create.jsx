@@ -685,7 +685,7 @@ export default function CreateInspectionReportScreen() {
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        <Controller
+        {/* <Controller
           control={control}
           name="appointmentId"
           render={({ field: { value, onChange, onBlur } }) => (
@@ -701,7 +701,7 @@ export default function CreateInspectionReportScreen() {
               error={errors.appointmentId?.message}
             />
           )}
-        />
+        /> */}
 
         {!isMaintenance && (
           <>

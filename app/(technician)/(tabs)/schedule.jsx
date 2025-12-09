@@ -162,8 +162,8 @@ export default function TechnicianSchedule() {
     return arr.find((d) => d?.date === dateStr) || null;
   }, [scheduleRaw, dateStr]);
 
-  console.log('[dayData]', pretty(dayData));
-  console.log('[slotMap]', slotMap);
+  //console.log('[dayData]', pretty(dayData));
+  //console.log('[slotMap]', slotMap);
 
   const shifts = useMemo(() => {
     if (!dayData) return [];

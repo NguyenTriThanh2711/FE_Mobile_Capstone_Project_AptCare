@@ -90,17 +90,17 @@ export default function InspectReportDetailScreen() {
     : '-';
 
   const medias = useMemo(() => dotnetArr(report?.medias), [report]);
-
   const techniques = useMemo(
     () => dotnetArr(report?.technican?.techniques),
     [report]
   );
-
   const apartment = report?.appointment?.repairRequest?.apartment;
   const repairRequest = report?.appointment?.repairRequest;
   const invoices = useMemo(() => dotnetArr(report?.invoice), [report]);
-
-  console.log('[invoice data]', pretty(invoices));
+  const repairRequestTasks = useMemo(
+    () => dotnetArr(report?.repairRequestTasks),
+    [report]
+  );
 
   const handleGoInvoiceDetail = (inv) => {
     if (!inv?.invoiceId) return;
@@ -205,6 +205,44 @@ export default function InspectReportDetailScreen() {
               {report.solution || '-'}
             </Text>
           </View>
+
+          {repairRequestTasks && repairRequestTasks.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Công việc bảo trì</Text>
+              <View style={{ gap: 10 }}>
+                {repairRequestTasks.map((task) => (
+                  <View
+                    key={task.repairRequestTaskId}
+                    style={styles.taskItem}
+                  >
+                    <View style={styles.taskHeaderRow}>
+                      <Text style={styles.taskName}>
+                        {task.taskName || 'Nhiệm vụ'}
+                      </Text>
+                      {task.status ? (
+                        <Badge status={task.status} />
+                      ) : null}
+                    </View>
+                    {task.taskDescription ? (
+                      <Text style={styles.taskDescription}>
+                        {task.taskDescription}
+                      </Text>
+                    ) : null}
+                    {task.inspectionResult ? (
+                      <Text style={styles.taskResult}>
+                        Kết quả: {task.inspectionResult}
+                      </Text>
+                    ) : null}
+                    {task.completedAt ? (
+                      <Text style={styles.taskCompletedAt}>
+                        Hoàn thành: {timeDayDate(task.completedAt)}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Căn hộ & yêu cầu sửa chữa</Text>
@@ -499,5 +537,40 @@ const styles = StyleSheet.create({
     color: appleBlue,
     fontWeight: '700',
     fontSize: 13,
+  },
+
+  taskItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: zincColors[100],
+  },
+  taskHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  taskName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  taskDescription: {
+    fontSize: 13,
+    color: zincColors[700],
+    lineHeight: 18,
+  },
+  taskResult: {
+    marginTop: 4,
+    fontSize: 13,
+    color: zincColors[700],
+  },
+  taskCompletedAt: {
+    marginTop: 2,
+    fontSize: 12,
+    color: zincColors[500],
   },
 });

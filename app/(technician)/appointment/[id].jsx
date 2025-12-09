@@ -110,11 +110,8 @@ export default function AppointmentDetailsScreen() {
 
   const repairRequestId = appointment?.repairRequest?.repairRequestId;
 
-  const invoices = useAppSelector((state) =>
-    repairRequestId
-      ? selectInvoicesByRepairRequest(state, repairRequestId)
-      : []
-  );
+  const invoices = useAppSelector((state) =>repairRequestId? selectInvoicesByRepairRequest(state, repairRequestId): []);
+  const mainInvoice =invoices.find((inv) =>inv.type === "InternalRepair" ||inv.type === "ExternalContractor") || null;
   const invoicesLoading = useAppSelector((state) =>
     repairRequestId
       ? selectInvoicesLoadingByRepairRequest(state, repairRequestId)
@@ -914,7 +911,7 @@ export default function AppointmentDetailsScreen() {
                   <Text style={styles.invoiceError}>
                     {maintenanceTasksError}
                   </Text>
-                ) : !maintenanceTasks || maintenanceTasks.length === 0 ? (
+                ) : !maintenanceTasks || maintenanceTasks?.length === 0 ? (
                   <Text
                     style={{ color: zincColors[500], marginLeft: 40 }}
                   >
@@ -954,7 +951,7 @@ export default function AppointmentDetailsScreen() {
                 >
                   Đang tải danh sách báo cáo…
                 </Text>
-              ) : inspectionReportIds.length === 0 ? (
+              ) : inspectionReportIds?.length === 0 ? (
                 <Text
                   style={{ color: zincColors[500], marginLeft: 40 }}
                 >
@@ -977,13 +974,13 @@ export default function AppointmentDetailsScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Báo cáo sửa chữa</Text>
-              {repairReportLoading && repairReportIds.length === 0 ? (
+              {repairReportLoading && repairReportIds?.length === 0 ? (
                 <Text
                   style={{ color: zincColors[500], marginLeft: 40 }}
                 >
                   Đang tải danh sách báo cáo…
                 </Text>
-              ) : repairReportIds.length === 0 ? (
+              ) : repairReportIds?.length === 0 ? (
                 <Text
                   style={{ color: zincColors[500], marginLeft: 40 }}
                 >
@@ -1015,7 +1012,7 @@ export default function AppointmentDetailsScreen() {
                 </Text>
               ) : invoicesError ? (
                 <Text style={styles.invoiceError}>{invoicesError}</Text>
-              ) : invoices.length === 0 ? (
+              ) : mainInvoice?.length === 0 ? (
                 <Text
                   style={{ color: zincColors[500], marginLeft: 40 }}
                 >
@@ -1023,14 +1020,14 @@ export default function AppointmentDetailsScreen() {
                 </Text>
               ) : (
                 <View style={{ gap: 10 }}>
-                  {invoices.map((inv, idx) => (
+                  {mainInvoice && (
                     <InvoiceListItem
-                      key={inv.invoiceId}
-                      index={idx + 1}
-                      invoice={inv}
-                      onPress={() => goInvoiceDetail(inv.invoiceId)}
+                      key={mainInvoice.invoiceId}
+                      index={1}
+                      invoice={mainInvoice}
+                      onPress={() => goInvoiceDetail(mainInvoice.invoiceId)}
                     />
-                  ))}
+                  )}
                 </View>
               )}
             </View>

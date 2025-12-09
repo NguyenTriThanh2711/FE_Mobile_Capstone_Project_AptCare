@@ -1,4 +1,5 @@
 import { unwrapDotNetValuesDeep } from "@/src/helper/dotnetArr";
+import { pretty } from "@/src/helper/prettyLog";
 import http from "@/src/services/http";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
@@ -6,10 +7,11 @@ export const fetchInspectionReportById = createAsyncThunk(
   'inspectionReport/fetchById',
   async (reportId, { rejectWithValue }) => {
     try {
+      console.log('[fetch lai ]')
       const {data} = await http.get(
         `/api/inspectionreports/inspection-report/${reportId}`,
       );
-      console.log('fetchsdfd',data)
+      console.log('fetchsdfd', pretty(data))
       return data;
     } catch (error) {
       return rejectWithValue(error);

@@ -48,7 +48,7 @@ const processQueue = (error, accessToken = null) => {
 // ---- Response interceptor
 http.interceptors.response.use(
   (r) => {
-    console.log('[HTTP Response]', pretty(r?.data));
+    //console.log('[HTTP Response]', pretty(r?.data));
     return r;
   },
   async (error) => {
