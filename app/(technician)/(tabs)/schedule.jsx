@@ -168,12 +168,12 @@ export default function TechnicianSchedule() {
   const shifts = useMemo(() => {
     if (!dayData) return [];
     const slotsArr = dotnetArr(dayData.slots);
-    console.log('[slotsArr]',pretty(slotsArr));
+    //console.log('[slotsArr]',pretty(slotsArr));
     return slotsArr
       .map((sl) => {
-        console.log('[slot]', pretty(sl));
+        //console.log('[slot]', pretty(sl));
         const info = slotMap?.[sl.slotId] || {};
-        console.log('[[info]]', info);
+        //console.log('[[info]]', info);
         const tws = dotnetArr(sl.technicianWorkSlots)?.[0] || null;
 
         const appointments = dotnetArr(tws?.appointments) || [];
@@ -229,7 +229,7 @@ export default function TechnicianSchedule() {
       });
   }, [dayData, slotMap]);
 
-  console.log('[shifts]', shifts);
+  //console.log('[shifts]', shifts);
 
   const totalAppointments = useMemo(
     () => shifts.reduce((sum, s) => sum + (s.appointments?.length || 0), 0),

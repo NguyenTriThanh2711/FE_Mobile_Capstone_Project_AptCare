@@ -313,7 +313,7 @@ export default function TechnicianDashboard() {
             />
             <Text style={styles.quickActionText}>Kết thúc ngày</Text>
           </Pressable>
-          <Pressable
+          {/* <Pressable
             style={styles.quickActionButton}
             onPress={() => handleQuickAction('Khẩn cấp')}
           >
@@ -327,7 +327,7 @@ export default function TechnicianDashboard() {
           >
             <Icon name="pause.circle.fill" size={26} color="#FF9500" />
             <Text style={styles.quickActionText}>Nghỉ giải lao</Text>
-          </Pressable>
+          </Pressable> */}
 
         </View>
       </View>

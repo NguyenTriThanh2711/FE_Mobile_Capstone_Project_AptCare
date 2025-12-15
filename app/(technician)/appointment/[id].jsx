@@ -53,7 +53,10 @@ import {
 } from '@/src/features/repairReport/repairReportSlice';
 import ProgressStepper from '@/src/components/ProgressStepper';
 import {
+  cancelInvoice,
   fetchInvoicesByRepairRequestId,
+  selectInvoiceCancelErrorById,
+  selectInvoiceCancellingById,
   selectInvoicesByRepairRequest,
   selectInvoicesErrorByRepairRequest,
   selectInvoicesLoadingByRepairRequest,
@@ -112,6 +115,14 @@ export default function AppointmentDetailsScreen() {
 
   const invoices = useAppSelector((state) =>repairRequestId? selectInvoicesByRepairRequest(state, repairRequestId): []);
   const mainInvoice =invoices.find((inv) =>inv.type === "InternalRepair" ||inv.type === "ExternalContractor") || null;
+  const mainInvoiceId = mainInvoice?.invoiceId;
+  const mainInvoiceCancelling = useAppSelector((state) => mainInvoiceId ? selectInvoiceCancellingById(state, mainInvoiceId) : false);
+  const mainInvoiceCancelError = useAppSelector((state) =>mainInvoiceId ? selectInvoiceCancelErrorById(state, mainInvoiceId) : null);
+
+  const invoiceStatusRaw =mainInvoice?.status || mainInvoice?.invoiceStatus || '';
+  const invoiceStatusNorm =typeof invoiceStatusRaw === 'string'? invoiceStatusRaw.toLowerCase(): '';
+  const hasApprovedInvoice =!!mainInvoice && invoiceStatusNorm === 'approved';
+
   const invoicesLoading = useAppSelector((state) =>
     repairRequestId
       ? selectInvoicesLoadingByRepairRequest(state, repairRequestId)
@@ -692,6 +703,59 @@ export default function AppointmentDetailsScreen() {
       );
     }
   };
+    const handleCreateInspectionReportWithInvoiceGuard = () => {
+    if (!mainInvoice || !mainInvoiceId) {
+      handleCreateInspectionReport();
+      return;
+    }
+    if (!hasApprovedInvoice) {
+      handleCreateInspectionReport();
+      return;
+    }
+    Alert.alert(
+      'Đã có hoá đơn được duyệt',
+      'Yêu cầu này đã có hoá đơn được duyệt. Để tạo thêm báo cáo khảo sát/báo giá mới, hệ thống cần hủy hoá đơn hiện tại và hoàn trả vật tư. Bạn có chắc muốn tiếp tục?',
+      [
+        { text: 'Không', style: 'cancel' },
+        {
+          text: 'Hủy hoá đơn & tiếp tục',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await dispatch(
+                cancelInvoice({
+                  invoiceId: mainInvoiceId,
+                  reason:
+                    'Hủy hoá đơn hiện tại để tạo lại báo cáo khảo sát/báo giá',
+                })
+              ).unwrap();
+
+              Toast.show({
+                type: 'success',
+                text1: 'Đã hủy hoá đơn',
+                text2: 'Vật tư đã được hoàn trả.',
+              });
+              if (repairRequestId) {
+                dispatch(
+                  fetchInvoicesByRepairRequestId(repairRequestId)
+                );
+              }
+              handleCreateInspectionReport();
+            } catch (e) {
+              Toast.show({
+                type: 'error',
+                text1: 'Hủy hoá đơn thất bại',
+                text2:
+                  e?.message ||
+                  mainInvoiceCancelError ||
+                  'Vui lòng thử lại hoặc liên hệ quản trị.',
+              });
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const goInspectionReportDetail = (reportId) => {
     router.push({
@@ -1217,19 +1281,33 @@ export default function AppointmentDetailsScreen() {
         {(appointment?.status === 'InVisit' ||
           appointment?.status === 'AwaitingIRApproval') && (
           <Pressable
-            style={styles.primaryBtn}
-            onPress={handleCreateInspectionReport}
+            style={[
+              styles.primaryBtn,
+              mainInvoiceCancelling && { opacity: 0.6 },
+            ]}
+            onPress={
+              mainInvoiceCancelling
+                ? undefined
+                : handleCreateInspectionReportWithInvoiceGuard
+            }
+            disabled={mainInvoiceCancelling}
           >
-            <Icon
-              name="doc.text"
-              size={20}
-              color={THEME.background}
-            />
-            <Text style={styles.primaryBtnText}>
-              {hasInspectionReportForThisAppt
-                ? 'Thêm báo cáo khảo sát'
-                : 'Báo cáo khảo sát'}
-            </Text>
+            {mainInvoiceCancelling ? (
+              <ActivityIndicator color={THEME.background} />
+            ) : (
+              <>
+                <Icon
+                  name="doc.text"
+                  size={20}
+                  color={THEME.background}
+                />
+                <Text style={styles.primaryBtnText}>
+                  {hasInspectionReportForThisAppt
+                    ? 'Thêm báo cáo khảo sát'
+                    : 'Báo cáo khảo sát'}
+                </Text>
+              </>
+            )}
           </Pressable>
         )}
 

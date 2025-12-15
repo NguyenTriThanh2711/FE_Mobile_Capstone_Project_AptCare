@@ -1,4 +1,3 @@
-// app/_layout.jsx
 import '@/src/utils/signalr-polyfill';
 import React, { useEffect, useRef, useState } from 'react';
 import { Slot, useRouter, useSegments, useRootNavigationState } from 'expo-router';
@@ -9,7 +8,7 @@ import { fetchProfile, logout, registerFcm } from '@/src/features/auth/authSlice
 import '../global.css';
 import { MD3LightTheme, Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Toast, { ErrorToast } from 'react-native-toast-message';
+import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import http, { setOnAuthFail } from '@/src/services/http';
 import {
@@ -36,15 +35,19 @@ function AuthGate() {
   console.log('AuthGate: segments =', segments);
   useEffect(() => {
     if (!user) return;
+    let unsubscribeForeground = null;
     (async () => {
       const fcmToken = await registerForPushAsync();
       console.log('[FCM Token ->]', fcmToken);
       dispatch(registerFcm({ fcmToken }));
       if (fcmToken) {
-        attachForegroundListener();
+        unsubscribeForeground = attachForegroundListener();
       }
     })();
-  }, [user]);
+    return () => {
+      if (unsubscribeForeground) unsubscribeForeground();
+    };
+  }, [user, dispatch]);
   
   useEffect(() => {
     (async () => {
@@ -105,11 +108,20 @@ function AuthGate() {
 }
 
 const toastConfig = {
-  error: (props) => (
-    <ErrorToast
+  info: (props) => (
+    <BaseToast
       {...props}
       text1NumberOfLines={2}
       text2NumberOfLines={6}
+      text2Style={{ fontSize: 13, lineHeight: 18 }}
+      style={{ borderLeftColor: '#3b82f6' }}
+    />
+  ),
+  error: (props) => (
+    <ErrorToast
+      {...props}
+      text1NumberOfLines={10}
+      text2NumberOfLines={12}
       text2Style={{ fontSize: 13, lineHeight: 18 }}
       style={{ borderLeftColor: '#ef4444' }}
     />

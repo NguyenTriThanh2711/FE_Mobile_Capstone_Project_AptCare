@@ -383,7 +383,7 @@ export default function AuthScreen() {
                   </View>
                 </View>
               )}
-              {tab === 'register' && (
+              {/* {tab === 'register' && (
                 <View>
                   <Field
                     control={registerControl}
@@ -424,7 +424,7 @@ export default function AuthScreen() {
                     onPress={handleRegisterSubmit(onRegister)}
                   />
                 </View>
-              )}
+              )} */}
               {tab === 'verify' && (
                 <View>
                   <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 13, marginBottom: 8 }}>

@@ -1,4 +1,3 @@
-// src/services/pushNotifications.js
 import messaging from '@react-native-firebase/messaging';
 import { store, useAppDispatch } from '@/src/store';
 import {
@@ -7,7 +6,6 @@ import {
 } from '@/src/features/notifications/notificationsSlice';
 import { registerFcm } from '../features/auth/authSlice';
 
-// đã có sẵn trong project:
 export async function registerForPushAsync() {
   const authStatus = await messaging().requestPermission();
   const enabled =
@@ -30,7 +28,9 @@ export function attachForegroundListener() {
     console.log('[FCM foreground] message', remoteMessage);
 
     const data = remoteMessage.data || {};
-    // Tuỳ backend gửi gì, tạm map thế này:
+    const title = data.title || remoteMessage.notification?.title || 'Thông báo';
+    const description = data.description || remoteMessage.notification?.body || '';
+
     const n = {
       notificationId: Number(data.notificationId) || Date.now(), // fallback
       title: data.title || remoteMessage.notification?.title || 'Thông báo',
@@ -43,6 +43,14 @@ export function attachForegroundListener() {
 
     //store.dispatch(addNotificationFromPush(n));
     store.dispatch(fetchUnreadCount());
+    Toast.show({
+      type: 'info', // hoặc 'success' / 'error'
+      text1: title,
+      text2: description,
+      position: 'top',
+      visibilityTime: 2500,
+      topOffset: 60,
+    });
   });
 
   return unsubscribe;

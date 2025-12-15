@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -10,40 +10,42 @@ import {
   Alert,
   Switch,
   Image,
-} from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
-import { router } from 'expo-router';
-import Toast from 'react-native-toast-message';
+} from "react-native";
+import { router } from "expo-router";
+import Toast from "react-native-toast-message";
+import * as ImagePicker from "expo-image-picker";
 
-import GradientButton from '@/src/components/common/GradientButton';
-import { Icon } from '@/src/components/Icon.native';
-import { logout } from '@/src/features/auth/authSlice';
-import { persistor, useAppDispatch, useAppSelector } from '@/src/store';
-import http from '@/src/services/http';
-import { pretty } from '@/src/helper/prettyLog';
-import { compressAndResizeImage } from '@/src/utils/imageCompression';
+import GradientButton from "@/src/components/common/GradientButton";
+import { Icon } from "@/src/components/Icon.native";
+import {
+  logout,
+  fetchProfile,
+  changeProfileImage,
+} from "@/src/features/auth/authSlice";
+import { persistor, useAppDispatch, useAppSelector } from "@/src/store";
+import { compressAndResizeImage } from "@/src/utils/imageCompression";
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   header: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-    alignItems: 'center',
+    borderBottomColor: "#e5e5e5",
+    alignItems: "center",
   },
   profileImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#007AFF",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   profileImageImg: {
     width: 80,
@@ -52,65 +54,65 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 4,
   },
   profileRole: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 4,
   },
   profileId: {
     fontSize: 14,
-    color: '#999',
+    color: "#999",
   },
   statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    backgroundColor: "white",
     marginTop: 20,
     paddingVertical: 20,
   },
   statItem: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     borderRightWidth: 1,
-    borderRightColor: '#f0f0f0',
+    borderRightColor: "#f0f0f0",
   },
   statItemLast: {
     borderRightWidth: 0,
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontWeight: "bold",
+    color: "#007AFF",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
   },
   section: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     marginTop: 20,
     paddingVertical: 8,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
   },
   menuItemIcon: {
     marginRight: 16,
@@ -120,133 +122,215 @@ const styles = StyleSheet.create({
   },
   menuItemTitle: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: "500",
+    color: "#333",
     marginBottom: 2,
   },
   menuItemSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   menuItemArrow: {
     marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     margin: 20,
     borderRadius: 16,
     padding: 24,
-    width: '90%',
-    maxHeight: '80%',
+    width: "90%",
+    maxHeight: "80%",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   formGroup: {
     marginBottom: 16,
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 20,
     gap: 12,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButtonText: {
-    color: '#666',
+    color: "#666",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   submitButton: {
     flex: 1,
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   submitButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   logoutButton: {
     margin: 20,
     borderRadius: 12,
   },
   switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  bottomSheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  backdrop: {
+    flex: 1,
+  },
+  avatarSheet: {
+    width: "100%",
+    backgroundColor: "white",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 28,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  avatarSheetButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+    alignItems: "center",
+  },
+  avatarSheetButtonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  avatarConfirmContent: {
+    backgroundColor: "white",
+    margin: 20,
+    borderRadius: 16,
+    padding: 20,
+    width: "90%",
+    maxHeight: "80%",
+    alignItems: "center",
+  },
+  avatarPreviewImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  avatarViewBox: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: "15%",
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  avatarViewImage: {
+    width: "100%",
+    height: "80%",
   },
 });
 
 export default function TechnicianProfile() {
   const dispatch = useAppDispatch();
   const authUser = useAppSelector((s) => s.auth.user);
-  console.log('[[]]', pretty(authUser));
 
-  const displayName =
-    `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() ||
-    authUser?.fullName ||
-    authUser?.userName ||
-    'Kỹ thuật viên';
+  useEffect(() => {
+    if (!authUser) dispatch(fetchProfile());
+  }, [authUser, dispatch]);
 
-  const employeeId = authUser?.employeeCode || authUser?.userId || '—';
-  const roleName = authUser?.roleName || 'Kỹ thuật viên';
+  const displayName = useMemo(() => {
+    const v1 = `${authUser?.firstName || ""} ${authUser?.lastName || ""}`.trim();
+    return v1 || authUser?.fullName || authUser?.userName || "Kỹ thuật viên";
+  }, [authUser?.firstName, authUser?.lastName, authUser?.fullName, authUser?.userName]);
+
+  const employeeId = authUser?.employeeCode || authUser?.userId || "—";
+  const roleName = authUser?.roleName || authUser?.role || "Kỹ thuật viên";
 
   const [avatarUrl, setAvatarUrl] = useState(
-    authUser?.profileUrl || authUser?.avatarUrl || ''
+    authUser?.profileUrl || authUser?.avatarUrl || ""
   );
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  useEffect(() => {
+    const url = authUser?.profileUrl || authUser?.avatarUrl || "";
+    if (url) setAvatarUrl(url);
+  }, [authUser?.profileUrl, authUser?.avatarUrl]);
+
   const [profile, setProfile] = useState({
     name: displayName,
-    email: authUser?.email || '',
-    phone: authUser?.phoneNumber || '',
+    email: authUser?.email || "",
+    phone: authUser?.phoneNumber || "",
     employeeId,
-    department: authUser?.departmentName || 'Maintenance',
-    specialties: '',
-    yearsExperience: '',
-    certifications: '',
+    department: authUser?.departmentName || "Maintenance",
+    specialties: "",
+    yearsExperience: "",
+    certifications: "",
   });
+
+  useEffect(() => {
+    setProfile((p) => ({
+      ...p,
+      name: displayName,
+      email: authUser?.email || p.email,
+      phone: authUser?.phoneNumber || p.phone,
+      employeeId,
+      department: authUser?.departmentName || p.department,
+    }));
+  }, [displayName, authUser?.email, authUser?.phoneNumber, employeeId, authUser?.departmentName]);
 
   const [stats] = useState({
     completedRequests: 127,
-    avgResponseTime: '2.3h',
+    avgResponseTime: "2.3h",
     customerRating: 4.8,
     activeRequests: 5,
   });
@@ -264,82 +348,92 @@ export default function TechnicianProfile() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ ...profile });
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [isLogOut, setIsLogOut] = useState(false);
 
-  const handleChangeAvatar = async () => {
-    if (!authUser?.userId) {
-      Toast.show({
-        type: 'error',
-        text1: 'Không xác định được user hiện tại',
-      });
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [showConfirmAvatar, setShowConfirmAvatar] = useState(false);
+  const [previewAvatarUri, setPreviewAvatarUri] = useState(null);
+  const [showViewAvatar, setShowViewAvatar] = useState(false);
+
+  const openAvatarMenu = () => setShowAvatarMenu(true);
+
+  const pickAvatarFromLibrary = async () => {
+    const { status: permStatus } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permStatus !== "granted") {
+      Alert.alert(
+        "Quyền truy cập",
+        "Ứng dụng cần quyền truy cập thư viện ảnh để đổi ảnh đại diện."
+      );
       return;
     }
 
-    const res = await DocumentPicker.getDocumentAsync({
-      copyToCacheDirectory: true,
-      type: ['image/*'],
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
     });
 
-    if (res.canceled || !res.assets?.length) return;
-
-    const file = res.assets[0];
+    if (result.canceled) return;
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
 
     try {
-      setUploadingAvatar(true);
-
-      const compressed = await compressAndResizeImage(file.uri, {
+      const compressed = await compressAndResizeImage(asset.uri, {
         maxWidth: 800,
         maxHeight: 800,
         quality: 0.6,
-        format: 'jpeg',
+        format: "jpeg",
       });
 
-      const form = new FormData();
-      form.append('userId', String(authUser.userId));
-      form.append('imageProfileUrl', {
-        uri: compressed.uri,
-        name: file.name || 'avatar.jpg',
-        type: file.mimeType || 'image/jpeg',
-      });
-
-      const { data } = await http.put('/auth/change-profile-image', form, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      const newUrl =
-        (data && (data.imageProfileUrl || data.profileImageUrl)) || avatarUrl;
-
-      setAvatarUrl(newUrl);
-
-      Toast.show({
-        type: 'success',
-        text1: 'Cập nhật ảnh đại diện thành công',
-      });
+      setPreviewAvatarUri(compressed.uri);
+      setShowConfirmAvatar(true);
     } catch (e) {
-      console.log('Update avatar error', e?.response || e?.message || e);
-      const msg =
-        (e &&
-          e.response &&
-          (e.response.data?.detail ||
-            e.response.data?.title ||
-            e.response.data)) ||
-        e?.message ||
-        'Vui lòng thử lại.';
+      console.log("compress error:", e);
+      Alert.alert("Lỗi", "Không thể xử lý ảnh, vui lòng thử lại.");
+    }
+  };
 
-      Toast.show({
-        type: 'error',
-        text1: 'Cập nhật ảnh đại diện thất bại',
-        text2: String(msg),
-      });
+  const handlePressChangeAvatar = async () => {
+    setShowAvatarMenu(false);
+    await pickAvatarFromLibrary();
+  };
+
+  const handlePressViewAvatar = () => {
+    setShowAvatarMenu(false);
+    const url = authUser?.profileUrl || avatarUrl;
+    if (url) setShowViewAvatar(true);
+    else Alert.alert("Thông báo", "Bạn chưa có ảnh đại diện.");
+  };
+
+  const handleConfirmAvatar = async () => {
+    if (!previewAvatarUri) return;
+
+    try {
+      setUploadingAvatar(true);
+      await dispatch(changeProfileImage({ uri: previewAvatarUri })).unwrap();
+      await dispatch(fetchProfile()).unwrap();
+
+      setAvatarUrl(previewAvatarUri);
+      setShowConfirmAvatar(false);
+      setPreviewAvatarUri(null);
+
+      Toast.show({ type: "success", text1: "Cập nhật ảnh đại diện thành công" });
+    } catch (e) {
+      console.log("changeProfileImage error:", e);
+      Toast.show({ type: "error", text1: "Cập nhật ảnh đại diện thất bại" });
     } finally {
       setUploadingAvatar(false);
     }
+  };
+
+  const handleCancelAvatar = () => {
+    setShowConfirmAvatar(false);
+    setPreviewAvatarUri(null);
   };
 
   const handleEditProfile = () => {
@@ -349,13 +443,13 @@ export default function TechnicianProfile() {
 
   const handleSaveProfile = () => {
     if (!editingProfile.name.trim() || !editingProfile.email.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng điền vào tất cả các trường bắt buộc.');
+      Alert.alert("Lỗi", "Vui lòng điền vào tất cả các trường bắt buộc.");
       return;
     }
 
     setProfile({ ...editingProfile });
     setShowEditModal(false);
-    Alert.alert('Thành công', 'Cập nhật hồ sơ thành công!');
+    Alert.alert("Thành công", "Cập nhật hồ sơ thành công!");
   };
 
   const handleChangePassword = () => {
@@ -364,39 +458,39 @@ export default function TechnicianProfile() {
       !passwordData.newPassword ||
       !passwordData.confirmPassword
     ) {
-      Alert.alert('Lỗi', 'Vui lòng điền vào tất cả các trường mật khẩu.');
+      Alert.alert("Lỗi", "Vui lòng điền vào tất cả các trường mật khẩu.");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      Alert.alert('Lỗi', 'Mật khẩu mới không khớp.');
+      Alert.alert("Lỗi", "Mật khẩu mới không khớp.");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự.');
+      Alert.alert("Lỗi", "Mật khẩu phải có ít nhất 6 ký tự.");
       return;
     }
 
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setShowPasswordModal(false);
-    Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
+    Alert.alert("Thành công", "Đổi mật khẩu thành công!");
   };
 
   const handleLogout = () => {
-    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất không?', [
-      { text: 'Hủy', style: 'cancel' },
+    Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất không?", [
+      { text: "Hủy", style: "cancel" },
       {
-        text: 'Đăng xuất',
-        style: 'destructive',
+        text: "Đăng xuất",
+        style: "destructive",
         onPress: async () => {
           try {
             setIsLogOut(true);
             await dispatch(logout()).unwrap();
             await persistor.purge();
-            router.replace('/(auth)/login');
+            router.replace("/(auth)/login");
           } catch (e) {
-            Alert.alert('Lỗi', 'Đăng xuất không thành công. Vui lòng thử lại.');
+            Alert.alert("Lỗi", "Đăng xuất không thành công. Vui lòng thử lại.");
           } finally {
             setIsLogOut(false);
           }
@@ -406,26 +500,22 @@ export default function TechnicianProfile() {
   };
 
   const toggleNotification = (key) => {
-    setNotifications({
-      ...notifications,
-      [key]: !notifications[key],
-    });
+    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable
-          style={styles.profileImage}
-          onPress={handleChangeAvatar}
-          disabled={uploadingAvatar}
-        >
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.profileImageImg} />
-          ) : (
-            <Icon name="person.fill" size={40} color="white" />
-          )}
+        <Pressable onPress={openAvatarMenu} disabled={uploadingAvatar}>
+          <View style={styles.profileImage}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.profileImageImg} />
+            ) : (
+              <Icon name="person.fill" size={40} color="white" />
+            )}
+          </View>
         </Pressable>
+
         <Text style={styles.profileName}>{profile.name}</Text>
         <Text style={styles.profileRole}>{roleName}</Text>
         <Text style={styles.profileId}>ID: {profile.employeeId}</Text>
@@ -434,19 +524,19 @@ export default function TechnicianProfile() {
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.completedRequests}</Text>
-          <Text style={styles.statLabel}>Hoàn thành{'\n'}Requests</Text>
+          <Text style={styles.statLabel}>Hoàn thành{"\n"}Requests</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.avgResponseTime}</Text>
-          <Text style={styles.statLabel}>Thời gian phản hồi{'\n'}Trung bình</Text>
+          <Text style={styles.statLabel}>Thời gian phản hồi{"\n"}Trung bình</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.customerRating}</Text>
-          <Text style={styles.statLabel}>Đánh giá{'\n'}Khách hàng</Text>
+          <Text style={styles.statLabel}>Đánh giá{"\n"}Khách hàng</Text>
         </View>
         <View style={[styles.statItem, styles.statItemLast]}>
           <Text style={styles.statNumber}>{stats.activeRequests}</Text>
-          <Text style={styles.statLabel}>Yêu cầu{'\n'}Đang hoạt động</Text>
+          <Text style={styles.statLabel}>Yêu cầu{"\n"}Đang hoạt động</Text>
         </View>
       </View>
 
@@ -458,9 +548,7 @@ export default function TechnicianProfile() {
             <Icon name="person" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Chỉnh sửa hồ sơ</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Cập nhật thông tin cá nhân của bạn
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Cập nhật thông tin cá nhân của bạn</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -469,9 +557,7 @@ export default function TechnicianProfile() {
             <Icon name="lock" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Đổi Mật Khẩu</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Cập nhật mật khẩu tài khoản của bạn
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Cập nhật mật khẩu tài khoản của bạn</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -483,14 +569,14 @@ export default function TechnicianProfile() {
           <View style={styles.menuItem}>
             <Icon name="bell" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
-              <Text style={styles.menuItemTitle}>Thông báo </Text>
+              <Text style={styles.menuItemTitle}>Thông báo</Text>
               <Text style={styles.menuItemSubtitle}>Nhận thông báo đẩy</Text>
             </View>
             <Switch
               value={notifications.pushNotifications}
-              onValueChange={() => toggleNotification('pushNotifications')}
-              trackColor={{ false: '#767577', true: '#007AFF' }}
-              thumbColor={notifications.pushNotifications ? '#fff' : '#f4f3f4'}
+              onValueChange={() => toggleNotification("pushNotifications")}
+              trackColor={{ false: "#767577", true: "#007AFF" }}
+              thumbColor={notifications.pushNotifications ? "#fff" : "#f4f3f4"}
             />
           </View>
 
@@ -502,9 +588,9 @@ export default function TechnicianProfile() {
             </View>
             <Switch
               value={notifications.emailNotifications}
-              onValueChange={() => toggleNotification('emailNotifications')}
-              trackColor={{ false: '#767577', true: '#007AFF' }}
-              thumbColor={notifications.emailNotifications ? '#fff' : '#f4f3f4'}
+              onValueChange={() => toggleNotification("emailNotifications")}
+              trackColor={{ false: "#767577", true: "#007AFF" }}
+              thumbColor={notifications.emailNotifications ? "#fff" : "#f4f3f4"}
             />
           </View>
 
@@ -512,15 +598,13 @@ export default function TechnicianProfile() {
             <Icon name="list.bullet" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo yêu cầu mới</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Nhận thông báo về các nhiệm vụ mới
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Nhận thông báo về các nhiệm vụ mới</Text>
             </View>
             <Switch
               value={notifications.newRequestAlerts}
-              onValueChange={() => toggleNotification('newRequestAlerts')}
-              trackColor={{ false: '#767577', true: '#007AFF' }}
-              thumbColor={notifications.newRequestAlerts ? '#fff' : '#f4f3f4'}
+              onValueChange={() => toggleNotification("newRequestAlerts")}
+              trackColor={{ false: "#767577", true: "#007AFF" }}
+              thumbColor={notifications.newRequestAlerts ? "#fff" : "#f4f3f4"}
             />
           </View>
 
@@ -528,15 +612,13 @@ export default function TechnicianProfile() {
             <Icon name="calendar" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo lịch trình</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Nhận thông báo về các nhiệm vụ sắp tới
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Nhận thông báo về các nhiệm vụ sắp tới</Text>
             </View>
             <Switch
               value={notifications.scheduleReminders}
-              onValueChange={() => toggleNotification('scheduleReminders')}
-              trackColor={{ false: '#767577', true: '#007AFF' }}
-              thumbColor={notifications.scheduleReminders ? '#fff' : '#f4f3f4'}
+              onValueChange={() => toggleNotification("scheduleReminders")}
+              trackColor={{ false: "#767577", true: "#007AFF" }}
+              thumbColor={notifications.scheduleReminders ? "#fff" : "#f4f3f4"}
             />
           </View>
 
@@ -549,15 +631,13 @@ export default function TechnicianProfile() {
             />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Thông báo khẩn cấp</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Nhận thông báo về các yêu cầu khẩn cấp
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Nhận thông báo về các yêu cầu khẩn cấp</Text>
             </View>
             <Switch
               value={notifications.emergencyAlerts}
-              onValueChange={() => toggleNotification('emergencyAlerts')}
-              trackColor={{ false: '#767577', true: '#007AFF' }}
-              thumbColor={notifications.emergencyAlerts ? '#fff' : '#f4f3f4'}
+              onValueChange={() => toggleNotification("emergencyAlerts")}
+              trackColor={{ false: "#767577", true: "#007AFF" }}
+              thumbColor={notifications.emergencyAlerts ? "#fff" : "#f4f3f4"}
             />
           </View>
         </View>
@@ -569,9 +649,7 @@ export default function TechnicianProfile() {
             <Icon name="calendar" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Lịch làm việc</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Xem và quản lý lịch làm việc của bạn
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Xem và quản lý lịch làm việc của bạn</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -580,9 +658,7 @@ export default function TechnicianProfile() {
             <Icon name="chart.bar" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Báo cáo hiệu suất</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Xem thống kê công việc của bạn
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Xem thống kê công việc của bạn</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -609,9 +685,7 @@ export default function TechnicianProfile() {
             />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Trợ giúp & Hỗ trợ</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Nhận trợ giúp và liên hệ với hỗ trợ
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Nhận trợ giúp và liên hệ với hỗ trợ</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -620,9 +694,7 @@ export default function TechnicianProfile() {
             <Icon name="doc.text" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Điều khoản & Chính sách</Text>
-              <Text style={styles.menuItemSubtitle}>
-                Đọc điều khoản và chính sách bảo mật của chúng tôi
-              </Text>
+              <Text style={styles.menuItemSubtitle}>Đọc điều khoản và chính sách bảo mật</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
@@ -654,9 +726,7 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.name}
-                onChangeText={(text) =>
-                  setEditingProfile({ ...editingProfile, name: text })
-                }
+                onChangeText={(text) => setEditingProfile({ ...editingProfile, name: text })}
                 placeholder="Enter your full name"
               />
             </View>
@@ -666,9 +736,7 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.email}
-                onChangeText={(text) =>
-                  setEditingProfile({ ...editingProfile, email: text })
-                }
+                onChangeText={(text) => setEditingProfile({ ...editingProfile, email: text })}
                 placeholder="Enter your email"
                 keyboardType="email-address"
               />
@@ -679,9 +747,7 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.phone}
-                onChangeText={(text) =>
-                  setEditingProfile({ ...editingProfile, phone: text })
-                }
+                onChangeText={(text) => setEditingProfile({ ...editingProfile, phone: text })}
                 placeholder="Enter your phone number"
                 keyboardType="phone-pad"
               />
@@ -714,10 +780,7 @@ export default function TechnicianProfile() {
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable
-                style={styles.cancelButton}
-                onPress={() => setShowEditModal(false)}
-              >
+              <Pressable style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
               <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
@@ -756,9 +819,7 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={passwordData.newPassword}
-                onChangeText={(text) =>
-                  setPasswordData({ ...passwordData, newPassword: text })
-                }
+                onChangeText={(text) => setPasswordData({ ...passwordData, newPassword: text })}
                 placeholder="Enter new password"
                 secureTextEntry
               />
@@ -778,19 +839,91 @@ export default function TechnicianProfile() {
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable
-                style={styles.cancelButton}
-                onPress={() => setShowPasswordModal(false)}
-              >
+              <Pressable style={styles.cancelButton} onPress={() => setShowPasswordModal(false)}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable
-                style={styles.submitButton}
-                onPress={handleChangePassword}
-              >
+              <Pressable style={styles.submitButton} onPress={handleChangePassword}>
                 <Text style={styles.submitButtonText}>Change</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showAvatarMenu}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAvatarMenu(false)}
+      >
+        <View style={styles.bottomSheetOverlay}>
+          <Pressable style={styles.backdrop} onPress={() => setShowAvatarMenu(false)} />
+          <View style={styles.avatarSheet}>
+            <Pressable style={styles.avatarSheetButton} onPress={handlePressChangeAvatar}>
+              <Text style={styles.avatarSheetButtonText}>Đổi ảnh đại diện</Text>
+            </Pressable>
+
+            <Pressable style={styles.avatarSheetButton} onPress={handlePressViewAvatar}>
+              <Text style={styles.avatarSheetButtonText}>Xem ảnh đại diện</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showConfirmAvatar}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelAvatar}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.avatarConfirmContent}>
+            <Text style={styles.modalTitle}>Xác nhận ảnh đại diện</Text>
+
+            {previewAvatarUri ? (
+              <Image
+                source={{ uri: previewAvatarUri }}
+                style={styles.avatarPreviewImage}
+                resizeMode="cover"
+              />
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.cancelButton} onPress={handleCancelAvatar}>
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </Pressable>
+              <Pressable
+                style={styles.submitButton}
+                onPress={handleConfirmAvatar}
+                disabled={uploadingAvatar}
+              >
+                <Text style={styles.submitButtonText}>
+                  {uploadingAvatar ? "Đang lưu..." : "Dùng ảnh này"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showViewAvatar}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowViewAvatar(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowViewAvatar(false)} />
+          <View style={styles.avatarViewBox}>
+            {(authUser?.profileUrl || avatarUrl) ? (
+              <Image
+                source={{ uri: authUser?.profileUrl || avatarUrl }}
+                style={styles.avatarViewImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <Text style={{ color: "#fff" }}>Chưa có ảnh đại diện</Text>
+            )}
           </View>
         </View>
       </Modal>

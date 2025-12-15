@@ -113,15 +113,15 @@ http.interceptors.response.use(
         // gọi API refresh token
         const { data } = await axios.post(
           `${BASE_URL}/auth/refresh`,
-          { refresh },
+          { refreshToken: refresh },
           { timeout: 10000 }
         );
         // data: { access, refresh? }
-        await saveTokens({ access: data.access, refresh: data.refresh });
+        await saveTokens({ access: data.accessToken, refresh: data.refreshToken });
 
         // gắn token mới và retry request cũ
-        original.headers.Authorization = `Bearer ${data.access}`;
-        processQueue(null, data.access);
+        original.headers.Authorization = `Bearer ${data.accessToken}`;
+        processQueue(null, data.accessToken);
         return http(original);
       } catch (e) {
         processQueue(e, null);

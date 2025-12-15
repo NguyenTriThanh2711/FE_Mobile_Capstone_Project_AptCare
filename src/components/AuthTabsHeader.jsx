@@ -74,11 +74,11 @@ export default function AuthTabsHeader({
             Đăng nhập
           </Animated.Text>
         </Pressable>
-        <Pressable onPress={onRegister} className="flex-1 items-center justify-center py-3">
+        {/* <Pressable onPress={onRegister} className="flex-1 items-center justify-center py-3">
           <Animated.Text style={registerText} className="text-base">
             Đăng ký
           </Animated.Text>
-        </Pressable>
+        </Pressable> */}
       </View>
     </View>
   );

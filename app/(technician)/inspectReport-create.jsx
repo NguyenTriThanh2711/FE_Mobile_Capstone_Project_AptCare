@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import Toast from 'react-native-toast-message';
@@ -42,7 +42,7 @@ import {
 } from '@/src/features/repairRequestTasks/repairRequestTasksSlice';
 
 const THEME = Colors?.light ?? { background: '#fff', text: '#0F172A' };
-const ACCESSORY_LIST_ENDPOINT = '/api/accessorys/list';
+const ACCESSORY_LIST_ENDPOINT = '/api/accessory/list';
 
 const FaultOwner = {
   BuildingFault: 'BuildingFault',
@@ -118,7 +118,6 @@ export default function CreateInspectionReportScreen() {
   const [accError, setAccError] = useState(null);
   const [accSearch, setAccSearch] = useState('');
   const [purchaseAccSearch, setPurchaseAccSearch] = useState('');
-  const [isResidentFault, setIsResidentFault] = useState(false);
   const [includeInternalInvoice, setIncludeInternalInvoice] = useState(false);
 
   const maintenanceTasksFromStore = useAppSelector((s) =>
@@ -139,7 +138,7 @@ export default function CreateInspectionReportScreen() {
     (async () => {
       try {
         setAccLoading(true);
-        const res = await http.get(ACCESSORY_LIST_ENDPOINT);
+        const res = await http.get(ACCESSORY_LIST_ENDPOINT, {});
         const list = dotnetArr(res?.data);
         if (!mounted) return;
         setAccessoriesMaster(
@@ -172,6 +171,7 @@ export default function CreateInspectionReportScreen() {
     formState: { errors, isSubmitting },
     setError,
     clearErrors,
+    setValue,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -191,8 +191,8 @@ export default function CreateInspectionReportScreen() {
 
   const solutionTypeWatch = watch('solutionType');
   const faultOwnerWatch = watch('faultOwner');
-  const accessoriesWatch = watch('accessories') || [];
-  const purchaseAccessoriesWatch = watch('purchaseAccessories') || [];
+  const accessoriesWatch = useWatch({control, name: 'accessories',}) || [];
+  const purchaseAccessoriesWatch = useWatch({ control, name: 'purchaseAccessories' }) || [];
   const servicesWatch = watch('services') || [];
   const extAccessoriesWatch = watch('extAccessories') || [];
   const extServicesWatch = watch('extServices') || [];
@@ -212,11 +212,8 @@ export default function CreateInspectionReportScreen() {
     : canInternalInvoice;
   const showExternalInvoice = isOutsource && isSecondOrLaterBool;
 
-  const {
-    fields: accFields,
-    append: accAppend,
-    remove: accRemove,
-  } = useFieldArray({ control, name: 'accessories' });
+  const { fields: accFields, append: accAppend, remove: accRemove } =
+    useFieldArray({ control, name: 'accessories' });
 
   const {
     fields: purchaseAccFields,
@@ -224,28 +221,17 @@ export default function CreateInspectionReportScreen() {
     remove: purchaseAccRemove,
   } = useFieldArray({ control, name: 'purchaseAccessories' });
 
-  const {
-    fields: svcFields,
-    append: svcAppend,
-    remove: svcRemove,
-  } = useFieldArray({ control, name: 'services' });
+  const { fields: svcFields, append: svcAppend, remove: svcRemove } =
+    useFieldArray({ control, name: 'services' });
 
-  const {
-    fields: extAccFields,
-    append: extAccAppend,
-    remove: extAccRemove,
-  } = useFieldArray({ control, name: 'extAccessories' });
+  const { fields: extAccFields, append: extAccAppend, remove: extAccRemove } =
+    useFieldArray({ control, name: 'extAccessories' });
 
-  const {
-    fields: extSvcFields,
-    append: extSvcAppend,
-    remove: extSvcRemove,
-  } = useFieldArray({ control, name: 'extServices' });
+  const { fields: extSvcFields, append: extSvcAppend, remove: extSvcRemove } =
+    useFieldArray({ control, name: 'extServices' });
 
-  const {
-    fields: maintenanceTaskFields,
-    replace: maintenanceTasksReplace,
-  } = useFieldArray({ control, name: 'maintenanceTasks' });
+  const { fields: maintenanceTaskFields, replace: maintenanceTasksReplace } =
+    useFieldArray({ control, name: 'maintenanceTasks' });
 
   useEffect(() => {
     if (!maintenanceTasksFromStore || !maintenanceTasksFromStore.length) {
@@ -257,14 +243,133 @@ export default function CreateInspectionReportScreen() {
       taskName: t.taskName || '',
       taskDescription: t.taskDescription || '',
       status:
-        t.status === 'Completed' || t.status === 'Failed'
-          ? t.status
-          : '',
+        t.status === 'Completed' || t.status === 'Failed' ? t.status : '',
       technicianNote: t.technicianNote || '',
       inspectionResult: t.inspectionResult || '',
     }));
     maintenanceTasksReplace(mapped);
   }, [maintenanceTasksFromStore, maintenanceTasksReplace]);
+
+  const toInt = (v) => {
+    const n = parseInt(String(v ?? '').replace(/\D+/g, ''), 10);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const toMoneyNum = (v) => {
+    const n = Number(String(v ?? '').replace(/[^\d.]/g, ''));
+    const moreThanZero = n <= 0 ? 1 : n;
+    return Number.isFinite(moreThanZero) ? moreThanZero : 1;
+  };
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
+  const getMasterById = (id) =>
+    accessoriesMaster.find((a) => String(a.accessoryId) === String(id));
+
+  const getStockQty = (id) => {
+    const m = getMasterById(id);
+    return toInt(m?.quantity);
+  };
+
+  const isOutOfStock = (id) => getStockQty(id) === 0;
+
+  const selectedQtyMap = useMemo(() => {
+    const map = {};
+    (accessoriesWatch || []).forEach((r) => {
+      const id = String(r?.accessoryId || '');
+      if (!id) return;
+      map[id] = (map[id] || 0) + toInt(r?.quantity);
+    });
+    return map;
+  }, [accessoriesWatch]);
+
+  const getSelectedQty = (id) => toInt(selectedQtyMap?.[String(id)]);
+
+  const getLeftQty = (id) => {
+    const stock = getStockQty(id);
+    const selected = getSelectedQty(id);
+    return Math.max(0, stock - selected);
+  };
+  const findPurchaseIndexById = (id) => {
+    const target = String(id || '');
+    if (!target) return -1;
+    return (purchaseAccessoriesWatch || []).findIndex(
+      (r) => String(r?.accessoryId || '') === target
+    );
+  };
+
+  const getPurchaseRowMax = (id) => {return 9999;};
+
+  const getRowMaxQty = (id, rowIndex) => {
+    const stock = getStockQty(id);
+    const selected = getSelectedQty(id);
+    const rowQty = toInt(accessoriesWatch?.[rowIndex]?.quantity);
+    return Math.max(0, stock - (selected - rowQty));
+  };
+
+  const eligiblePurchaseIds = useMemo(() => {
+    const ids = new Set();
+    (accessoriesMaster || []).forEach((a) => {
+      const id = String(a?.accessoryId || '');
+      if (!id) return;
+      if (toInt(a?.quantity) === 0) ids.add(id);
+    });
+
+    Object.keys(selectedQtyMap || {}).forEach((id) => {
+      const stock = getStockQty(id);
+      const selected = getSelectedQty(id);
+      if (stock > 0 && selected === stock) ids.add(String(id));
+    });
+
+    return Array.from(ids).sort();
+  }, [selectedQtyMap, accessoriesMaster]);
+
+  useEffect(() => {
+    const rows = purchaseAccessoriesWatch || [];
+    if (!rows.length) return;
+
+    const allowSet = new Set(eligiblePurchaseIds);
+    const toRemove = [];
+
+    rows.forEach((r, idx) => {
+      const id = String(r?.accessoryId || '');
+      if (!id) return; 
+      if (!allowSet.has(id)) toRemove.push(idx);
+    });
+
+    if (toRemove.length) {
+      toRemove.sort((a, b) => b - a).forEach((idx) => purchaseAccRemove(idx));
+    }
+  }, [eligiblePurchaseIds, purchaseAccessoriesWatch, purchaseAccRemove]);
+
+  const masterSig = useMemo(() => {
+    return (accessoriesMaster || [])
+      .map((a) => `${a.accessoryId}:${a.quantity}`)
+      .join('|');
+  }, [accessoriesMaster]);
+
+  useEffect(() => {
+    if (!accessoriesWatch?.length) return;
+
+    (accessoriesWatch || []).forEach((r, idx) => {
+      const id = String(r?.accessoryId || '');
+      if (!id) return;
+
+      const stock = getStockQty(id);
+      const qty = toInt(r?.quantity);
+      if (stock === 0) {
+        return;
+      }
+
+      const maxThisRow = getRowMaxQty(id, idx);
+      const next = clamp(qty, 1, maxThisRow);
+
+      if (qty !== next) {
+        setValue(`accessories.${idx}.quantity`, next, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    });
+  }, [masterSig]);
 
   const filteredAccessories = useMemo(() => {
     const keyword = accSearch.trim().toLowerCase();
@@ -295,15 +400,18 @@ export default function CreateInspectionReportScreen() {
       );
       const price = Number(found?.price || 0);
       const qty = Number(row?.quantity || 0);
-      return sum + price * qty;
+      return (
+        sum +
+        (Number.isFinite(price) ? price : 0) * (Number.isFinite(qty) ? qty : 0)
+      );
     },
     0
   );
 
   const purchaseAccessoriesTotal = (purchaseAccessoriesWatch || []).reduce(
     (sum, row) => {
-      const qty = Number(row?.quantity || 0);
-      const price = Number(row?.purchasePrice || 0);
+      const qty = Number(row?.quantity || 0) || 0;
+      const price = Number(row?.purchasePrice || 0) || 0;
       return sum + qty * price;
     },
     0
@@ -346,10 +454,7 @@ export default function CreateInspectionReportScreen() {
       const row = rows[i] || {};
       for (const f of fieldDefs) {
         const raw = row?.[f.key];
-        const value =
-          typeof raw === 'string'
-            ? raw.trim()
-            : raw;
+        const value = typeof raw === 'string' ? raw.trim() : raw;
         const isEmpty = value === undefined || value === null || value === '';
         if (isEmpty) {
           setError(`${fieldPrefix}.${i}.${f.key}`, {
@@ -364,7 +469,8 @@ export default function CreateInspectionReportScreen() {
           if (!Number.isFinite(num) || num < f.min) {
             setError(`${fieldPrefix}.${i}.${f.key}`, {
               type: 'manual',
-              message: f.minMessage || `Giá trị phải lớn hơn hoặc bằng ${f.min}`,
+              message:
+                f.minMessage || `Giá trị phải lớn hơn hoặc bằng ${f.min}`,
             });
             hasError = true;
           }
@@ -407,9 +513,7 @@ export default function CreateInspectionReportScreen() {
           }
         });
 
-        if (hasStatusError || hasInspectionError) {
-          return;
-        }
+        if (hasStatusError || hasInspectionError) return;
 
         const batchItems = maintenanceTasksWatch.map((t) => ({
           repairRequestTaskId: Number(t.repairRequestTaskId),
@@ -469,14 +573,11 @@ export default function CreateInspectionReportScreen() {
             purchaseAccessoriesWatch,
             'purchaseAccessories',
             [
-              {
-                key: 'name',
-                requiredMessage: 'Nhập tên nguyên vật liệu',
-              },
+              { key: 'name', requiredMessage: 'Nhập tên nguyên vật liệu' },
               {
                 key: 'purchasePrice',
-                min: 0,
-                minMessage: 'Giá mua phải lớn hơn hoặc bằng 0',
+                min: 1,
+                minMessage: 'Giá mua phải lớn hơn 0',
               },
             ]
           );
@@ -484,21 +585,14 @@ export default function CreateInspectionReportScreen() {
         }
 
         if (hasSvc) {
-          const okSvc = validateRowFields(
-            servicesWatch,
-            'services',
-            [
-              {
-                key: 'name',
-                requiredMessage: 'Nhập tên công việc',
-              },
-              {
-                key: 'price',
-                min: 0,
-                minMessage: 'Giá phải lớn hơn hoặc bằng 0',
-              },
-            ]
-          );
+          const okSvc = validateRowFields(servicesWatch, 'services', [
+            { key: 'name', requiredMessage: 'Nhập tên công việc' },
+            {
+              key: 'price',
+              min: 0,
+              minMessage: 'Giá phải lớn hơn hoặc bằng 0',
+            },
+          ]);
           if (!okSvc) return;
         }
 
@@ -559,10 +653,7 @@ export default function CreateInspectionReportScreen() {
             extAccessoriesWatch,
             'extAccessories',
             [
-              {
-                key: 'name',
-                requiredMessage: 'Nhập tên nguyên vật liệu',
-              },
+              { key: 'name', requiredMessage: 'Nhập tên nguyên vật liệu' },
               {
                 key: 'quantity',
                 min: 1,
@@ -583,10 +674,7 @@ export default function CreateInspectionReportScreen() {
             extServicesWatch,
             'extServices',
             [
-              {
-                key: 'name',
-                requiredMessage: 'Nhập tên công việc',
-              },
+              { key: 'name', requiredMessage: 'Nhập tên công việc' },
               {
                 key: 'price',
                 min: 0,
@@ -653,11 +741,12 @@ export default function CreateInspectionReportScreen() {
       console.log('[inspection + invoice error]', pretty(err));
 
       const msg =
-        err||
+        err ||
         err?.response?.data?.detail ||
         err?.message?.title ||
         err?.message ||
         'Tạo báo cáo thất bại';
+
       Toast.show({
         type: 'error',
         text1: 'Lỗi gửi báo cáo',
@@ -686,24 +775,6 @@ export default function CreateInspectionReportScreen() {
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        {/* <Controller
-          control={control}
-          name="appointmentId"
-          render={({ field: { value, onChange, onBlur } }) => (
-            <MUITextField
-              label="ID Cuộc hẹn"
-              placeholder="Nhập mã cuộc hẹn"
-              keyboardType="numeric"
-              disabled={true}
-              size="small"
-              value={String(value ?? '')}
-              onBlur={onBlur}
-              onChangeText={(txt) => onChange(txt.replace(/\D+/g, ''))}
-              error={errors.appointmentId?.message}
-            />
-          )}
-        /> */}
-
         {!isMaintenance && (
           <>
             <Controller
@@ -783,135 +854,6 @@ export default function CreateInspectionReportScreen() {
           <Text style={styles.errText}>{errors.solution.message}</Text>
         )}
 
-        {isMaintenance && (
-          <View style={[styles.invoiceBlock, { marginTop: 12 }]}>
-            <Text style={styles.invoiceTitle}>Checklist bảo trì khu vực chung</Text>
-            <Text style={styles.invoiceSub}>
-              Cập nhật trạng thái cho từng nhiệm vụ trước khi tạo báo cáo kiểm
-              tra.
-            </Text>
-
-            {maintenanceTasksLoading ? (
-              <Text style={{ color: zincColors[500], marginTop: 8 }}>
-                Đang tải danh sách nhiệm vụ...
-              </Text>
-            ) : maintenanceTasksError ? (
-              <Text style={{ color: '#B91C1C', marginTop: 8 }}>
-                {String(maintenanceTasksError)}
-              </Text>
-            ) : maintenanceTaskFields.length === 0 ? (
-              <Text style={{ color: zincColors[500], marginTop: 8 }}>
-                Chưa có nhiệm vụ bảo trì nào cho yêu cầu này.
-              </Text>
-            ) : (
-              maintenanceTaskFields.map((row, idx) => {
-                const formRow = maintenanceTasksWatch[idx] || {};
-                const rowErrors = errors.maintenanceTasks?.[idx] || {};
-                return (
-                  <View key={row.id} style={styles.maintenanceCard}>
-                    <Text style={styles.maintenanceTaskTitle}>
-                      {formRow.taskName || `Nhiệm vụ #${idx + 1}`}
-                    </Text>
-                    {!!formRow.taskDescription && (
-                      <Text style={styles.maintenanceTaskDesc}>
-                        {formRow.taskDescription}
-                      </Text>
-                    )}
-
-                    <Text style={styles.smallLabel}>Trạng thái</Text>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        flexWrap: 'wrap',
-                        gap: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      {['Completed', 'Failed'].map((st) => (
-                        <Controller
-                          key={st}
-                          control={control}
-                          name={`maintenanceTasks.${idx}.status`}
-                          render={({ field: { value, onChange } }) => (
-                            <Pressable
-                              onPress={() => onChange(st)}
-                              style={[
-                                styles.statusChip,
-                                value === st && styles.statusChipActive,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.statusChipText,
-                                  value === st && styles.statusChipTextActive,
-                                ]}
-                              >
-                                {st === 'Completed' ? 'Đạt' : 'Chưa đạt'}
-                              </Text>
-                            </Pressable>
-                          )}
-                        />
-                      ))}
-                    </View>
-                    {!!rowErrors?.status?.message && (
-                      <Text style={styles.errText}>
-                        {rowErrors.status.message}
-                      </Text>
-                    )}
-
-                    <Controller
-                      control={control}
-                      name={`maintenanceTasks.${idx}.technicianNote`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <MUITextField
-                          label="Ghi chú kỹ thuật viên"
-                          placeholder="VD: Đã vệ sinh bể nước, không thấy rò rỉ."
-                          multiline
-                          numberOfLines={3}
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={onChange}
-                          error={rowErrors?.technicianNote?.message}
-                          style={{ marginTop: 4 }}
-                        />
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name={`maintenanceTasks.${idx}.inspectionResult`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <MUITextField
-                          label="Kết quả kiểm tra"
-                          placeholder='VD: "OK", "Cần sửa chữa", "Cần thay thế"...'
-                          multiline
-                          numberOfLines={2}
-                          value={value}
-                          onBlur={onBlur}
-                          onChangeText={onChange}
-                          error={rowErrors?.inspectionResult?.message}
-                          style={{ marginTop: 8 }}
-                        />
-                      )}
-                    />
-                  </View>
-                );
-              })
-            )}
-
-            {!!errors.maintenanceTasks?.message && (
-              <Text style={styles.errText}>
-                {errors.maintenanceTasks.message}
-              </Text>
-            )}
-
-            <Text style={styles.maintenanceNote}>
-              Lưu ý: Tất cả nhiệm vụ cần được cập nhật (không để trống trạng
-              thái) trước khi tạo báo cáo.
-            </Text>
-          </View>
-        )}
-
         <ImagePickerStrip
           style={{ marginTop: 14 }}
           mode="update"
@@ -950,6 +892,7 @@ export default function CreateInspectionReportScreen() {
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
               <Text style={styles.invoiceTitle}>Báo giá nội bộ</Text>
             </View>
+
             {isMaintenance ? null : (
               <View style={styles.fieldRow}>
                 <Text style={styles.label}>Đối tượng chịu phí</Text>
@@ -984,52 +927,57 @@ export default function CreateInspectionReportScreen() {
                   placeholder="Nhập tên nguyên vật liệu..."
                   style={styles.input}
                 />
-                {accLoading && (
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: zincColors[500],
-                      marginTop: 4,
-                    }}
-                  >
-                    Đang tải danh sách nguyên vật liệu...
-                  </Text>
-                )}
-                {accError && (
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: '#B91C1C',
-                      marginTop: 4,
-                    }}
-                  >
-                    {String(accError)}
-                  </Text>
-                )}
 
                 {accSearch.length > 0 && filteredAccessories.length > 0 && (
                   <View style={styles.suggestionBox}>
-                    {filteredAccessories.slice(0, 5).map((acc) => (
-                      <Pressable
-                        key={acc.accessoryId}
-                        style={[styles.suggestionItem, acc.quantity <= 0 ? { opacity: 0.5 } : null]}
-                        disabled={acc.quantity <= 0}
-                        onPress={() => {
-                          accAppend({
-                            accessoryId: String(acc.accessoryId),
-                            quantity: 1,
-                          });
-                          setAccSearch('');
-                        }}
-                      >
-                        <Text style={styles.suggestionName}>{acc.name}</Text>
-                        <Text style={styles.suggestionMeta}>
-                          #{acc.accessoryId} ·{' '}
-                          {Number(acc.price || 0).toLocaleString('vi-VN')} đ · tồn{' '}
-                          {acc.quantity}
-                        </Text>
-                      </Pressable>
-                    ))}
+                    {filteredAccessories.slice(0, 5).map((acc) => {
+                      const id = String(acc.accessoryId);
+                      const stock = toInt(acc.quantity);
+                      const selected = getSelectedQty(id);
+                      const left = getLeftQty(id);
+
+                      const disabled = stock <= 0 || left <= 0;
+
+                      return (
+                        <Pressable
+                          key={acc.accessoryId}
+                          style={[
+                            styles.suggestionItem,
+                            disabled ? { opacity: 0.5 } : null,
+                          ]}
+                          disabled={disabled}
+                          onPress={() => {
+                            const existedIndex = (accessoriesWatch || []).findIndex(
+                              (r) => String(r?.accessoryId) === id
+                            );
+
+                            if (existedIndex >= 0) {
+                              const oldQty = toInt(
+                                accessoriesWatch?.[existedIndex]?.quantity
+                              );
+                              const maxThisRow = getRowMaxQty(id, existedIndex);
+                              const nextQty = clamp(oldQty + 1, 1, maxThisRow);
+                              setValue(`accessories.${existedIndex}.quantity`, nextQty, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            } else {
+                              const nextQty = clamp(1, 1, stock);
+                              accAppend({ accessoryId: id, quantity: nextQty });
+                            }
+
+                            setAccSearch('');
+                          }}
+                        >
+                          <Text style={styles.suggestionName}>{acc.name}</Text>
+                          <Text style={styles.suggestionMeta}>
+                            #{acc.accessoryId} ·{' '}
+                            {Number(acc.price || 0).toLocaleString('vi-VN')} đ · tồn kho{' '}
+                            {stock} · đã chọn {selected} · còn lại {left}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 )}
               </View>
@@ -1043,13 +991,18 @@ export default function CreateInspectionReportScreen() {
               ) : null}
 
               {accFields.map((row, idx) => {
-                const formRow = accessoriesWatch?.[idx];
-                const currentAccessoryId = formRow?.accessoryId;
+                const formRow = accessoriesWatch?.[idx] || {};
+                const currentAccessoryId = String(formRow?.accessoryId || '');
                 const matchedAcc = accessoriesMaster.find(
-                  (a) => String(a.accessoryId) === String(currentAccessoryId)
+                  (a) => String(a.accessoryId) === currentAccessoryId
                 );
-                const fieldError =
-                  errors.accessories?.[idx]?.quantity?.message;
+                const fieldError = errors.accessories?.[idx]?.quantity?.message;
+
+                const stock = getStockQty(currentAccessoryId);
+                const selected = getSelectedQty(currentAccessoryId);
+                const left = getLeftQty(currentAccessoryId);
+                const maxThisRow = getRowMaxQty(currentAccessoryId, idx);
+
                 return (
                   <View key={row.id} style={styles.rowBlock}>
                     {matchedAcc && (
@@ -1057,11 +1010,12 @@ export default function CreateInspectionReportScreen() {
                         <Text style={styles.accName}>{matchedAcc.name}</Text>
                         <Text style={styles.accMeta}>
                           #{matchedAcc.accessoryId} ·{' '}
-                          {Number(matchedAcc.price || 0).toLocaleString('vi-VN')} đ
-                          · tồn {matchedAcc.quantity}
+                          {Number(matchedAcc.price || 0).toLocaleString('vi-VN')} đ · tồn kho{' '}
+                          {stock} · đã chọn {selected} · còn lại {left}
                         </Text>
                       </View>
                     )}
+
                     <Controller
                       control={control}
                       name={`accessories.${idx}.quantity`}
@@ -1071,7 +1025,11 @@ export default function CreateInspectionReportScreen() {
                           <TextInput
                             value={String(value ?? '')}
                             onBlur={onBlur}
-                            onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                            onChangeText={(t) => {
+                              const raw = toInt(t);
+                              const next = clamp(raw, 1, maxThisRow);
+                              onChange(next);
+                            }}
                             keyboardType="numeric"
                             placeholder="1"
                             style={styles.input}
@@ -1090,17 +1048,17 @@ export default function CreateInspectionReportScreen() {
                 );
               })}
             </View>
-
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Icon name="cart" size={18} color={appleBlue} />
                 <Text style={styles.cardTitle}>Mua vật liệu</Text>
-                {/* <Pressable
+
+                <Pressable
                   onPress={() =>
                     purchaseAccAppend({
                       accessoryId: '',
                       name: '',
-                      quantity: '',
+                      quantity: 1,
                       purchasePrice: '',
                     })
                   }
@@ -1108,11 +1066,13 @@ export default function CreateInspectionReportScreen() {
                 >
                   <Icon name="plus.circle" size={18} color={appleBlue} />
                   <Text style={styles.addTxt}>Thêm dòng trống</Text>
-                </Pressable> */}
+                </Pressable>
               </View>
 
               <View style={{ marginBottom: 10 }}>
-                <Text style={styles.smallLabel}>Tìm theo tên (hoặc tự nhập)</Text>
+                <Text style={styles.smallLabel}>
+                  Tìm nguyên vật liệu theo tên
+                </Text>
                 <TextInput
                   value={purchaseAccSearch}
                   onChangeText={setPurchaseAccSearch}
@@ -1122,28 +1082,64 @@ export default function CreateInspectionReportScreen() {
                 {purchaseAccSearch.length > 0 &&
                   filteredPurchaseAccessories.length > 0 && (
                     <View style={styles.suggestionBox}>
-                      {filteredPurchaseAccessories.slice(0, 5).map((acc) => (
-                        <Pressable
-                          key={acc.accessoryId}
-                          style={[styles.suggestionItem, acc.quantity > 0 ? { opacity: 0.5 } : null ]}
-                          disabled={acc.quantity > 0}
-                          onPress={() => {
-                            purchaseAccAppend({
-                              accessoryId: String(acc.accessoryId ?? ''),
-                              name: acc.name || '',
-                              quantity: 1,
-                              purchasePrice: acc.price || 0,
-                            });
-                            setPurchaseAccSearch('');
-                          }}
-                        >
-                          <Text style={styles.suggestionName}>{acc.name}</Text>
-                          <Text style={styles.suggestionMeta}>
-                            #{acc.accessoryId} ·{' '}
-                            {Number(acc.price || 0).toLocaleString('vi-VN')} đ
-                          </Text>
-                        </Pressable>
-                      ))}
+                      {filteredPurchaseAccessories.slice(0, 5).map((acc) => {
+                        const id = String(acc.accessoryId);
+                        const stock = toInt(acc.quantity);
+                        const disabled = !eligiblePurchaseIds.includes(id); 
+
+                        return (
+                          <Pressable
+                            key={acc.accessoryId}
+                            style={[
+                              styles.suggestionItem,
+                              disabled ? { opacity: 0.5 } : null,
+                            ]}
+                            disabled={disabled}
+                            onPress={() => {
+                              const existedIdx = findPurchaseIndexById(id);
+
+                              if (existedIdx >= 0) {
+                                const oldQty = toInt(purchaseAccessoriesWatch?.[existedIdx]?.quantity);
+                                const nextQty = clamp(oldQty + 1, 1, getPurchaseRowMax(id));
+
+                                setValue(`purchaseAccessories.${existedIdx}.quantity`, nextQty, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                });
+
+                                const oldPrice = purchaseAccessoriesWatch?.[existedIdx]?.purchasePrice;
+                                if (!String(oldPrice ?? '').trim()) {
+                                  setValue(
+                                    `purchaseAccessories.${existedIdx}.purchasePrice`,
+                                    Number(acc.price || 0),
+                                    { shouldDirty: true, shouldValidate: true }
+                                  );
+                                }
+                              } else {
+                                purchaseAccAppend({
+                                  accessoryId: id,
+                                  name: acc.name || '',
+                                  quantity: 1,
+                                  purchasePrice: Number(acc.price || 0),
+                                });
+                              }
+
+                              setPurchaseAccSearch('');
+                            }}
+                          >
+                            <Text style={styles.suggestionName}>{acc.name}</Text>
+                            <Text style={styles.suggestionMeta}>
+                              #{acc.accessoryId} ·{' '}
+                              {Number(acc.price || 0).toLocaleString('vi-VN')} đ ·{' '}
+                              {stock === 0
+                                ? ''
+                                : disabled
+                                ? 'Chưa dùng hết kho'
+                                : ''}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                     </View>
                   )}
               </View>
@@ -1158,10 +1154,15 @@ export default function CreateInspectionReportScreen() {
 
               {purchaseAccFields.map((row, idx) => {
                 const rowErrors = errors.purchaseAccessories?.[idx] || {};
+                const rowVal = purchaseAccessoriesWatch?.[idx] || {};
+                const isCatalogRow = !!String(rowVal?.accessoryId || '');
+
                 return (
                   <View key={row.id} style={styles.rowBlock}>
                     <View style={{ flex: 1.6 }}>
-                      <Text style={styles.smallLabel}>Tên nguyên vật liệu</Text>
+                      <Text style={styles.smallLabel}>
+                        Tên nguyên vật liệu {isCatalogRow ? '(theo danh mục)' : '(mua ngoài)'}
+                      </Text>
                       <Controller
                         control={control}
                         name={`purchaseAccessories.${idx}.name`}
@@ -1194,7 +1195,10 @@ export default function CreateInspectionReportScreen() {
                             <TextInput
                               value={String(value ?? '')}
                               onBlur={onBlur}
-                              onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                              onChangeText={(t) => {
+                                const next = clamp(toInt(t), 1, 9999);
+                                onChange(next);
+                              }}
                               keyboardType="numeric"
                               placeholder="1"
                               style={styles.input}
@@ -1219,11 +1223,11 @@ export default function CreateInspectionReportScreen() {
                             <TextInput
                               value={String(value ?? '')}
                               onBlur={onBlur}
-                              onChangeText={(t) =>
-                                onChange(t.replace(/[^\d.]/g, ''))
-                              }
+                              onChangeText={(t) => {
+                                const n = toMoneyNum(t);
+                                onChange(n);
+                              }}
                               keyboardType="decimal-pad"
-                              placeholder="0"
                               style={styles.input}
                             />
                             {!!rowErrors?.purchasePrice?.message && (
@@ -1359,16 +1363,6 @@ export default function CreateInspectionReportScreen() {
                 </Text>
               </View>
 
-              <View style={{ marginTop: 8 }}>
-                <Text style={styles.smallLabel}>
-                  {isChargeable
-                    ? '(Cư dân thanh toán – lỗi cư dân)'
-                    : isMaintenance
-                    ? '(Tòa nhà thanh toán – bảo trì định kỳ)'
-                    : '(Tòa nhà thanh toán – lỗi tòa nhà)'}
-                </Text>
-              </View>
-
               {!!errors.internalInvoice?.message && (
                 <Text style={styles.errText}>
                   {errors.internalInvoice.message}
@@ -1378,271 +1372,7 @@ export default function CreateInspectionReportScreen() {
           </View>
         )}
 
-        {showExternalInvoice && (
-          <View style={[styles.invoiceBlock, { marginTop: 24 }]}>
-            <Text style={styles.invoiceTitle}>Hóa đơn bên thứ ba</Text>
-
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>ID yêu cầu:</Text>
-              <Text style={styles.value}>{rrIdNum || '-'}</Text>
-            </View>
-
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>Đối tượng chịu phí</Text>
-              <View style={styles.chargeableChip}>
-                <View
-                  style={[
-                    styles.dot,
-                    { backgroundColor: isChargeable ? '#16A34A' : '#6B7280' },
-                  ]}
-                />
-                <Text style={styles.chargeableText}>
-                  {isChargeable
-                    ? 'Cư dân chịu phí (Lỗi cư dân)'
-                    : isMaintenance
-                    ? 'Tòa nhà chịu phí (Bảo trì định kỳ)'
-                    : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Icon name="wrench" size={18} color={appleBlue} />
-                <Text style={styles.cardTitle}>Nguyên vật liệu</Text>
-                <Pressable
-                  onPress={() =>
-                    extAccAppend({ name: '', quantity: '', price: '' })
-                  }
-                  style={styles.addBtn}
-                >
-                  <Icon name="plus.circle" size={18} color={appleBlue} />
-                  <Text style={styles.addTxt}>Thêm dòng</Text>
-                </Pressable>
-              </View>
-
-              {extAccFields.length === 0 ? (
-                <Text style={{ color: zincColors[500] }}>
-                  Chưa có dòng nguyên vật liệu nào.
-                </Text>
-              ) : null}
-
-              {extAccFields.map((row, idx) => {
-                const rowErrors = errors.extAccessories?.[idx] || {};
-                return (
-                  <View key={row.id} style={styles.rowBlock}>
-                    <Controller
-                      control={control}
-                      name={`extAccessories.${idx}.name`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ flex: 1.3 }}>
-                          <Text style={styles.smallLabel}>Tên nguyên vật liệu</Text>
-                          <TextInput
-                            value={value}
-                            onBlur={onBlur}
-                            onChangeText={onChange}
-                            placeholder="VD: Sơn tường Dulux 5L"
-                            style={styles.input}
-                          />
-                          {!!rowErrors?.name?.message && (
-                            <Text style={styles.errText}>
-                              {rowErrors.name.message}
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name={`extAccessories.${idx}.quantity`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ width: 45 }}>
-                          <Text style={styles.smallLabel}>SL</Text>
-                          <TextInput
-                            value={String(value ?? '')}
-                            onBlur={onBlur}
-                            onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
-                            keyboardType="numeric"
-                            placeholder="1"
-                            style={styles.input}
-                          />
-                          {!!rowErrors?.quantity?.message && (
-                            <Text style={styles.errText}>
-                              {rowErrors.quantity.message}
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name={`extAccessories.${idx}.price`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ width: 100 }}>
-                          <Text style={styles.smallLabel}>Đơn giá</Text>
-                          <TextInput
-                            value={String(value ?? '')}
-                            onBlur={onBlur}
-                            onChangeText={(t) =>
-                              onChange(t.replace(/[^\d.]/g, ''))
-                            }
-                            keyboardType="decimal-pad"
-                            placeholder="0"
-                            style={styles.input}
-                          />
-                          {!!rowErrors?.price?.message && (
-                            <Text style={styles.errText}>
-                              {rowErrors.price.message}
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    />
-
-                    <Pressable
-                      onPress={() => extAccRemove(idx)}
-                      style={styles.delBtn}
-                    >
-                      <Icon name="trash" size={18} color="#B91C1C" />
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Icon name="hammer" size={18} color={appleBlue} />
-                <Text style={styles.cardTitle}>Công việc</Text>
-                <Pressable
-                  onPress={() => extSvcAppend({ name: '', price: '' })}
-                  style={styles.addBtn}
-                >
-                  <Icon name="plus.circle" size={18} color={appleBlue} />
-                  <Text style={styles.addTxt}>Thêm dòng</Text>
-                </Pressable>
-              </View>
-
-              {extSvcFields.length === 0 ? (
-                <Text style={{ color: zincColors[500] }}>
-                  Chưa có dòng công việc nào.
-                </Text>
-              ) : null}
-
-              {extSvcFields.map((row, idx) => {
-                const rowErrors = errors.extServices?.[idx] || {};
-                return (
-                  <View key={row.id} style={styles.rowBlock}>
-                    <Controller
-                      control={control}
-                      name={`extServices.${idx}.name`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ flex: 1.3 }}>
-                          <Text style={styles.smallLabel}>Tên công việc</Text>
-                          <TextInput
-                            value={value}
-                            onBlur={onBlur}
-                            onChangeText={onChange}
-                            placeholder="VD: Công thợ trét lại tường"
-                            style={styles.input}
-                          />
-                          {!!rowErrors?.name?.message && (
-                            <Text style={styles.errText}>
-                              {rowErrors.name.message}
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name={`extServices.${idx}.price`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ width: 70 }}>
-                          <Text style={styles.smallLabel}>Giá</Text>
-                          <TextInput
-                            value={String(value ?? '')}
-                            onBlur={onBlur}
-                            onChangeText={(t) =>
-                              onChange(t.replace(/[^\d.]/g, ''))
-                            }
-                            keyboardType="decimal-pad"
-                            placeholder="0"
-                            style={styles.input}
-                          />
-                          {!!rowErrors?.price?.message && (
-                            <Text style={styles.errText}>
-                              {rowErrors.price.message}
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    />
-
-                    <Pressable
-                      onPress={() => extSvcRemove(idx)}
-                      style={styles.delBtn}
-                    >
-                      <Icon name="trash" size={18} color="#B91C1C" />
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-
-            <View style={styles.totalBox}>
-              <Text style={styles.totalLabel}>
-                Tổng tiền nguyên vật liệu (nháp)
-              </Text>
-              <Text style={styles.totalValue}>
-                {extAccessoriesTotal.toLocaleString('vi-VN')} đ
-              </Text>
-
-              <View style={{ height: 8 }} />
-
-              <Text style={styles.totalLabel}>Tổng tiền công việc (nháp)</Text>
-              <Text style={styles.totalValue}>
-                {extServicesTotal.toLocaleString('vi-VN')} đ
-              </Text>
-
-              <View
-                style={{
-                  marginTop: 10,
-                  borderTopWidth: StyleSheet.hairlineWidth,
-                  borderTopColor: borderColor,
-                  paddingTop: 8,
-                }}
-              >
-                <Text style={styles.totalLabel}>Tổng tiền tạm tính</Text>
-                <Text style={styles.totalValue}>
-                  {(extAccessoriesTotal + extServicesTotal).toLocaleString(
-                    'vi-VN'
-                  )}{' '}
-                  đ
-                </Text>
-              </View>
-
-              <View style={{ marginTop: 8 }}>
-                <Text style={styles.smallLabel}>
-                  {isChargeable
-                    ? '(Cư dân thanh toán – lỗi cư dân)'
-                    : isMaintenance
-                    ? '(Tòa nhà thanh toán – bảo trì định kỳ)'
-                    : '(Tòa nhà thanh toán – lỗi tòa nhà)'}
-                </Text>
-              </View>
-
-              {!!errors.externalInvoice?.message && (
-                <Text style={styles.errText}>
-                  {errors.externalInvoice.message}
-                </Text>
-              )}
-            </View>
-          </View>
-        )}
+        {showExternalInvoice ? null : null}
       </ScrollView>
 
       <View style={styles.actionBar}>
@@ -1724,12 +1454,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: THEME.text,
   },
-  invoiceSub: {
-    fontSize: 12,
-    color: zincColors[600],
-    marginTop: 2,
-    marginBottom: 10,
-  },
 
   fieldRow: {
     flexDirection: 'row',
@@ -1742,7 +1466,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: THEME.text,
   },
-  value: { fontSize: 14, color: THEME.text, fontWeight: '600' },
 
   chargeableChip: {
     flexDirection: 'row',
@@ -1832,7 +1555,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
 
-  accInfoLine: { marginBottom: 4, flex: 1 , marginLeft: 15},
+  accInfoLine: { marginBottom: 4, flex: 1, marginLeft: 15 },
   accName: { fontSize: 13, fontWeight: '700', color: THEME.text },
   accMeta: { fontSize: 11, color: zincColors[600] },
 
@@ -1866,53 +1589,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: THEME.text,
-  },
-
-  maintenanceCard: {
-    marginTop: 10,
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: borderColor,
-    backgroundColor: '#F9FAFB',
-  },
-  maintenanceTaskTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: THEME.text,
-    marginBottom: 4,
-  },
-  maintenanceTaskDesc: {
-    fontSize: 12,
-    color: zincColors[600],
-    marginBottom: 10,
-  },
-  maintenanceNote: {
-    fontSize: 12,
-    color: zincColors[500],
-    marginTop: 4,
-  },
-
-  statusChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: borderColor,
-    backgroundColor: '#FFF',
-  },
-  statusChipActive: {
-    backgroundColor: '#DBEAFE',
-    borderColor: appleBlue,
-  },
-  statusChipText: {
-    fontSize: 12,
-    color: zincColors[600],
-    fontWeight: '600',
-  },
-  statusChipTextActive: {
-    color: appleBlue,
   },
 
   invoiceToggle: {

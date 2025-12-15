@@ -72,6 +72,24 @@ export const createInvoicePaymentLink = createAsyncThunk(
     }
   }
 );
+export const cancelInvoice = createAsyncThunk(
+  'invoices/cancelInvoice',
+  async ({ invoiceId, reason = 'Hủy hóa đơn để tạo lại báo cáo khảo sát/báo giá' }, { rejectWithValue }) => {
+    try {
+      const res = await http.post(`/api/invoices/cancel/${invoiceId}`, {
+        reason,
+      });
+      return { invoiceId, data: res.data };
+    } catch (err) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Hủy hóa đơn thất bại';
+      return rejectWithValue({ invoiceId, message: msg });
+    }
+  }
+);
 
 const initialState = {
   byId: {},                   
@@ -88,6 +106,9 @@ const initialState = {
   paymentLinkByInvoiceId: {},
   paymentLinkLoading: {},      
   paymentLinkError: {}, 
+
+  cancellingById: {},
+  cancelErrorById: {},
 };
 
 const invoicesSlice = createSlice({
@@ -177,6 +198,36 @@ const invoicesSlice = createSlice({
         state.paymentLinkError[invoiceId] =
           action.payload?.message || 'Tạo link thanh toán thất bại';
       });
+    // --- cancelInvoice ---
+    builder
+      .addCase(cancelInvoice.pending, (state, action) => {
+        const { invoiceId } = action.meta.arg || {};
+        if (invoiceId == null) return;
+        state.cancellingById[invoiceId] = true;
+        state.cancelErrorById[invoiceId] = null;
+      })
+      .addCase(cancelInvoice.fulfilled, (state, action) => {
+        const invoiceId = action.payload?.invoiceId;
+        if (invoiceId == null) return;
+
+        state.cancellingById[invoiceId] = false;
+        state.cancelErrorById[invoiceId] = null;
+
+        const existing = state.byId[invoiceId];
+        if (existing) {
+          state.byId[invoiceId] = {
+            ...existing,
+            status: 'Cancelled',
+          };
+        }
+      })
+      .addCase(cancelInvoice.rejected, (state, action) => {
+        const invoiceId = action.payload?.invoiceId ?? action.meta.arg?.invoiceId;
+        if (invoiceId == null) return;
+        state.cancellingById[invoiceId] = false;
+        state.cancelErrorById[invoiceId] =
+          action.payload?.message || 'Hủy hóa đơn thất bại';
+      });
   },
 });
 
@@ -220,6 +271,10 @@ export const selectPaymentLinkLoading = (state, invoiceId) =>
 export const selectPaymentLinkError = (state, invoiceId) =>
   state.invoices.paymentLinkError[invoiceId] || null;
 
+export const selectInvoiceCancellingById = (state, invoiceId) =>
+  !!state.invoices.cancellingById[invoiceId];
+export const selectInvoiceCancelErrorById = (state, invoiceId) =>
+  state.invoices.cancelErrorById[invoiceId] || null;
 
 export const { clearInvoiceErrorByRepairRequest } = invoicesSlice.actions;
 

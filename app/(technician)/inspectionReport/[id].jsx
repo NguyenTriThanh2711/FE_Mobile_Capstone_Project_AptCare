@@ -79,7 +79,7 @@ export default function InspectReportDetailScreen() {
   );
   const report = useAppSelector((s) => selectReportById(s, reportId));
 
-  console.log('[data => isreport]', pretty(report));
+  //console.log('[data => isreport]', pretty(report));
 
   useEffect(() => {
     if (reportId) dispatch(fetchInspectionReportById(reportId));
@@ -97,10 +97,7 @@ export default function InspectReportDetailScreen() {
   const apartment = report?.appointment?.repairRequest?.apartment;
   const repairRequest = report?.appointment?.repairRequest;
   const invoices = useMemo(() => dotnetArr(report?.invoice), [report]);
-  const repairRequestTasks = useMemo(
-    () => dotnetArr(report?.repairRequestTasks),
-    [report]
-  );
+  const repairRequestTasks = useMemo(() => dotnetArr(report?.repairRequestTasks),[report]);
 
   const handleGoInvoiceDetail = (inv) => {
     if (!inv?.invoiceId) return;
