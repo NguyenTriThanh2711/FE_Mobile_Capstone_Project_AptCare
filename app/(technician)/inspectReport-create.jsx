@@ -123,6 +123,7 @@ export default function CreateInspectionReportScreen() {
   const maintenanceTasksFromStore = useAppSelector((s) =>
     rrIdNum ? selectTasksByRepairRequestId(s, rrIdNum) : []
   );
+  console.log('[maintenanceTasksFromStore]',maintenanceTasksFromStore)
   const maintenanceTasksLoading = useAppSelector((s) =>
     rrIdNum ? selectTasksLoadingByRepairRequestId(s, rrIdNum) : false
   );
@@ -132,7 +133,7 @@ export default function CreateInspectionReportScreen() {
   const isMaintenance =
     Array.isArray(maintenanceTasksFromStore) &&
     maintenanceTasksFromStore.length > 0;
-
+  console.log('isMaintenance',isMaintenance)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -853,7 +854,134 @@ export default function CreateInspectionReportScreen() {
         {!!errors.solution?.message && (
           <Text style={styles.errText}>{errors.solution.message}</Text>
         )}
+        {isMaintenance && (
+          <View style={[styles.invoiceBlock, { marginTop: 12 }]}>
+            <Text style={styles.invoiceTitle}>Checklist bảo trì khu vực chung</Text>
+            <Text style={styles.invoiceSub}>
+              Cập nhật trạng thái cho từng nhiệm vụ trước khi tạo báo cáo kiểm
+              tra.
+            </Text>
 
+            {maintenanceTasksLoading ? (
+              <Text style={{ color: zincColors[500], marginTop: 8 }}>
+                Đang tải danh sách nhiệm vụ...
+              </Text>
+            ) : maintenanceTasksError ? (
+              <Text style={{ color: '#B91C1C', marginTop: 8 }}>
+                {String(maintenanceTasksError)}
+              </Text>
+            ) : maintenanceTaskFields.length === 0 ? (
+              <Text style={{ color: zincColors[500], marginTop: 8 }}>
+                Chưa có nhiệm vụ bảo trì nào cho yêu cầu này.
+              </Text>
+            ) : (
+              maintenanceTaskFields.map((row, idx) => {
+                const formRow = maintenanceTasksWatch[idx] || {};
+                const rowErrors = errors.maintenanceTasks?.[idx] || {};
+                return (
+                  <View key={row.id} style={styles.maintenanceCard}>
+                    <Text style={styles.maintenanceTaskTitle}>
+                      {formRow.taskName || `Nhiệm vụ #${idx + 1}`}
+                    </Text>
+                    {!!formRow.taskDescription && (
+                      <Text style={styles.maintenanceTaskDesc}>
+                        {formRow.taskDescription}
+                      </Text>
+                    )}
+
+                    <Text style={styles.smallLabel}>Trạng thái</Text>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {['Completed', 'Failed'].map((st) => (
+                        <Controller
+                          key={st}
+                          control={control}
+                          name={`maintenanceTasks.${idx}.status`}
+                          render={({ field: { value, onChange } }) => (
+                            <Pressable
+                              onPress={() => onChange(st)}
+                              style={[
+                                styles.statusChip,
+                                value === st && styles.statusChipActive,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusChipText,
+                                  value === st && styles.statusChipTextActive,
+                                ]}
+                              >
+                                {st === 'Completed' ? 'Đạt' : 'Chưa đạt'}
+                              </Text>
+                            </Pressable>
+                          )}
+                        />
+                      ))}
+                    </View>
+                    {!!rowErrors?.status?.message && (
+                      <Text style={styles.errText}>
+                        {rowErrors.status.message}
+                      </Text>
+                    )}
+
+                    <Controller
+                      control={control}
+                      name={`maintenanceTasks.${idx}.technicianNote`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <MUITextField
+                          label="Ghi chú kỹ thuật viên"
+                          placeholder="VD: Đã vệ sinh bể nước, không thấy rò rỉ."
+                          multiline
+                          numberOfLines={3}
+                          value={value}
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          error={rowErrors?.technicianNote?.message}
+                          style={{ marginTop: 4 }}
+                        />
+                      )}
+                    />
+
+                    <Controller
+                      control={control}
+                      name={`maintenanceTasks.${idx}.inspectionResult`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <MUITextField
+                          label="Kết quả kiểm tra"
+                          placeholder='VD: "OK", "Cần sửa chữa", "Cần thay thế"...'
+                          multiline
+                          numberOfLines={2}
+                          value={value}
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          error={rowErrors?.inspectionResult?.message}
+                          style={{ marginTop: 8 }}
+                        />
+                      )}
+                    />
+                  </View>
+                );
+              })
+            )}
+
+            {!!errors.maintenanceTasks?.message && (
+              <Text style={styles.errText}>
+                {errors.maintenanceTasks.message}
+              </Text>
+            )}
+
+            <Text style={styles.maintenanceNote}>
+              Lưu ý: Tất cả nhiệm vụ cần được cập nhật (không để trống trạng
+              thái) trước khi tạo báo cáo.
+            </Text>
+          </View>
+        )}
         <ImagePickerStrip
           style={{ marginTop: 14 }}
           mode="update"
@@ -863,7 +991,7 @@ export default function CreateInspectionReportScreen() {
           title="Ảnh khảo sát"
         />
 
-        {isMaintenance && canInternalInvoice && (
+        {canInternalInvoice && (
           <Pressable
             style={[
               styles.invoiceToggle,
@@ -882,7 +1010,7 @@ export default function CreateInspectionReportScreen() {
                 includeInternalInvoice && { color: appleBlue },
               ]}
             >
-              Kèm báo giá
+              Kèm báo giá 
             </Text>
           </Pressable>
         )}
@@ -1051,7 +1179,7 @@ export default function CreateInspectionReportScreen() {
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Icon name="cart" size={18} color={appleBlue} />
-                <Text style={styles.cardTitle}>Mua vật liệu</Text>
+                <Text style={styles.cardTitle}>Nhập thêm vật liệu</Text>
 
                 <Pressable
                   onPress={() =>
@@ -1156,7 +1284,7 @@ export default function CreateInspectionReportScreen() {
                 const rowErrors = errors.purchaseAccessories?.[idx] || {};
                 const rowVal = purchaseAccessoriesWatch?.[idx] || {};
                 const isCatalogRow = !!String(rowVal?.accessoryId || '');
-
+                console.log('[row.accessoryId !== ]',row.accessoryId !== '') 
                 return (
                   <View key={row.id} style={styles.rowBlock}>
                     <View style={{ flex: 1.6 }}>
@@ -1170,10 +1298,14 @@ export default function CreateInspectionReportScreen() {
                           <>
                             <TextInput
                               value={value}
-                              onBlur={onBlur}
-                              onChangeText={onChange}
+                              onBlur={row.accessoryId === '' ? onBlur : undefined}
+                              onChangeText={row.accessoryId === '' ? onChange : undefined}
+                              editable={row.accessoryId === ''}
+                              style={[
+                                styles.input,
+                                isCatalogRow ? styles.inputDisabled : null,
+                              ]}
                               placeholder="VD: Ống nước PVC 27mm"
-                              style={styles.input}
                             />
                             {!!rowErrors?.name?.message && (
                               <Text style={styles.errText}>
@@ -1372,7 +1504,271 @@ export default function CreateInspectionReportScreen() {
           </View>
         )}
 
-        {showExternalInvoice ? null : null}
+        {showExternalInvoice && (
+          <View style={[styles.invoiceBlock, { marginTop: 24 }]}>
+            <Text style={styles.invoiceTitle}>Hóa đơn bên thứ ba</Text>
+
+            {/* <View style={styles.fieldRow}>
+              <Text style={styles.label}>ID yêu cầu:</Text>
+              <Text style={styles.value}>{rrIdNum || '-'}</Text>
+            </View> */}
+
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>Đối tượng chịu phí</Text>
+              <View style={styles.chargeableChip}>
+                <View
+                  style={[
+                    styles.dot,
+                    { backgroundColor: isChargeable ? '#16A34A' : '#6B7280' },
+                  ]}
+                />
+                <Text style={styles.chargeableText}>
+                  {isChargeable
+                    ? 'Cư dân chịu phí (Lỗi cư dân)'
+                    : isMaintenance
+                    ? 'Tòa nhà chịu phí (Bảo trì định kỳ)'
+                    : 'Tòa nhà chịu phí (Lỗi tòa nhà)'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Icon name="wrench" size={18} color={appleBlue} />
+                <Text style={styles.cardTitle}>Nguyên vật liệu</Text>
+                <Pressable
+                  onPress={() =>
+                    extAccAppend({ name: '', quantity: '', price: '' })
+                  }
+                  style={styles.addBtn}
+                >
+                  <Icon name="plus.circle" size={18} color={appleBlue} />
+                  <Text style={styles.addTxt}>Thêm dòng</Text>
+                </Pressable>
+              </View>
+
+              {extAccFields.length === 0 ? (
+                <Text style={{ color: zincColors[500] }}>
+                  Chưa có dòng nguyên vật liệu nào.
+                </Text>
+              ) : null}
+
+              {extAccFields.map((row, idx) => {
+                const rowErrors = errors.extAccessories?.[idx] || {};
+                return (
+                  <View key={row.id} style={styles.rowBlock}>
+                    <Controller
+                      control={control}
+                      name={`extAccessories.${idx}.name`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <View style={{ flex: 1.3 }}>
+                          <Text style={styles.smallLabel}>Tên vật liệu</Text>
+                          <TextInput
+                            value={value}
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            placeholder="VD: Sơn tường Dulux 5L"
+                            style={styles.input}
+                          />
+                          {!!rowErrors?.name?.message && (
+                            <Text style={styles.errText}>
+                              {rowErrors.name.message}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    />
+
+                    <Controller
+                      control={control}
+                      name={`extAccessories.${idx}.quantity`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <View style={{ width: 80 }}>
+                          <Text style={styles.smallLabel}>Số lượng</Text>
+                          <TextInput
+                            value={String(value ?? '')}
+                            onBlur={onBlur}
+                            onChangeText={(t) => onChange(t.replace(/\D+/g, ''))}
+                            keyboardType="numeric"
+                            placeholder="1"
+                            style={styles.input}
+                          />
+                          {!!rowErrors?.quantity?.message && (
+                            <Text style={styles.errText}>
+                              {rowErrors.quantity.message}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    />
+
+                    <Controller
+                      control={control}
+                      name={`extAccessories.${idx}.price`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <View style={{ width: 100 }}>
+                          <Text style={styles.smallLabel}>Đơn giá</Text>
+                          <TextInput
+                            value={String(value ?? '')}
+                            onBlur={onBlur}
+                            onChangeText={(t) =>
+                              onChange(t.replace(/[^\d.]/g, ''))
+                            }
+                            keyboardType="decimal-pad"
+                            placeholder="0"
+                            style={styles.input}
+                          />
+                          {!!rowErrors?.price?.message && (
+                            <Text style={styles.errText}>
+                              {rowErrors.price.message}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    />
+
+                    <Pressable
+                      onPress={() => extAccRemove(idx)}
+                      style={styles.delBtn}
+                    >
+                      <Icon name="trash" size={18} color="#B91C1C" />
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Icon name="hammer" size={18} color={appleBlue} />
+                <Text style={styles.cardTitle}>Công việc</Text>
+                <Pressable
+                  onPress={() => extSvcAppend({ name: '', price: '' })}
+                  style={styles.addBtn}
+                >
+                  <Icon name="plus.circle" size={18} color={appleBlue} />
+                  <Text style={styles.addTxt}>Thêm dòng</Text>
+                </Pressable>
+              </View>
+
+              {extSvcFields.length === 0 ? (
+                <Text style={{ color: zincColors[500] }}>
+                  Chưa có dòng công việc nào.
+                </Text>
+              ) : null}
+
+              {extSvcFields.map((row, idx) => {
+                const rowErrors = errors.extServices?.[idx] || {};
+                return (
+                  <View key={row.id} style={styles.rowBlock}>
+                    <Controller
+                      control={control}
+                      name={`extServices.${idx}.name`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <View style={{ flex: 1.3 }}>
+                          <Text style={styles.smallLabel}>Tên công việc</Text>
+                          <TextInput
+                            value={value}
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            placeholder="VD: Công thợ trét lại tường"
+                            style={styles.input}
+                          />
+                          {!!rowErrors?.name?.message && (
+                            <Text style={styles.errText}>
+                              {rowErrors.name.message}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    />
+
+                    <Controller
+                      control={control}
+                      name={`extServices.${idx}.price`}
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <View style={{ width: 70 }}>
+                          <Text style={styles.smallLabel}>Giá</Text>
+                          <TextInput
+                            value={String(value ?? '')}
+                            onBlur={onBlur}
+                            onChangeText={(t) =>
+                              onChange(t.replace(/[^\d.]/g, ''))
+                            }
+                            keyboardType="decimal-pad"
+                            placeholder="0"
+                            style={styles.input}
+                          />
+                          {!!rowErrors?.price?.message && (
+                            <Text style={styles.errText}>
+                              {rowErrors.price.message}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    />
+
+                    <Pressable
+                      onPress={() => extSvcRemove(idx)}
+                      style={styles.delBtn}
+                    >
+                      <Icon name="trash" size={18} color="#B91C1C" />
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.totalBox}>
+              <Text style={styles.totalLabel}>
+                Tổng tiền nguyên vật liệu (nháp)
+              </Text>
+              <Text style={styles.totalValue}>
+                {extAccessoriesTotal.toLocaleString('vi-VN')} đ
+              </Text>
+
+              <View style={{ height: 8 }} />
+
+              <Text style={styles.totalLabel}>Tổng tiền công việc (nháp)</Text>
+              <Text style={styles.totalValue}>
+                {extServicesTotal.toLocaleString('vi-VN')} đ
+              </Text>
+
+              <View
+                style={{
+                  marginTop: 10,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: borderColor,
+                  paddingTop: 8,
+                }}
+              >
+                <Text style={styles.totalLabel}>Tổng tiền tạm tính</Text>
+                <Text style={styles.totalValue}>
+                  {(extAccessoriesTotal + extServicesTotal).toLocaleString(
+                    'vi-VN'
+                  )}{' '}
+                  đ
+                </Text>
+              </View>
+
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.smallLabel}>
+                  {isChargeable
+                    ? '(Cư dân thanh toán – lỗi cư dân)'
+                    : isMaintenance
+                    ? '(Tòa nhà thanh toán – bảo trì định kỳ)'
+                    : '(Tòa nhà thanh toán – lỗi tòa nhà)'}
+                </Text>
+              </View>
+
+              {!!errors.externalInvoice?.message && (
+                <Text style={styles.errText}>
+                  {errors.externalInvoice.message}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.actionBar}>
@@ -1454,6 +1850,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: THEME.text,
   },
+  invoiceSub: {
+    fontSize: 12,
+    color: zincColors[600],
+    marginTop: 2,
+    marginBottom: 10,
+  },
 
   fieldRow: {
     flexDirection: 'row',
@@ -1466,6 +1868,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: THEME.text,
   },
+  value: { fontSize: 14, color: THEME.text, fontWeight: '600' },
 
   chargeableChip: {
     flexDirection: 'row',
@@ -1555,7 +1958,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
 
-  accInfoLine: { marginBottom: 4, flex: 1, marginLeft: 15 },
+  accInfoLine: { marginBottom: 4, flex: 1 , marginLeft: 15},
   accName: { fontSize: 13, fontWeight: '700', color: THEME.text },
   accMeta: { fontSize: 11, color: zincColors[600] },
 
@@ -1589,6 +1992,53 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: THEME.text,
+  },
+
+  maintenanceCard: {
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: borderColor,
+    backgroundColor: '#F9FAFB',
+  },
+  maintenanceTaskTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.text,
+    marginBottom: 4,
+  },
+  maintenanceTaskDesc: {
+    fontSize: 12,
+    color: zincColors[600],
+    marginBottom: 10,
+  },
+  maintenanceNote: {
+    fontSize: 12,
+    color: zincColors[500],
+    marginTop: 4,
+  },
+
+  statusChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: borderColor,
+    backgroundColor: '#FFF',
+  },
+  statusChipActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: appleBlue,
+  },
+  statusChipText: {
+    fontSize: 12,
+    color: zincColors[600],
+    fontWeight: '600',
+  },
+  statusChipTextActive: {
+    color: appleBlue,
   },
 
   invoiceToggle: {
