@@ -353,7 +353,7 @@ export default function TechnicianSchedule() {
               </View>
 
               <View style={styles.actionsRow}>
-                {isNotStarted(shift) && (
+                {/* {isNotStarted(shift) && (
                   <Pressable
                     style={[
                       styles.btn,
@@ -367,7 +367,7 @@ export default function TechnicianSchedule() {
                       Điểm danh
                     </Text>
                   </Pressable>
-                )}
+                )} */}
 
                 {isWorking(shift) && (
                   <Pressable
@@ -376,7 +376,7 @@ export default function TechnicianSchedule() {
                       styles.btnDanger,
                       loadingThis === 'out' && { opacity: 0.6 },
                     ]}
-                    onPress={() => router.push('/(technician)/checkout-qr')}
+                    //onPress={() => router.push('/(technician)/checkout-qr')}
                   >
                     {loadingThis === 'out' ? (
                       <ActivityIndicator color="#fff" />
@@ -384,7 +384,7 @@ export default function TechnicianSchedule() {
                       <>
                         <Icon name="stop.circle" size={16} color="#fff" />
                         <Text style={[styles.btnText, styles.btnPrimaryText]}>
-                          Điểm danh kết thúc ca
+                          Đang trong ca làm
                         </Text>
                       </>
                     )}

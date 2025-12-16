@@ -19,6 +19,7 @@ import {
 import useChatGlobalRealtime from '@/src/hooks/useChatGlobalRealtime';
 import { fetchMyNotifications, fetchUnreadCount } from '@/src/features/notifications/notificationsSlice';
 import { fetchMyConversations } from '@/src/features/chat/chatSlice';
+import { toastConfig } from '@/src/helper/toastConfig';
 
 function AuthGate() {
   const user = useAppSelector((s) => s.auth.user);
@@ -107,26 +108,7 @@ function AuthGate() {
   return <Slot />;
 }
 
-const toastConfig = {
-  info: (props) => (
-    <BaseToast
-      {...props}
-      text1NumberOfLines={2}
-      text2NumberOfLines={6}
-      text2Style={{ fontSize: 13, lineHeight: 18 }}
-      style={{ borderLeftColor: '#3b82f6' }}
-    />
-  ),
-  error: (props) => (
-    <ErrorToast
-      {...props}
-      text1NumberOfLines={10}
-      text2NumberOfLines={12}
-      text2Style={{ fontSize: 13, lineHeight: 18 }}
-      style={{ borderLeftColor: '#ef4444' }}
-    />
-  ),
-};
+
 
 export default function RootLayout() {
   return (

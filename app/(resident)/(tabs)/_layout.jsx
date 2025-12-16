@@ -92,7 +92,7 @@ export default function ResidentTabsLayout() {
       <Tab.Screen
         name="requests"
         component={ResidentRequests}
-        options={{ title: 'Yêu cầu', headerTitle: 'AptCare - Tower' }}
+        options={{ title: 'Yêu cầu', headerTitle: 'AptCare - Yêu cầu' }}
       />
       <Tab.Screen
         name="schedule"
@@ -102,7 +102,7 @@ export default function ResidentTabsLayout() {
       <Tab.Screen
         name="chat"
         component={ResidentChat}
-        options={{ title: 'Tin nhắn', headerTitle: 'Messages' }}
+        options={{ title: 'Tin nhắn', headerTitle: 'Tin nhắn' }}
       />
       <Tab.Screen
         name="notifications"

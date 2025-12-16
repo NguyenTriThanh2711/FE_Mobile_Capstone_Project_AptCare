@@ -521,7 +521,7 @@ export default function TechnicianProfile() {
         <Text style={styles.profileId}>ID: {profile.employeeId}</Text>
       </View>
 
-      <View style={styles.statsContainer}>
+      {/* <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{stats.completedRequests}</Text>
           <Text style={styles.statLabel}>Hoàn thành{"\n"}Requests</Text>
@@ -538,7 +538,7 @@ export default function TechnicianProfile() {
           <Text style={styles.statNumber}>{stats.activeRequests}</Text>
           <Text style={styles.statLabel}>Yêu cầu{"\n"}Đang hoạt động</Text>
         </View>
-      </View>
+      </View> */}
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
@@ -547,23 +547,23 @@ export default function TechnicianProfile() {
           <Pressable style={styles.menuItem} onPress={handleEditProfile}>
             <Icon name="person" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
-              <Text style={styles.menuItemTitle}>Chỉnh sửa hồ sơ</Text>
-              <Text style={styles.menuItemSubtitle}>Cập nhật thông tin cá nhân của bạn</Text>
+              <Text style={styles.menuItemTitle}>Xem hồ sơ</Text>
+              <Text style={styles.menuItemSubtitle}>Xem thông tin cá nhân của bạn</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
 
-          <Pressable style={styles.menuItem} onPress={() => setShowPasswordModal(true)}>
+          {/* <Pressable style={styles.menuItem} onPress={() => setShowPasswordModal(true)}>
             <Icon name="lock" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Đổi Mật Khẩu</Text>
               <Text style={styles.menuItemSubtitle}>Cập nhật mật khẩu tài khoản của bạn</Text>
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
-          </Pressable>
+          </Pressable> */}
         </View>
 
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông báo</Text>
 
           <View style={styles.menuItem}>
@@ -640,9 +640,9 @@ export default function TechnicianProfile() {
               thumbColor={notifications.emergencyAlerts ? "#fff" : "#f4f3f4"}
             />
           </View>
-        </View>
+        </View> */}
 
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Công cụ</Text>
 
           <Pressable style={styles.menuItem}>
@@ -671,7 +671,7 @@ export default function TechnicianProfile() {
             </View>
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
-        </View>
+        </View> */}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hỗ trợ</Text>
@@ -719,15 +719,16 @@ export default function TechnicianProfile() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <Text style={styles.modalTitle}>Xem thông tin cá nhân</Text>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Full Name *</Text>
+              <Text style={styles.label}>Tên đầy đủ *</Text>
               <TextInput
                 style={styles.input}
                 value={editingProfile.name}
-                onChangeText={(text) => setEditingProfile({ ...editingProfile, name: text })}
-                placeholder="Enter your full name"
+                disabled = {true}
+                //onChangeText={(text) => setEditingProfile({ ...editingProfile, name: text })}
+                placeholder=""
               />
             </View>
 
@@ -736,24 +737,25 @@ export default function TechnicianProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.email}
-                onChangeText={(text) => setEditingProfile({ ...editingProfile, email: text })}
-                placeholder="Enter your email"
-                keyboardType="email-address"
+                disabled = {true}
+                //onChangeText={(text) => setEditingProfile({ ...editingProfile, email: text })}
+                //placeholder="Enter your email"
+                //keyboardType="email-address"
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Phone Number</Text>
+              <Text style={styles.label}>Số điện thoại</Text>
               <TextInput
                 style={styles.input}
                 value={editingProfile.phone}
                 onChangeText={(text) => setEditingProfile({ ...editingProfile, phone: text })}
-                placeholder="Enter your phone number"
+                placeholder="Nhập số điện thoại của bạn"
                 keyboardType="phone-pad"
               />
             </View>
 
-            <View style={styles.formGroup}>
+            {/* <View style={styles.formGroup}>
               <Text style={styles.label}>Specialties</Text>
               <TextInput
                 style={styles.input}
@@ -777,14 +779,14 @@ export default function TechnicianProfile() {
                 multiline
                 numberOfLines={3}
               />
-            </View>
+            </View> */}
 
             <View style={styles.modalActions}>
               <Pressable style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>Hủy</Text>
               </Pressable>
               <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
-                <Text style={styles.submitButtonText}>Save</Text>
+                <Text style={styles.submitButtonText}>Lưu</Text>
               </Pressable>
             </View>
           </View>

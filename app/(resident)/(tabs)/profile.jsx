@@ -507,7 +507,7 @@ export default function ResidentProfile() {
             />
           </Pressable>
 
-          <Pressable
+          {/* <Pressable
             style={styles.menuItem}
             onPress={() => setShowPasswordModal(true)}
           >
@@ -529,10 +529,10 @@ export default function ResidentProfile() {
               color="#ccc"
               style={styles.menuItemArrow}
             />
-          </Pressable>
+          </Pressable> */}
         </View>
 
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông báo</Text>
 
           <View style={styles.menuItem}>
@@ -622,7 +622,7 @@ export default function ResidentProfile() {
               }
             />
           </View>
-        </View>
+        </View> */}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hỗ Trợ</Text>
