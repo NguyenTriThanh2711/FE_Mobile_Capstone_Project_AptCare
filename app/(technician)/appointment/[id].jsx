@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 
@@ -47,7 +48,9 @@ import {
 } from '@/src/features/inspectionReport/inspectionRPSlice';
 import Toast from 'react-native-toast-message';
 import {
+  checkResidentApproveRepairReport,
   fetchRepairReportByAppointment,
+  selectCheckingResidentApproveById,
   selectRepairReportIdsByAppointment,
   selectRepairReportLoadingByAppointment,
 } from '@/src/features/repairReport/repairReportSlice';
@@ -94,6 +97,8 @@ export default function AppointmentDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [showAcceptancePicker, setShowAcceptancePicker] = useState(false);
+  const [showResidentNotApprovedModal, setShowResidentNotApprovedModal] = useState(false);
+  const [residentNotApprovedMsg, setResidentNotApprovedMsg] = useState('');
 
   const dispatch = useAppDispatch();
 
@@ -140,8 +145,7 @@ export default function AppointmentDetailsScreen() {
   const currentRequest = useAppSelector(selectCurrentRequest);
 
   const commonArea = appointment?.repairRequest?.commonArea;
-  const isMaintenance =
-    !!appointment?.repairRequest?.maintenanceScheduleId || !!commonArea;
+  const isMaintenance = !!appointment?.repairRequest?.maintenanceScheduleId || !!commonArea;
 
   const maintenanceTasks = useAppSelector((s) =>
     repairRequestId ? selectTasksByRepairRequestId(s, repairRequestId) : []
@@ -304,6 +308,9 @@ export default function AppointmentDetailsScreen() {
       return t2 > t1 ? cur : latest;
     }, list[0]);
   }, [repairReportIds, repairReportsById]);
+
+  const lastRepairReportId =lastRepairReport?.repairReportId ?? lastRepairReport?.id ?? null; // lỡ sau này có thể tạo được nhiều report
+  const checkingResidentApprove = useAppSelector((s) =>lastRepairReportId ? selectCheckingResidentApproveById(s, lastRepairReportId) : false);
 
   const acceptanceBaseDateStr = useMemo(() => {
     if (!lastRepairReport || lastRepairReport.status !== 'Approved') return null;
@@ -516,9 +523,33 @@ export default function AppointmentDetailsScreen() {
     }
   };
 
-  const handleMarkCompleted = () => {
+  const handleMarkCompleted = async () => {
     if (!id) return;
-    setShowAcceptancePicker(true);
+    if (!lastRepairReportId) {
+      Toast.show({
+        type: 'info',
+        text1: 'Chưa có báo cáo sửa chữa',
+        text2: 'Vui lòng tạo báo cáo sửa chữa trước khi hoàn tất.',
+      });
+      return;
+    }
+
+    try {
+      const ok = await dispatch(checkResidentApproveRepairReport({ reportId: lastRepairReportId })).unwrap();
+
+      if (!ok) {
+        setResidentNotApprovedMsg('Sửa chữa chưa được cư dân chấp thuận.');
+        setShowResidentNotApprovedModal(true);
+        return;
+      }
+      setShowAcceptancePicker(true);
+    } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Không kiểm tra được chấp thuận',
+        text2: e?.message || String(e) || 'Vui lòng thử lại.',
+      });
+    }
   };
 
   const handleAcceptancePicked = async (dateStr) => {
@@ -1387,20 +1418,60 @@ export default function AppointmentDetailsScreen() {
 
             {repairApproved && (
               <Pressable
-                style={styles.secondaryBtn}
-                onPress={handleMarkCompleted}
+                style={[
+                  styles.secondaryBtn,
+                  checkingResidentApprove && { opacity: 0.6 },
+                ]}
+                onPress={checkingResidentApprove ? undefined : handleMarkCompleted}
+                disabled={checkingResidentApprove}
               >
-                <Icon
-                  name="checkmark.circle"
-                  size={20}
-                  color={appleGreen}
-                />
-                <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
+                {checkingResidentApprove ? (
+                  <ActivityIndicator />
+                ) : (
+                  <>
+                    <Icon name="checkmark.circle" size={20} color={appleGreen} />
+                    <Text style={styles.secondaryBtnText}>Hoàn tất</Text>
+                  </>
+                )}
               </Pressable>
             )}
           </>
         )}
       </View>
+      <Modal
+        visible={showResidentNotApprovedModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResidentNotApprovedModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Chưa thể hoàn tất</Text>
+            <Text style={styles.modalDesc}>
+              {residentNotApprovedMsg || 'Sửa chữa chưa được cư dân chấp thuận.'}
+            </Text>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnGhost]}
+                onPress={() => setShowResidentNotApprovedModal(false)}
+              >
+                <Text style={styles.modalBtnGhostText}>Đóng</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                onPress={() => {
+                  setShowResidentNotApprovedModal(false);
+                  if (lastRepairReportId) goRepairReportDetail(lastRepairReportId);
+                }}
+              >
+                <Text style={styles.modalBtnPrimaryText}>Xem báo cáo</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <AcceptanceAfterDaysPicker
         visible={showAcceptancePicker}
@@ -1651,5 +1722,59 @@ const styles = StyleSheet.create({
   invoiceError: {
     color: appleRed,
     marginLeft: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: 16,
+    backgroundColor: THEME.background,
+    borderWidth: 1,
+    borderColor: borderColor,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: THEME.text,
+  },
+  modalDesc: {
+    marginTop: 8,
+    fontSize: 14,
+    color: zincColors[600],
+    lineHeight: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnGhost: {
+    backgroundColor: zincColors[50],
+    borderWidth: 1,
+    borderColor: borderColor,
+  },
+  modalBtnGhostText: {
+    color: appleBlue,
+    fontWeight: '800',
+  },
+  modalBtnPrimary: {
+    backgroundColor: appleBlue,
+  },
+  modalBtnPrimaryText: {
+    color: THEME.background,
+    fontWeight: '800',
   },
 });

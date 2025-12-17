@@ -71,6 +71,32 @@ export const fetchRepairReportById = createAsyncThunk(
     }
   }
 );
+export const checkResidentApproveRepairReport = createAsyncThunk(
+  'repairReports/checkResidentApprove',
+  async ({ reportId }, { rejectWithValue }) => {
+    try {
+      const res = await http.get(`/api/reportapproves/resident/check/${reportId}`, {responseType: 'text'});
+      const raw = typeof res?.data === 'string' ? res.data.trim() : res?.data;
+      if (raw === true || raw === 'true') return { reportId, approved: true };
+      if (raw === false || raw === 'false') return { reportId, approved: false };
+      return { reportId, approved: Boolean(raw) };
+    } catch (err) {
+      const res = err?.response;
+      if (res?.status === 404) {
+        return { reportId, approved: false };
+      }
+
+      const message =
+        res?.data?.detail ||
+        res?.data?.message ||
+        res?.data ||
+        err?.message ||
+        'Kiểm tra phê duyệt thất bại';
+
+      return rejectWithValue({ reportId, message, status: res?.status });
+    }
+  }
+);
 
 const slice = createSlice({
   name: 'repairReports',
@@ -83,6 +109,10 @@ const slice = createSlice({
 
     creating: false,
     createError: null,
+
+    checkingApproveByReportId: {},
+    checkApproveErrorByReportId: {},
+    approveResultByReportId: {},
   },
   reducers: {},
   extraReducers: (b) => {
@@ -153,6 +183,36 @@ const slice = createSlice({
       if (Number.isFinite(id)) s.loadingById[id] = false;
       s.error = a.payload?.message || a.error?.message || null;
     });
+
+    // CHECK RESIDENT APPROVE
+    b.addCase(checkResidentApproveRepairReport.pending, (s, a) => {
+      const reportId = Number(a.meta?.arg?.reportId);
+      if (Number.isFinite(reportId)) {
+        s.checkingApproveByReportId[reportId] = true;
+        s.checkApproveErrorByReportId[reportId] = null;
+      }
+    });
+
+    b.addCase(checkResidentApproveRepairReport.fulfilled, (s, a) => {
+      const reportId = Number(a.payload?.reportId);
+      if (Number.isFinite(reportId)) {
+        s.checkingApproveByReportId[reportId] = false;
+        s.checkApproveErrorByReportId[reportId] = null;
+        s.approveResultByReportId[reportId] = !!a.payload?.approved;
+      }
+    });
+
+    b.addCase(checkResidentApproveRepairReport.rejected, (s, a) => {
+      const reportId = Number(a.payload?.reportId ?? a.meta?.arg?.reportId);
+      if (Number.isFinite(reportId)) {
+        s.checkingApproveByReportId[reportId] = false;
+        s.checkApproveErrorByReportId[reportId] =
+          a.payload?.message || a.error?.message || null;
+      } else {
+        s.error = a.payload?.message || a.error?.message || null;
+      }
+    });
+
   },
 });
 
@@ -172,3 +232,12 @@ export const selectRepairReportByIdLoading = (s, id) =>
 
 export const selectRepairReportCreating = (s) => !!s.repairReports?.creating;
 export const selectRepairReportCreateError = (s) => s.repairReports?.createError;
+
+export const selectCheckingResidentApproveById = (s, reportId) =>
+  !!s.repairReports?.checkingApproveByReportId?.[Number(reportId)];
+
+export const selectResidentApproveResultById = (s, reportId) =>
+  s.repairReports?.approveResultByReportId?.[Number(reportId)];
+
+export const selectResidentApproveErrorById = (s, reportId) =>
+  s.repairReports?.checkApproveErrorByReportId?.[Number(reportId)] || null;
