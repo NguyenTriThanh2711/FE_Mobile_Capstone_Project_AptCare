@@ -167,15 +167,15 @@ export default function RequestDetail() {
 
             const check = await dispatch(checkResidentApproveRepairReport({ reportId: rid })).unwrap();
 
-            // if (check?.approved === false) {
-            //   if (active) {
-            //     router.replace({
-            //       pathname: '/(resident)/repairReport/[id]',
-            //       params: { id: String(rid) },
-            //     });
-            //   }
-            //   return; 
-            // }
+            if (check?.approved === false) {
+              if (active) {
+                router.replace({
+                  pathname: '/(resident)/repairReport/[id]',
+                  params: { id: String(rid) },
+                });
+              }
+              return; 
+            }
 
           }
         }
