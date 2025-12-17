@@ -37,6 +37,7 @@ import {
   selectFeedbackLoadingByRepairRequest,
 } from '@/src/features/feedback/feedbacksSlice';
 import Toast from 'react-native-toast-message';
+import { fetchRepairReportByAppointment } from '@/src/features/repairReport/repairReportSlice';
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
@@ -121,13 +122,48 @@ export default function RequestDetail() {
     (async () => {
       try {
         setInitialLoading(true);
-        await dispatch(getRequest(id)).unwrap?.();
-        await dispatch(
-          fetchInvoicesByRepairRequestId(repairRequestId)
-        ).unwrap?.();
-        await dispatch(
-          fetchFeedbackByRepairRequest(repairRequestId)
-        ).unwrap?.();
+        const reqRes = await dispatch(getRequest(id)).unwrap?.();
+        const reqData = reqRes?.data || reqRes; 
+        const appointments = dotnetArr(reqData?.appointments);
+        const reportFetchResults = await Promise.all(
+          appointments.map((ap) =>
+            dispatch(fetchRepairReportByAppointment({ appointmentId: ap.appointmentId }))
+              .unwrap()
+              .catch(() => null)
+          )
+        );
+        const reportIds = reportFetchResults
+          .filter(Boolean)
+          .flatMap((x) => (x?.ids || []))
+          .filter((x) => x != null);
+
+        for (const payload of reportFetchResults.filter(Boolean)) {
+          const ids = payload?.ids || [];
+          const entities = payload?.entities || {};
+          for (const rid of ids) {
+            const report = entities?.[rid];
+            const status = (report?.status || '').toLowerCase();
+            //bỏ qua các report đã approved hoặc rejected , tạm thời cứ để rejected trước
+            if (status === 'rejected') continue;
+
+            const check = await dispatch(
+              checkResidentApproveRepairReport({ reportId: rid })
+            ).unwrap();
+
+            if (check?.approved === false) {
+              if (active) {
+                router.replace({
+                  pathname: '/(resident)/repairReport/[id]',
+                  params: { id: String(rid) },
+                });
+              }
+              return; 
+            }
+          }
+        }
+
+        await dispatch(fetchInvoicesByRepairRequestId(repairRequestId)).unwrap?.();
+        await dispatch(fetchFeedbackByRepairRequest(repairRequestId)).unwrap?.();
       } catch (e) {
         console.log('[getRequest error]', e);
       } finally {

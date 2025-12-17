@@ -536,7 +536,6 @@ export default function AppointmentDetailsScreen() {
 
     try {
       const ok = await dispatch(checkResidentApproveRepairReport({ reportId: lastRepairReportId })).unwrap();
-
       if (!ok) {
         setResidentNotApprovedMsg('Sửa chữa chưa được cư dân chấp thuận.');
         setShowResidentNotApprovedModal(true);

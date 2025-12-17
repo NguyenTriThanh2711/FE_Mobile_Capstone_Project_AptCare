@@ -97,7 +97,24 @@ export const checkResidentApproveRepairReport = createAsyncThunk(
     }
   }
 );
-
+export const approveResidentRepairReport = createAsyncThunk(
+  'repairReports/approveResident',
+  async ({ reportId }, { rejectWithValue }) => {
+    try {
+      const { data } = await http.post(`/api/reportapproves/resident/approve/${reportId}`);
+      return { reportId, ok: true, data };
+    } catch (err) {
+      const res = err?.response;
+      const message =
+        res?.data?.detail ||
+        res?.data?.message ||
+        res?.data ||
+        err?.message ||
+        'Phê duyệt thất bại';
+      return rejectWithValue({ reportId, message, status: res?.status });
+    }
+  }
+);
 const slice = createSlice({
   name: 'repairReports',
   initialState: {
@@ -113,6 +130,9 @@ const slice = createSlice({
     checkingApproveByReportId: {},
     checkApproveErrorByReportId: {},
     approveResultByReportId: {},
+
+    approvingByReportId: {},
+    approveErrorByReportId: {},
   },
   reducers: {},
   extraReducers: (b) => {
@@ -212,7 +232,26 @@ const slice = createSlice({
         s.error = a.payload?.message || a.error?.message || null;
       }
     });
-
+    // APPROVE RESIDENT APPROVE
+    b.addCase(approveResidentRepairReport.pending, (s, a) => {
+      const reportId = Number(a.meta?.arg?.reportId);
+      if (!Number.isFinite(reportId)) return;
+      s.approvingByReportId[reportId] = true;
+      s.approveErrorByReportId[reportId] = null;
+    });
+    b.addCase(approveResidentRepairReport.fulfilled, (s, a) => {
+      const reportId = Number(a.payload?.reportId);
+      if (!Number.isFinite(reportId)) return;
+      s.approvingByReportId[reportId] = false;
+      s.approveResultByReportId[reportId] = true; // approved chắc chắn
+    });
+    b.addCase(approveResidentRepairReport.rejected, (s, a) => {
+      const reportId = Number(a.payload?.reportId ?? a.meta?.arg?.reportId);
+      if (!Number.isFinite(reportId)) return;
+      s.approvingByReportId[reportId] = false;
+      s.approveErrorByReportId[reportId] =
+        a.payload?.message || a.error?.message || null;
+    });
   },
 });
 
@@ -241,3 +280,10 @@ export const selectResidentApproveResultById = (s, reportId) =>
 
 export const selectResidentApproveErrorById = (s, reportId) =>
   s.repairReports?.checkApproveErrorByReportId?.[Number(reportId)] || null;
+
+export const selectResidentApprovedByReportId = (s, reportId) =>
+  s.repairReports?.approveResultByReportId?.[Number(reportId)];
+export const selectCheckingResidentApproveByReportId = (s, reportId) =>
+  !!s.repairReports?.checkingApproveByReportId?.[Number(reportId)];
+export const selectApprovingResidentByReportId = (s, reportId) =>
+  !!s.repairReports?.approvingByReportId?.[Number(reportId)];

@@ -95,7 +95,7 @@ export default function ResidentRequests() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Yêu cầu của tôi</Text>
-        <Text style={styles.headerSubtitle}>Theo dõi yêu cầu bảo trì</Text>
+        <Text style={styles.headerSubtitle}>Theo dõi yêu cầu sữa chữa</Text>
       </View>
 
       {/* Toolbar */}
