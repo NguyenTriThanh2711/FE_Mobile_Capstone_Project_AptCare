@@ -8,8 +8,10 @@ import { Colors, zincColors, appleBlue, borderColor } from '@/src/utils/colors';
 import { timeDayDate } from '@/src/utils/date';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import ImagePickerStrip from '@/src/components/ImagePickerStrip';
-import { checkResidentApproveRepairReport, fetchRepairReportById, selectApprovingResidentByReportId, selectCheckingResidentApproveByReportId, selectRepairReportById, selectRepairReportByIdLoading, selectResidentApprovedByReportId } from '@/src/features/repairReport/repairReportSlice';
+import { approveResidentRepairReport, checkResidentApproveRepairReport, fetchRepairReportById, selectApprovingResidentByReportId, selectCheckingResidentApproveByReportId, selectRepairReportById, selectRepairReportByIdLoading, selectResidentApprovedByReportId } from '@/src/features/repairReport/repairReportSlice';
 import Badge from '@/src/components/Badge';
+import { pretty } from '@/src/helper/prettyLog';
+import Toast from 'react-native-toast-message';
 
 const THEME = Colors.light;
 
@@ -31,7 +33,8 @@ export default function RepairReportDetailScreen() {
     dispatch(fetchRepairReportById(reportId));
     dispatch(checkResidentApproveRepairReport({ reportId }));
   }, [reportId, dispatch]);
-
+  
+  console.log('[report]',pretty(report))
   const createdAt = report?.createdAt ? timeDayDate(report.createdAt) : '-';
 
   const medias = useMemo(() => dotnetArr(report?.medias), [report]);
@@ -43,11 +46,29 @@ export default function RepairReportDetailScreen() {
 
   const handleApprove = async () => {
     if (!reportId) return;
+    console.log('[sss]')
     try {
       await dispatch(approveResidentRepairReport({ reportId })).unwrap();
       dispatch(fetchRepairReportById(reportId));
-      dispatch(checkResidentApproveRepairReport({ reportId }));
-    } catch (e) {}
+      const {approved} = await dispatch(checkResidentApproveRepairReport({ reportId })).unwrap();
+      console.log('[checkResidentApproveRepairReport after approve]', approved);
+      if (approved)
+        {
+          router.back();
+          Toast.show({
+            type: 'success',
+            text1: 'Đã chấp thuận báo cáo sửa chữa',
+          });
+        }
+      throw new Error('Báo cáo sửa chữa chưa được chấp thuận. Vui lòng thử lại sau!');
+    } catch (e) {
+      console.log('[error approveResidentRepairReport]', e);
+      Toast.show({
+        type: 'error',
+        text1: 'Lỗi khi chấp thuận báo cáo sửa chữa',
+        text2: e?.message || 'Vui lòng thử lại sau.',
+      });
+    }
   };
   const handleReject = async () => {
     console.log('[chưa cho api reject]')
@@ -60,7 +81,7 @@ export default function RepairReportDetailScreen() {
           <Icon name="chevron.left" size={22} color={appleBlue} />
         </Pressable>
         <Icon name="doc.text" size={20} color={appleBlue} />
-        <Text style={styles.headerTitle}>Chi tiết báo cáo sửa chữa</Text>
+        <Text style={styles.headerTitle}>Chi tiết báo cáo sửa chữa cần duyệt</Text>
       </View>
 
       {loading && !report ? (
@@ -77,24 +98,13 @@ export default function RepairReportDetailScreen() {
         <ScrollView
           contentContainerStyle={{
             padding: 16,
-            paddingBottom: canShowResidentActions ? 16 + 84 : 24, // chừa chỗ cho footer
+            paddingBottom: canShowResidentActions ? 16 + 84 : 24, 
           }}
         >
-          {/* Basic info */}
           <View style={styles.card}>
-            <Row label="Mã báo cáo"   value={report.repairReportId} />
-            <Row label="Mã cuộc hẹn"  value={report.appointmentId} />
-            <Row label="Người tạo báo cáo"    value={report.userFullName || '-'} />
-            <Row label="Trạng thái"   value={<Badge status={report.status} /> || '-'} />
-            <Row label="Thời gian tạo" value={createdAt} />
-          </View>
-
-          {/* Description */}
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Mô tả công việc</Text>
+            <Text style={styles.sectionTitle}>Mô tả công việc kĩ thuật viên đã làm</Text>
             <Text style={styles.paragraph}>{report.description || '-'}</Text>
           </View>
-
           {/* Medias */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Hình ảnh đính kèm</Text>
@@ -110,18 +120,27 @@ export default function RepairReportDetailScreen() {
               />
             )}
           </View>
+          <View style={styles.card}>
+            <View style={{ display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Thông tin thêm về báo cáo</Text></View>
+            <Row label="Mã báo cáo"   value={report.repairReportId} />
+            <Row label="Người tạo báo cáo"    value={report.userFullName || '-'} />
+            <Row label="Trạng thái"   value={<Badge status={report.status} /> || '-'} />
+            <Row label="Thời gian tạo" value={createdAt} />
+          </View>
+
+
+          
 
           {/* Appointment & Request & Apartment */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Thông tin cuộc hẹn</Text>
+            <View style={{ display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Thông tin cuộc hẹn</Text></View>
             <Row label="Giờ bắt đầu" value={appt?.startTime ? timeDayDate(appt.startTime) : '-'} />
             <Row label="Giờ kết thúc" value={appt?.endTime ? timeDayDate(appt.endTime) : '-'} />
             <Row label="Ghi chú" value={appt?.note || '-'} />
-
-            <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Yêu cầu sửa chữa</Text>
-            <Row label="Tiêu đề" value={req?.object || '-'} />
-            <Row label="Mô tả"   value={req?.description || '-'} />
-            <Row label="Khẩn cấp" value={String(req?.isEmergency ? 'Khẩn cấp' : 'Không')} />
+            <View style={{ display: 'flex', alignItems: 'center' }}><Text style={[styles.sectionTitle, { marginTop: 16 }]}>Thông tin yêu cầu sửa chữa</Text></View>
+            <Row label="Đối tượng muốn sửa" value={req?.object || '-'} />
+            <Row label="Mô tả chi tiết tình huống"   value={req?.description || '-'} />
+            <Row label="Có phải trường hợp khẩn cấp" value={String(req?.isEmergency ? 'Khẩn cấp' : 'Không')} />
 
             <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Căn hộ</Text>
             <Row label="Phòng" value={apt?.room || apt?.roomNumber || '-'} />
@@ -131,7 +150,7 @@ export default function RepairReportDetailScreen() {
 
           {/* Approvals */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Phê duyệt báo cáo</Text>
+            <View style={{ display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Phê duyệt báo cáo</Text></View>
             {approvals.length === 0 ? (
               <Text style={{ color: zincColors[500] }}>Chưa có dữ liệu phê duyệt.</Text>
             ) : (
@@ -139,7 +158,7 @@ export default function RepairReportDetailScreen() {
                 <View key={ap.reportApprovalId} style={styles.apprRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.apprName}>
-                      {ap.fullName || '-'} <Text style={styles.apprRole}>({ap.role || '-'})</Text>
+                      {ap.fullName || '-'} <Text style={styles.apprRole}>({ap.role === 'Resident' ? 'Cư dân' : ap.role === 'TechnicianLead' ? 'Kỹ thuật viên Trưởng' : ap.role === 'Manager' ? 'Quản lý' : '-'})</Text>
                     </Text>
                     <Text style={styles.apprMeta}>
                       {<Badge status={ap.status} />} • {ap.createdAt ? timeDayDate(ap.createdAt) : '-'}
@@ -153,13 +172,13 @@ export default function RepairReportDetailScreen() {
         </ScrollView>
         {canShowResidentActions && (
             <View style={styles.fixedActionBar}>
-              <Pressable
+              {/* <Pressable
                 style={[styles.rejectBtn, approving && { opacity: 0.6 }]}
                 disabled={approving}
                 onPress={handleReject}
               >
                 <Text style={styles.rejectText}>Từ chối chấp thuận</Text>
-              </Pressable>
+              </Pressable> */}
 
               <Pressable
                 style={[styles.approveBtn, approving && { opacity: 0.6 }]}
@@ -169,7 +188,7 @@ export default function RepairReportDetailScreen() {
                 {approving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.approveText}>Chấp thuận sửa chữa</Text>
+                  <Text style={styles.approveText}>Chấp thuận báo cáo sửa chữa</Text>
                 )}
               </Pressable>
             </View>

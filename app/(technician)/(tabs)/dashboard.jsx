@@ -144,7 +144,7 @@ export default function TechnicianDashboard() {
 
   const stats = useMemo(() => {
     const todayTotal = allJobs.length;
-    const inspectionsToday = allJobs.filter((j) => j.type === 'Inspection').length;
+    const inspectionsToday = allJobs.filter((j) => j.type !== 'Repair').length;
     const repairsToday = allJobs.filter((j) => j.type === 'Repair').length;
     const completedToday = allJobs.filter((j) => j.status === 'Đã hoàn thành').length;
     const urgentTasks = allJobs.filter((j) => j.priority === 'Khẩn cấp').length;
@@ -255,7 +255,7 @@ export default function TechnicianDashboard() {
           <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#9aeb25', '#1cff00']}>
             <Icon name="checkmark.seal" size={22} color="#0A84FF" />
             <Text style={styles.statNumber}>{stats.inspectionsToday}</Text>
-            <Text style={styles.statLabel}>Kiểm tra hôm nay</Text>
+            <Text style={styles.statLabel}>Bảo trì hôm nay</Text>
           </StatCard>
 
           <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#1cff00', '#0085ff']}>

@@ -37,7 +37,7 @@ import {
   selectFeedbackLoadingByRepairRequest,
 } from '@/src/features/feedback/feedbacksSlice';
 import Toast from 'react-native-toast-message';
-import { fetchRepairReportByAppointment } from '@/src/features/repairReport/repairReportSlice';
+import { checkResidentApproveRepairReport, fetchRepairReportByAppointment } from '@/src/features/repairReport/repairReportSlice';
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
@@ -72,6 +72,7 @@ export default function RequestDetail() {
   const [replyTarget, setReplyTarget] = useState(null);
   const [replyComment, setReplyComment] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
+  const [repairReports, setRepairReports] = useState([]);
 
   const internalInvoices = useMemo(
     () =>
@@ -132,33 +133,50 @@ export default function RequestDetail() {
               .catch(() => null)
           )
         );
+        console.log('[reportFetchResults]', reportFetchResults[0].entities);
         const reportIds = reportFetchResults
           .filter(Boolean)
           .flatMap((x) => (x?.ids || []))
           .filter((x) => x != null);
 
+        const merged = [];
+        for (const payload of (reportFetchResults || []).filter(Boolean)) {
+          const ids = payload?.ids || [];
+          const entities = payload?.entities || {};
+          for (const rid of ids) {
+            const r = entities?.[rid];
+            if (r) merged.push(r);
+          }
+        }
+
+        const uniqueMap = new Map();
+        for (const r of merged) uniqueMap.set(String(r.repairReportId), r);
+
+        const list = Array.from(uniqueMap.values()).sort(
+          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+
+        setRepairReports(list);
         for (const payload of reportFetchResults.filter(Boolean)) {
           const ids = payload?.ids || [];
           const entities = payload?.entities || {};
           for (const rid of ids) {
             const report = entities?.[rid];
             const status = (report?.status || '').toLowerCase();
-            //bỏ qua các report đã approved hoặc rejected , tạm thời cứ để rejected trước
             if (status === 'rejected') continue;
 
-            const check = await dispatch(
-              checkResidentApproveRepairReport({ reportId: rid })
-            ).unwrap();
+            const check = await dispatch(checkResidentApproveRepairReport({ reportId: rid })).unwrap();
 
-            if (check?.approved === false) {
-              if (active) {
-                router.replace({
-                  pathname: '/(resident)/repairReport/[id]',
-                  params: { id: String(rid) },
-                });
-              }
-              return; 
-            }
+            // if (check?.approved === false) {
+            //   if (active) {
+            //     router.replace({
+            //       pathname: '/(resident)/repairReport/[id]',
+            //       params: { id: String(rid) },
+            //     });
+            //   }
+            //   return; 
+            // }
+
           }
         }
 
@@ -595,6 +613,67 @@ export default function RequestDetail() {
             })}
           </View>
         ) : null}
+
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Icon name="doc.text" size={16} color="#0C4A6E" />
+            <Text style={styles.cardLabel}>Báo cáo sửa chữa</Text>
+          </View>
+
+          {repairReports.length === 0 ? (
+            <Text style={styles.emptyLine}>Chưa có báo cáo sửa chữa.</Text>
+          ) : (
+            repairReports.map((rp) => {
+              const status = String(rp?.status || '');
+              const isNeedApprove = status === 'Pending'; 
+              return (
+                <Pressable
+                  key={rp.repairReportId}
+                  style={[styles.reportItem, { marginTop: 10 }]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(resident)/repairReport/[id]',
+                      params: { id: String(rp.repairReportId) },
+                    })
+                  }
+                >
+                  <View style={{ flex: 1 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                      }}
+                    >
+                      <Text style={styles.reportTitle}>
+                        Báo cáo #{rp.repairReportId}
+                      </Text>
+                      <Badge status={status} />
+                    </View>
+
+                    <Text style={styles.reportMeta}>
+                      KTV: {rp.userFullName || '-'}
+                    </Text>
+
+                    <Text style={styles.reportMeta}>
+                      Ngày tạo: {rp.createdAt ? timeDate(rp.createdAt) : '-'}
+                    </Text>
+
+                    {!!isNeedApprove && (
+                      <View style={{ marginTop: 4, display: 'flex', alignItems: 'center' }}>
+                        <Text style={styles.reportWarn}>
+                          Cần cư dân duyệt 
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Icon name="chevron.right" size={18} color="#9CA3AF" />
+                </Pressable>
+              );
+            })
+          )}
+        </View>
 
         <View style={styles.card}>
           <View style={styles.row}>
@@ -1288,4 +1367,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
+  reportItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFF',
+  },
+  reportTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  reportMeta: { fontSize: 13, color: '#4B5563', marginTop: 2 },
+  reportWarn: { fontSize: 12, color: '#B45309', marginTop: 6, fontWeight: '600' },
+
 });

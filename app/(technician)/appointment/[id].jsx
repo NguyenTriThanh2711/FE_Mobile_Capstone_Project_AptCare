@@ -123,7 +123,7 @@ export default function AppointmentDetailsScreen() {
   const mainInvoiceId = mainInvoice?.invoiceId;
   const mainInvoiceCancelling = useAppSelector((state) => mainInvoiceId ? selectInvoiceCancellingById(state, mainInvoiceId) : false);
   const mainInvoiceCancelError = useAppSelector((state) =>mainInvoiceId ? selectInvoiceCancelErrorById(state, mainInvoiceId) : null);
-
+  console.log('mainInvoice', mainInvoice)
   const invoiceStatusRaw =mainInvoice?.status || mainInvoice?.invoiceStatus || '';
   const invoiceStatusNorm =typeof invoiceStatusRaw === 'string'? invoiceStatusRaw.toLowerCase(): '';
   const hasApprovedInvoice =!!mainInvoice && invoiceStatusNorm === 'approved';
@@ -311,7 +311,7 @@ export default function AppointmentDetailsScreen() {
 
   const lastRepairReportId =lastRepairReport?.repairReportId ?? lastRepairReport?.id ?? null; // lỡ sau này có thể tạo được nhiều report
   const checkingResidentApprove = useAppSelector((s) =>lastRepairReportId ? selectCheckingResidentApproveById(s, lastRepairReportId) : false);
-
+  console.log('[lastRepairReportId]', lastRepairReportId);
   const acceptanceBaseDateStr = useMemo(() => {
     if (!lastRepairReport || lastRepairReport.status !== 'Approved') return null;
     return (
@@ -372,7 +372,6 @@ export default function AppointmentDetailsScreen() {
 
   const inspectionApproved = lastInspectionReportForThisAppt?.status === 'Approved';
   const repairApproved = lastRepairReport?.status === 'Approved';
-
   const canCreateInvoiceNow =
     !!repairRequestId &&
     !isOutsource &&
@@ -525,6 +524,10 @@ export default function AppointmentDetailsScreen() {
 
   const handleMarkCompleted = async () => {
     if (!id) return;
+    if (isMaintenance) {
+      setShowAcceptancePicker(true);
+      return;
+    }
     if (!lastRepairReportId) {
       Toast.show({
         type: 'info',
@@ -535,8 +538,9 @@ export default function AppointmentDetailsScreen() {
     }
 
     try {
-      const ok = await dispatch(checkResidentApproveRepairReport({ reportId: lastRepairReportId })).unwrap();
-      if (!ok) {
+      const { approved } = await dispatch(checkResidentApproveRepairReport({ reportId: lastRepairReportId })).unwrap();
+      console.log('[checkResidentApproveRepairReport]', approved);
+      if (!approved) {
         setResidentNotApprovedMsg('Sửa chữa chưa được cư dân chấp thuận.');
         setShowResidentNotApprovedModal(true);
         return;
@@ -999,7 +1003,7 @@ export default function AppointmentDetailsScreen() {
                   <Text
                     style={{ color: zincColors[500], marginLeft: 40 }}
                   >
-                    Đang tải checklist nhiệm vụ…
+                    Đang tải các nhiệm vụ cần hoàn thành…
                   </Text>
                 ) : maintenanceTasksError ? (
                   <Text style={styles.invoiceError}>
@@ -1009,7 +1013,7 @@ export default function AppointmentDetailsScreen() {
                   <Text
                     style={{ color: zincColors[500], marginLeft: 40 }}
                   >
-                    Chưa có nhiệm vụ nào trong checklist.
+                    Chưa có nhiệm vụ nào trong công việc bảo trì này.
                   </Text>
                 ) : (
                   <View style={{ gap: 10 }}>
@@ -1106,7 +1110,7 @@ export default function AppointmentDetailsScreen() {
                 </Text>
               ) : invoicesError ? (
                 <Text style={styles.invoiceError}>{invoicesError}</Text>
-              ) : mainInvoice?.length === 0 ? (
+              ) : mainInvoice == null ? (
                 <Text
                   style={{ color: zincColors[500], marginLeft: 40 }}
                 >
@@ -1415,7 +1419,7 @@ export default function AppointmentDetailsScreen() {
               </Text>
             </Pressable>
 
-            {repairApproved && (
+            {hasRepairReport && (
               <Pressable
                 style={[
                   styles.secondaryBtn,
@@ -1445,7 +1449,7 @@ export default function AppointmentDetailsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Chưa thể hoàn tất</Text>
+            <View style={{ display: 'flex', alignItems: 'center' }}><Text style={styles.modalTitle}>Chưa thể hoàn tất</Text></View>
             <Text style={styles.modalDesc}>
               {residentNotApprovedMsg || 'Sửa chữa chưa được cư dân chấp thuận.'}
             </Text>
@@ -1475,7 +1479,7 @@ export default function AppointmentDetailsScreen() {
       <AcceptanceAfterDaysPicker
         visible={showAcceptancePicker}
         onClose={() => setShowAcceptancePicker(false)}
-        title="Chọn nghiệm thu sau bao nhiêu ngày"
+        title="Chọn thời gian cư dân xem xét sau bao nhiêu ngày"
         cancelText="Huỷ"
         confirmText="Chọn"
         baseDateStr={acceptanceBaseDateStr}

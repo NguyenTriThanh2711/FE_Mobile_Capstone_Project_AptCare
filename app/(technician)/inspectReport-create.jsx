@@ -119,7 +119,7 @@ export default function CreateInspectionReportScreen() {
   const [accSearch, setAccSearch] = useState('');
   const [purchaseAccSearch, setPurchaseAccSearch] = useState('');
   const [includeInternalInvoice, setIncludeInternalInvoice] = useState(false);
-
+  console.log('[includeInternalInvoice]',includeInternalInvoice)
   const maintenanceTasksFromStore = useAppSelector((s) =>
     rrIdNum ? selectTasksByRepairRequestId(s, rrIdNum) : []
   );
@@ -198,6 +198,23 @@ export default function CreateInspectionReportScreen() {
   const extAccessoriesWatch = watch('extAccessories') || [];
   const extServicesWatch = watch('extServices') || [];
   const maintenanceTasksWatch = watch('maintenanceTasks') || [];
+  
+  const solutionTypeOptions = useMemo(() => {
+    if (faultOwnerWatch === FaultOwner.ResidentFault) {
+      return SOLUTION_TYPE_OPTIONS.filter((o) => o.value !== SolutionType.Outsource);
+    }
+    return SOLUTION_TYPE_OPTIONS;
+  }, [faultOwnerWatch]);
+
+  useEffect(() => {
+    if (
+      faultOwnerWatch === FaultOwner.ResidentFault &&
+      solutionTypeWatch === SolutionType.Outsource
+    ) {
+      const firstValue = (solutionTypeOptions?.[0]?.value) || SolutionType.Repair;
+      setValue('solutionType', firstValue, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [faultOwnerWatch, solutionTypeWatch, solutionTypeOptions, setValue]);
 
   const isOutsource = solutionTypeWatch === SolutionType.Outsource;
   const isRepairOrReplace =
@@ -208,9 +225,7 @@ export default function CreateInspectionReportScreen() {
     : faultOwnerWatch === FaultOwner.ResidentFault;
 
   const canInternalInvoice = isRepairOrReplace && !!rrIdNum;
-  const showInternalInvoice = isMaintenance
-    ? canInternalInvoice && includeInternalInvoice
-    : canInternalInvoice;
+  const showInternalInvoice = canInternalInvoice && includeInternalInvoice;
   const showExternalInvoice = isOutsource && isSecondOrLaterBool;
 
   const { fields: accFields, append: accAppend, remove: accRemove } =
@@ -483,6 +498,7 @@ export default function CreateInspectionReportScreen() {
 
   const onSubmit = async (values) => {
     try {
+      console.log('đâ9')
       if (isMaintenance && rrIdNum) {
         if (!maintenanceTasksWatch.length) {
           setError('maintenanceTasks', {
@@ -496,7 +512,7 @@ export default function CreateInspectionReportScreen() {
 
         let hasStatusError = false;
         let hasInspectionError = false;
-
+        console.log('đâ7')
         maintenanceTasksWatch.forEach((t, idx) => {
           if (!t.status) {
             setError(`maintenanceTasks.${idx}.status`, {
@@ -530,19 +546,22 @@ export default function CreateInspectionReportScreen() {
           })
         ).unwrap();
       }
+      console.log('đâ5')
+      //hàm quản lí xem người dùng có nhập hóa đơn chưa
+      
 
       const shouldCreateInternalInvoice =
         (!isMaintenance && canInternalInvoice) ||
         (isMaintenance && canInternalInvoice && includeInternalInvoice);
 
-      if (shouldCreateInternalInvoice) {
+      if (shouldCreateInternalInvoice && hasAnyInternalInvoiceData) {
         const okAccQty = validateQuantityList(
           accessoriesWatch,
           'accessories',
           (r) => r?.quantity
         );
         if (!okAccQty) return;
-
+      console.log('đâ5')
         const okPurchaseAccQty = validateQuantityList(
           purchaseAccessoriesWatch,
           'purchaseAccessories',
@@ -557,7 +576,7 @@ export default function CreateInspectionReportScreen() {
           purchaseAccessoriesWatch.length > 0;
         const hasSvc =
           Array.isArray(servicesWatch) && servicesWatch.length > 0;
-
+      console.log('đâ4')
         if (isChargeable && !hasAcc && !hasPurchaseAcc && !hasSvc) {
           setError('internalInvoice', {
             type: 'manual',
@@ -596,7 +615,7 @@ export default function CreateInspectionReportScreen() {
           ]);
           if (!okSvc) return;
         }
-
+    console.log('đâ3')
         const availableAccessories = (accessoriesWatch || []).map((a) => ({
           accessoryId: Number(a.accessoryId),
           quantity: Number(a.quantity),
@@ -637,7 +656,7 @@ export default function CreateInspectionReportScreen() {
           Array.isArray(extAccessoriesWatch) && extAccessoriesWatch.length > 0;
         const hasExtSvc =
           Array.isArray(extServicesWatch) && extServicesWatch.length > 0;
-
+        console.log('đâ2')
         if (isChargeable && !hasExtAcc && !hasExtSvc) {
           setError('externalInvoice', {
             type: 'manual',
@@ -669,7 +688,7 @@ export default function CreateInspectionReportScreen() {
           );
           if (!okExtAcc) return;
         }
-
+        console.log('đâ1')
         if (hasExtSvc) {
           const okExtSvc = validateRowFields(
             extServicesWatch,
@@ -716,7 +735,7 @@ export default function CreateInspectionReportScreen() {
         solution: values.solution?.trim() || '',
         Files: filesCompressed,
       };
-
+      console.log('đâ')
       if (isMaintenance) {
         await dispatch(
           generateInspectionMaintenanceReport(commonPayload)
@@ -739,13 +758,11 @@ export default function CreateInspectionReportScreen() {
       dispatch(fetchAppointmentById(Number(appointmentId)));
       router.back();
     } catch (err) {
-      console.log('[inspection + invoice error]', pretty(err));
+      console.log('[inspection + invoice error]', pretty(err.response.data.detail));
 
       const msg =
-        err ||
         err?.response?.data?.detail ||
         err?.message?.title ||
-        err?.message ||
         'Tạo báo cáo thất bại';
 
       Toast.show({
@@ -755,7 +772,26 @@ export default function CreateInspectionReportScreen() {
       });
     }
   };
+  const hasAnyInternalInvoiceData = useMemo(() => {
+    const hasAcc =
+      Array.isArray(accessoriesWatch) &&
+      accessoriesWatch.some((r) => String(r?.accessoryId || '').trim() && Number(r?.quantity || 0) > 0);
+      console.log('đâ9')
+    const hasPurchaseAcc =
+      Array.isArray(purchaseAccessoriesWatch) &&
+      purchaseAccessoriesWatch.some((r) => {
+        const nameOk = String(r?.name || '').trim().length > 0;
+        const qtyOk = Number(r?.quantity || 0) > 0;
+        const priceOk = Number(r?.purchasePrice || 0) > 0;
+        return nameOk && qtyOk && priceOk;
+      });
+      console.log('đâ10')
+    const hasSvc =
+      Array.isArray(servicesWatch) &&
+      servicesWatch.some((s) => String(s?.name || '').trim() && Number(s?.price ?? 0) >= 0);
 
+    return hasAcc || hasPurchaseAcc || hasSvc;
+  }, [accessoriesWatch, purchaseAccessoriesWatch, servicesWatch]);
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -804,7 +840,7 @@ export default function CreateInspectionReportScreen() {
               label="Giải pháp đề xuất"
               value={value}
               onChange={onChange}
-              options={SOLUTION_TYPE_OPTIONS}
+              options={solutionTypeOptions}
             />
           )}
         />
@@ -856,7 +892,7 @@ export default function CreateInspectionReportScreen() {
         )}
         {isMaintenance && (
           <View style={[styles.invoiceBlock, { marginTop: 12 }]}>
-            <Text style={styles.invoiceTitle}>Checklist bảo trì khu vực chung</Text>
+            <View style={{ marginBottom: 12, display: 'flex', alignItems: 'center' }}><Text style={styles.invoiceTitle}>Danh sách nhiệm vụ kiểm tra bảo trì</Text></View>
             <Text style={styles.invoiceSub}>
               Cập nhật trạng thái cho từng nhiệm vụ trước khi tạo báo cáo kiểm
               tra.
@@ -881,7 +917,7 @@ export default function CreateInspectionReportScreen() {
                 return (
                   <View key={row.id} style={styles.maintenanceCard}>
                     <Text style={styles.maintenanceTaskTitle}>
-                      {formRow.taskName || `Nhiệm vụ #${idx + 1}`}
+                      {`${idx + 1}. `}{formRow.taskName || `Nhiệm vụ #${idx + 1}`}
                     </Text>
                     {!!formRow.taskDescription && (
                       <Text style={styles.maintenanceTaskDesc}>
@@ -889,7 +925,7 @@ export default function CreateInspectionReportScreen() {
                       </Text>
                     )}
 
-                    <Text style={styles.smallLabel}>Trạng thái</Text>
+                    <Text style={styles.smallLabel}>Tình trạng</Text>
                     <View
                       style={{
                         flexDirection: 'row',
@@ -935,7 +971,7 @@ export default function CreateInspectionReportScreen() {
                       name={`maintenanceTasks.${idx}.technicianNote`}
                       render={({ field: { value, onChange, onBlur } }) => (
                         <MUITextField
-                          label="Ghi chú kỹ thuật viên"
+                          label="Ghi chú của kỹ thuật viên"
                           placeholder="VD: Đã vệ sinh bể nước, không thấy rò rỉ."
                           multiline
                           numberOfLines={3}
@@ -1010,7 +1046,7 @@ export default function CreateInspectionReportScreen() {
                 includeInternalInvoice && { color: appleBlue },
               ]}
             >
-              Kèm báo giá 
+              {showInternalInvoice?'Không kèm báo giá':'Kèm báo giá'}
             </Text>
           </Pressable>
         )}

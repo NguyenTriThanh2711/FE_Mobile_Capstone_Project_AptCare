@@ -91,12 +91,12 @@ export default function RepairReportDetailScreen() {
 
           {/* Appointment & Request & Apartment */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Thông tin cuộc hẹn</Text>
+            <View style={{ display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Thông tin cuộc hẹn</Text></View>
             <Row label="Giờ bắt đầu" value={appt?.startTime ? timeDayDate(appt.startTime) : '-'} />
             <Row label="Giờ kết thúc" value={appt?.endTime ? timeDayDate(appt.endTime) : '-'} />
             <Row label="Ghi chú" value={appt?.note || '-'} />
 
-            <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Yêu cầu sửa chữa</Text>
+            <View style={{ display: 'flex', alignItems: 'center' }}><Text style={[styles.sectionTitle, { marginTop: 16 }]}>Yêu cầu sửa chữa</Text></View>
             <Row label="Tiêu đề" value={req?.object || '-'} />
             <Row label="Mô tả"   value={req?.description || '-'} />
             <Row label="Khẩn cấp" value={String(req?.isEmergency ? 'Khẩn cấp' : 'Không')} />
@@ -109,7 +109,7 @@ export default function RepairReportDetailScreen() {
 
           {/* Approvals */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Phê duyệt báo cáo</Text>
+            <View style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Trạng thái phê duyệt</Text></View>
             {approvals.length === 0 ? (
               <Text style={{ color: zincColors[500] }}>Chưa có dữ liệu phê duyệt.</Text>
             ) : (
@@ -117,7 +117,7 @@ export default function RepairReportDetailScreen() {
                 <View key={ap.reportApprovalId} style={styles.apprRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.apprName}>
-                      {ap.fullName || '-'} <Text style={styles.apprRole}>({ap.role || '-'})</Text>
+                      {ap.fullName || '-'} <Text style={styles.apprRole}>({ap.role === 'Resident' ? 'Cư dân' : ap.role  ? ap.role === 'TechnicianLead' ? 'Trưởng kỹ thuật' : ap.role : '-'})</Text>
                     </Text>
                     <Text style={styles.apprMeta}>
                       {<Badge status={ap.status} />} • {ap.createdAt ? timeDayDate(ap.createdAt) : '-'}

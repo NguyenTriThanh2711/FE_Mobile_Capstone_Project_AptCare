@@ -411,7 +411,7 @@ export default function TechnicianSchedule() {
               </View>
 
               {shift.appointments.length === 0 ? (
-                <Text style={styles.empty}>Không có appointment</Text>
+                <Text style={styles.empty}>Không có lịch hẹn trong ngày này</Text>
               ) : (
                 shift.appointments.map((a) => (
                   <View key={a.appointmentId} style={styles.apptBox}>
