@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   Linking,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
@@ -65,7 +66,7 @@ export default function InvoiceDetailScreen() {
     const arr = raw?.$values ?? raw ?? [];
     return Array.isArray(arr) ? arr : [];
   }, [invoice]);
-
+  console.log('[accessories]', accessories);
   const services = useMemo(() => {
     const raw = invoice?.services;
     const arr = raw?.$values ?? raw ?? [];
@@ -219,7 +220,7 @@ export default function InvoiceDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {invoice?.isChargeable === false && (<Text style={{ color: 'red', marginBottom: 8,alignSelf: 'center' }}>
-          Hóa đơn này tòa nhà chi trả nên cư dân không cần thanh toán.
+          Hóa đơn này tòa nhà chi trả.
         </Text>)}
         {!invoice ? (
           <Text style={{ color: zincColors[600] }}>
@@ -296,6 +297,7 @@ export default function InvoiceDetailScreen() {
                     key={a.invoiceAccessoryId ?? `${a.accessoryId}-${a.name}`}
                     style={styles.row}
                   >
+                    <View><Text></Text></View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowTitle}>{a.name}</Text>
                       <Text style={styles.rowMeta}>

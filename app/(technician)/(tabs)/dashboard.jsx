@@ -19,6 +19,7 @@ import { pad2 } from '@/src/helper/appointResident';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { allowCheckIn, allowCheckOut } from '@/src/helper/canShowCheckIn-Out';
 import { pretty } from '@/src/helper/prettyLog';
+import { shortenLabel } from '@/src/helper/label';
 
 const StatCard = ({ colors, children, start, end }) => (
   <LinearGradient colors={colors} start={start} end={end} style={styles.statCard}>
@@ -140,15 +141,15 @@ export default function TechnicianDashboard() {
 
     return jobs.sort((a, b) => new Date(a._startKey) - new Date(b._startKey));
   }, [todayShifts]);
-
+  console.log('[allJobs]', pretty(allJobs));
 
   const stats = useMemo(() => {
     const todayTotal = allJobs.length;
-    const inspectionsToday = allJobs.filter((j) => j.type !== 'Repair').length;
-    const repairsToday = allJobs.filter((j) => j.type === 'Repair').length;
+    const maintenanceToday = allJobs.filter((j) => j.isMaintenance === true).length;
+    const repairsToday = allJobs.filter((j) => j.isMaintenance == false).length;
     const completedToday = allJobs.filter((j) => j.status === 'Đã hoàn thành').length;
     const urgentTasks = allJobs.filter((j) => j.priority === 'Khẩn cấp').length;
-    return { todayTotal, inspectionsToday, repairsToday, completedToday, urgentTasks };
+    return { todayTotal, maintenanceToday, repairsToday, completedToday, urgentTasks };
   }, [allJobs]);
 
   const todayJobs = useMemo(() => allJobs.slice(0, 3), [allJobs]);
@@ -254,7 +255,7 @@ export default function TechnicianDashboard() {
 
           <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#9aeb25', '#1cff00']}>
             <Icon name="checkmark.seal" size={22} color="#0A84FF" />
-            <Text style={styles.statNumber}>{stats.inspectionsToday}</Text>
+            <Text style={styles.statNumber}>{stats.maintenanceToday}</Text>
             <Text style={styles.statLabel}>Bảo trì hôm nay</Text>
           </StatCard>
 
@@ -342,30 +343,32 @@ export default function TechnicianDashboard() {
                 <Text style={styles.apartment}>
                   {job.isMaintenance
                     ? job.title                          
-                    : (job.apartment.apartmentId || job.title)} 
+                    : (job.apartment.apartmentId || job.title)}   
                 </Text>
-                
-                {!job.isMaintenance? 
-                <View
-                  style={[
-                    styles.badge,
-                    { backgroundColor: getPriorityColor(job.priority) },
-                  ]}
-                >
-                  <Text style={styles.badgeText}>{job.priority}</Text>
-                </View>
-                 : 
-                <View
-                  style={[
-                    styles.badge,
-                    { backgroundColor: getPriorityColor(job.isMaintenance) },
-                  ]}
-                >
-                  <Text style={styles.badgeText}>Bảo trì</Text>
-                </View>
-                }
               </View>
-              <Text style={styles.timeText}>{job.time}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {!job.isMaintenance? 
+                  <View
+                    style={[
+                      styles.badge,
+                      { backgroundColor: getPriorityColor(job.priority) },
+                    ]}
+                  >
+                    <Text style={styles.badgeText}>{job.priority}</Text>
+                  </View>
+                 : 
+                  <View
+                    style={[
+                      styles.badge,
+                      { backgroundColor: getPriorityColor(job.isMaintenance) },
+                    ]}
+                  >
+                    <Text style={styles.badgeText}>Bảo trì</Text>
+                  </View>
+                }
+                <Text style={styles.timeText}>{job.time}</Text>
+              </View>
+              
             </View>
 
             <View style={styles.metaRow}>
@@ -375,7 +378,7 @@ export default function TechnicianDashboard() {
                     <Icon name="building.2" size={14} color="#6b7280" />
                     <Text style={styles.metaText}>
                       <Text style={styles.metaStrong}>
-                        {job.apartment.floor ? `Lầu ${job.apartment.floor}` : job.apartment.floor}
+                        {job.apartment.floor ? `Tầng ${job.apartment.floor}` : job.apartment.floor}
                       </Text>
                     </Text>
                   </View>
@@ -509,7 +512,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  leftHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  leftHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '70%' },
   apartment: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
 
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },

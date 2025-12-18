@@ -417,7 +417,7 @@ export default function RequestCreate() {
                     day: '2-digit',
                     hour: '2-digit',
                     minute: '2-digit',
-                    hour12: true,
+                    hour12: false,
                   })}
                 </Text>
               </View>
@@ -460,6 +460,7 @@ export default function RequestCreate() {
           style={{ borderRadius: 14 }} 
         />
       </View>
+      {isBusy ? <View style={styles.blockOverlay} pointerEvents="auto" /> : null}
     </View>
   );
 }
@@ -587,5 +588,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#fff',
+  },
+  blockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.18)', 
+    zIndex: 9999,
+    elevation: 9999, 
   },
 });

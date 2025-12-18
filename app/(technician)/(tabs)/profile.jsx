@@ -486,9 +486,9 @@ export default function TechnicianProfile() {
         onPress: async () => {
           try {
             setIsLogOut(true);
+            router.replace("/(auth)/login");
             await dispatch(logout()).unwrap();
             await persistor.purge();
-            router.replace("/(auth)/login");
           } catch (e) {
             Alert.alert("Lỗi", "Đăng xuất không thành công. Vui lòng thử lại.");
           } finally {

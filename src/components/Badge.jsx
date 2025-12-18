@@ -10,6 +10,7 @@ const PALETTE = {
   normal:  { bg: '#007AFF', fg: '#FFFFFF' }, // xanh lá
   emergency: { bg: '#FF3B30', fg: '#FFFFFF' }, // đỏ
   pending: { bg: '#FF9500', fg: '#FFFFFF' }, // cam
+  pedingTaskList: { bg: '#FF9500', fg: '#FFFFFF' }, // cam
   notStarted: { bg: '#8E8E93', fg: '#FFFFFF' }, // xám
   inProgress: { bg: '#007AFF', fg: '#FFFFFF' }, // xanh dương
   inVisit : { bg: '#17a100', fg: '#FFFFFF' }, // vô hình
@@ -32,7 +33,9 @@ const STATUS_LABEL = {
   Assigned:    'Đã phân công',
   InProgress:  'Đang xử lý',
   Completed:   'Đã hoàn tất',
+  CompletedTaskList:   'Đạt',
   Pending:     'Chờ xử lý',
+  PedingTaskList: 'Chờ đánh giá',
   Cancelled:   'Đã hủy',
   Failed:      'Không đạt',
   Rejected:    'Từ chối',
@@ -83,6 +86,8 @@ function mapStatusToTone(status) {
       return 'notStarted';
     case 'Completed':
       return 'success';
+    case 'CompletedTaskList':
+      return 'success';
     case 'Approved':
       return 'success';
     case 'InProgress':
@@ -91,6 +96,8 @@ function mapStatusToTone(status) {
       return 'assigned';
     case 'Pending':
       return 'pending';
+    case 'PedingTaskList':
+      return 'pedingTaskList';
     case 'InternalRepair':
       return 'internalRepair';
     case 'New':

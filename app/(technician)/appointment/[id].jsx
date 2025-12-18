@@ -74,6 +74,7 @@ import {
   selectTasksLoadingByRepairRequestId,
   selectTasksErrorByRepairRequestId,
 } from '@/src/features/repairRequestTasks/repairRequestTasksSlice';
+import { statusMaintance } from '@/src/utils/map';
 
 const THEME = Colors.light;
 const OWNER_LABEL = {
@@ -147,9 +148,8 @@ export default function AppointmentDetailsScreen() {
   const commonArea = appointment?.repairRequest?.commonArea;
   const isMaintenance = !!appointment?.repairRequest?.maintenanceScheduleId || !!commonArea;
 
-  const maintenanceTasks = useAppSelector((s) =>
-    repairRequestId ? selectTasksByRepairRequestId(s, repairRequestId) : []
-  );
+  const maintenanceTasks = useAppSelector((s) =>repairRequestId ? selectTasksByRepairRequestId(s, repairRequestId) : []);
+  console.log('[maintenanceTasks]', maintenanceTasks);
   const maintenanceTasksLoading = useAppSelector((s) =>
     repairRequestId
       ? selectTasksLoadingByRepairRequestId(s, repairRequestId)
@@ -181,7 +181,7 @@ export default function AppointmentDetailsScreen() {
       dispatch(fetchRepairRequestTasksByRepairRequest(repairRequestId));
     }
   }, [repairRequestId, isMaintenance, dispatch]);
-
+  const isBusy = loading || completing || checkingIn;
   const {
     hasPreviousAppointment,
     appointmentIndex,
@@ -824,7 +824,7 @@ export default function AppointmentDetailsScreen() {
     InRepair: 'Đang sửa chữa',
     Completed: 'Hoàn tất',
   };
-
+  
   function normalizeTrackings(appointment) {
     const raw = appointment?.appointmentTrackings;
     const arr = raw?.$values ?? raw ?? [];
@@ -1027,7 +1027,7 @@ export default function AppointmentDetailsScreen() {
                             {task.taskName || 'Nhiệm vụ'}
                           </Text>
                           {task.status ? (
-                            <Badge status={task.status} />
+                            <Badge status={statusMaintance(task.status)} />
                           ) : null}
                         </View>
                         {task.taskDescription ? (
@@ -1170,7 +1170,7 @@ export default function AppointmentDetailsScreen() {
                     />
                     <Item
                       icon="door.left.hand.closed"
-                      label="Lầu"
+                      label="Tầng"
                       value={appointment?.repairRequest?.apartment?.floor || '-'}
                     />
                     <Item
@@ -1404,7 +1404,27 @@ export default function AppointmentDetailsScreen() {
               )}
             </>
           )}
-
+        {appointment?.status === 'AwaitingIRApproval' &&
+          checkResidentApproveRepairReport && (
+          <>
+            { 
+              (
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={handleCompleteAndPlanNext}
+                >
+                  <Icon
+                    name="checkmark.circle"
+                    size={20}
+                    color={appleGreen}
+                  />
+                  <Text style={styles.secondaryBtnText}>
+                    Kết thúc cuộc hẹn
+                  </Text>
+                </Pressable>
+              )}
+          </>
+        )}
         {appointment?.status === 'InRepair' && (
           <>
             <Pressable
@@ -1485,6 +1505,7 @@ export default function AppointmentDetailsScreen() {
         baseDateStr={acceptanceBaseDateStr}
         onConfirm={(dateStr) => handleAcceptancePicked(dateStr)}
       />
+      {isBusy ? <View style={styles.blockOverlay} pointerEvents="auto" /> : null}
     </View>
   );
 }
@@ -1779,5 +1800,11 @@ const styles = StyleSheet.create({
   modalBtnPrimaryText: {
     color: THEME.background,
     fontWeight: '800',
+  },
+  blockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.18)', 
+    zIndex: 9999,
+    elevation: 9999,
   },
 });

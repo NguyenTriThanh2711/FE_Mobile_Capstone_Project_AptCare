@@ -52,7 +52,7 @@ export default function TechnicianTabs() {
         <Tabs.Screen
           name="profile"
           options={{
-            title: 'Profile',
+            title: 'Hồ sơ',
             tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
           }}
         />

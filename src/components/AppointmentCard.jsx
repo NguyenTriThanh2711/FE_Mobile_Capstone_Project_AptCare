@@ -101,12 +101,12 @@ function AppointmentCard({ appt, onPress }) {
         </View>
       ) : (
         <View style={sx.metaRow}>
-        {floor !== undefined && floor !== null ? (
-          <Pill icon="list.number">Tầng {String(floor)}</Pill>
-        ) : null}
-        <Pill icon="building.2">Căn hộ {room}</Pill>
-        {!!appt?.appointmentId && <Pill icon="list.number">{`IdCH: ${appt.appointmentId}`}</Pill>}
-      </View>
+          {floor !== undefined && floor !== null ? (
+            <Pill icon="building.2">Tầng {String(floor)}</Pill>
+          ) : null}
+          <Pill icon="list.number">Căn hộ {room}</Pill>
+          {/* {!!appt?.appointmentId && <Pill icon="list.number">{`IdCH: ${appt.appointmentId}`}</Pill>} */}
+        </View>
       )}
       
 

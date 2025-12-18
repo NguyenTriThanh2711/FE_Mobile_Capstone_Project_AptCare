@@ -386,7 +386,7 @@ export default function CreateInspectionReportScreen() {
       }
     });
   }, [masterSig]);
-
+  const isBusy = isSubmitting || accLoading || maintenanceTasksLoading;
   const filteredAccessories = useMemo(() => {
     const keyword = accSearch.trim().toLowerCase();
     if (!keyword) return [];
@@ -1823,6 +1823,7 @@ export default function CreateInspectionReportScreen() {
           )}
         </Pressable>
       </View>
+      {isBusy ? <View style={styles.blockOverlay} pointerEvents="auto" /> : null}
     </View>
   );
 }
@@ -2090,5 +2091,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: zincColors[700],
     fontWeight: '600',
+  },
+  blockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.18)', 
+    zIndex: 9999,
+    elevation: 9999, 
   },
 });

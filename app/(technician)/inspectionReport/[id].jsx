@@ -26,6 +26,7 @@ import { timeDayDate } from '@/src/utils/date';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { pretty } from '@/src/helper/prettyLog';
 import Badge from '@/src/components/Badge';
+import { statusMaintance } from '@/src/utils/map';
 
 const THEME = Colors.light;
 
@@ -156,23 +157,7 @@ export default function InspectReportDetailScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
         >
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Thông tin báo cáo</Text>
-            <Row
-              label="Mã báo cáo"
-              value={report.inspectionReportId}
-            />
-            <Row label="Mã cuộc hẹn" value={report.appointmentId} />
-            <Row label="Mã yêu cầu sửa" value={repairRequest?.repairRequestId} />
-            <Row label="Thời gian tạo" value={createdAtText} />
-            <Row
-              label="Trạng thái"
-              value={<Badge status={report.status} />}
-            />
-            <Row label="Khu vực" value={report.areaName || '-'} />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Kết quả khảo sát</Text>
+            <View style={{ marginBottom: 8, display: 'flex',alignItems: 'center' }}><Text style={styles.sectionTitle}>Kết quả khảo sát</Text></View>
             <Row
               label="Nguyên nhân sự cố"
               value={
@@ -202,7 +187,37 @@ export default function InspectReportDetailScreen() {
               {report.solution || '-'}
             </Text>
           </View>
-
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Hình ảnh đính kèm</Text>
+            {medias.length === 0 ? (
+              <Text style={{ color: zincColors[500] }}>
+                Không có hình ảnh.
+              </Text>
+            ) : (
+              <ImagePickerStrip
+                mode="view"
+                title=""
+                items={medias}
+                mapUri={(m) => m.filePath}
+                mapKey={(m, i) => String(m.mediaId ?? i)}
+              />
+            )}
+          </View>    
+          <View style={styles.card}>
+            <View style={{ marginBottom: 8, display: 'flex',alignItems: 'center' }}><Text style={styles.sectionTitle}>Thông tin thêm của báo cáo</Text></View>
+            <Row
+              label="Mã báo cáo"
+              value={report.inspectionReportId}
+            />
+            <Row label="Mã cuộc hẹn" value={report.appointmentId} />
+            <Row label="Mã yêu cầu sửa" value={repairRequest?.repairRequestId} />
+            <Row label="Thời gian tạo" value={createdAtText} />
+            <Row
+              label="Trạng thái"
+              value={<Badge status={report.status} />}
+            />
+            <Row label="Khu vực" value={report.areaName || '-'} />
+          </View>
           {repairRequestTasks && repairRequestTasks.length > 0 && (
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Công việc bảo trì</Text>
@@ -217,7 +232,7 @@ export default function InspectReportDetailScreen() {
                         {task.taskName || 'Nhiệm vụ'}
                       </Text>
                       {task.status ? (
-                        <Badge status={task.status} />
+                        <Badge status={statusMaintance(task.status)} />
                       ) : null}
                     </View>
                     {task.taskDescription ? (
@@ -242,7 +257,7 @@ export default function InspectReportDetailScreen() {
           )}
 
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Căn hộ & yêu cầu sửa chữa</Text>
+            <View style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Căn hộ & yêu cầu sửa chữa</Text></View>
             <Row
               label="Căn hộ"
               value={apartment?.room || '-'}
@@ -401,22 +416,6 @@ export default function InspectReportDetailScreen() {
             </View>
           )}
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Hình ảnh đính kèm</Text>
-            {medias.length === 0 ? (
-              <Text style={{ color: zincColors[500] }}>
-                Không có hình ảnh.
-              </Text>
-            ) : (
-              <ImagePickerStrip
-                mode="view"
-                title=""
-                items={medias}
-                mapUri={(m) => m.filePath}
-                mapKey={(m, i) => String(m.mediaId ?? i)}
-              />
-            )}
-          </View>
         </ScrollView>
       )}
     </View>
@@ -569,5 +568,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: zincColors[500],
+  },
+  blockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.18)', 
+    zIndex: 9999,
+    elevation: 9999, 
   },
 });

@@ -4,3 +4,10 @@ export const statusMap = {
   Completed: 'completed',
   Cancelled: 'cancelled',
 };
+export const statusMaintance = (status) =>{
+  switch(status){
+    case 'Pending': return 'PedingTaskList';
+    case 'Completed': return 'CompletedTaskList';
+    default: return status;
+  }
+}
