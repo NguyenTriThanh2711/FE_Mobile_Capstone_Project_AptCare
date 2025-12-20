@@ -172,6 +172,13 @@ const MAP = {
   "close": "close-outline",
   "close.circle.fill": "close-circle",
   "close.circle": "close-circle-outline",
+  "info.circle.fill": "information-circle",
+  "person.2": "people-outline",
+  "person.2.fill": "people",
+  "hourglass": "hourglass-outline",
+  "tag": "pricetag-outline",
+  "tag.fill": "pricetag",
+  "device": "hardware-chip-outline",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

@@ -101,14 +101,37 @@ export default function ResidentRequests() {
       {/* Toolbar */}
       <View style={styles.toolbar}>
         {/* Apartment Picker */}
-        <Pressable onPress={() => setOpenAptPicker(true)} style={styles.aptChip}>
-          <Icon name="building.2" size={14} color="#6b7280" />
-          <Text style={styles.aptChipText}>
-            {apartmentId ? `Căn hộ số ${apartmentId}` : 'Chọn căn hộ'}
-          </Text>
-          <Icon name="chevron.down" size={14} color="#6b7280" />
-        </Pressable>
-
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 5 }}>
+          <Pressable onPress={() => setOpenAptPicker(true)} style={styles.aptChip}>
+            <Icon name="building.2" size={14} color="#6b7280" />
+            <Text style={styles.aptChipText}>
+              {apartmentId ? `Căn hộ số ${apartmentId}` : 'Chọn căn hộ'}
+            </Text>
+            <Icon name="chevron.down" size={14} color="#6b7280" />
+          </Pressable>
+          <Pressable
+            onPress={() =>
+              setEmergencyOnly((prev) =>
+                prev === undefined ? true : prev === true ? false : undefined
+              )
+            }
+            style={styles.filterChip}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                {emergencyOnly === true ? (
+                  <Icon name="exclamationmark.triangle.fill" size={14} color="#B45309" />
+                ) : (
+                 null
+                )}
+                <Text style={styles.filterChipText}>
+                  {emergencyOnly === true
+                    ? 'Chỉ khẩn cấp'
+                    : emergencyOnly === false
+                    ? 'Yêu cầu thường'
+                    : 'Tất cả yêu cầu'}
+                </Text>
+              </View>
+          </Pressable>
+        </View>
         {/* Search */}
         <View style={styles.searchBox}>
           <Icon name="magnifyingglass" size={16} color="#9CA3AF" />
@@ -126,20 +149,6 @@ export default function ResidentRequests() {
             </Pressable>
           ) : null}
         </View>
-
-        {/* Emergency toggle: undefined -> true -> false -> undefined */}
-        <Pressable
-          onPress={() =>
-            setEmergencyOnly((prev) =>
-              prev === undefined ? true : prev === true ? false : undefined
-            )
-          }
-          style={styles.filterChip}>
-          <Icon name="exclamationmark.triangle.fill" size={14} color="#B45309" />
-          <Text style={styles.filterChipText}>
-            {emergencyOnly === undefined ? 'Tất cả' : emergencyOnly ? 'Chỉ Khẩn cấp' : 'Chỉ Thường'}
-          </Text>
-        </Pressable>
       </View>
 
       {/* Apt picker modal */}

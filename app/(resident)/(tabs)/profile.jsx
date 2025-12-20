@@ -1,5 +1,5 @@
 import { Icon } from "@/src/components/Icon.native";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -256,6 +256,10 @@ export default function ResidentProfile() {
     status: s.auth.status,
     error: s.auth.error,
   }));
+  const displayName = useMemo(() => {
+      const v1 = `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
+      return v1 || user?.fullName || user?.userName || "Kỹ thuật viên";
+    }, [user?.firstName, user?.lastName, user?.fullName, user?.userName]);
   console.log('[user]', user?.profileUrl);
   React.useEffect(() => {
     if (!user) dispatch(fetchProfile());
@@ -293,9 +297,9 @@ export default function ResidentProfile() {
 
   const openEditFromUser = () => {
     const mapped = {
-      name: user?.FullName ?? user?.name ?? "",
+      name: displayName ?? "",
       email: user?.Email ?? user?.email ?? "",
-      phone: user?.Phone ?? user?.phone ?? "",
+      phone: user?.phoneNumber ?? "",
       emergencyContact: user?.EmergencyContact ?? user?.emergencyContact ?? "",
       apartment: user?.Apartment ?? user?.apartment ?? "",
       building: user?.Building ?? user?.building ?? "",
@@ -494,9 +498,9 @@ export default function ResidentProfile() {
               style={styles.menuItemIcon}
             />
             <View style={styles.menuItemContent}>
-              <Text style={styles.menuItemTitle}>Chỉnh sửa hồ sơ</Text>
+              <Text style={styles.menuItemTitle}>Xem hồ sơ</Text>
               <Text style={styles.menuItemSubtitle}>
-                Cập nhật thông tin cá nhân của bạn
+                Xem thông tin cá nhân của bạn
               </Text>
             </View>
             <Icon
@@ -691,17 +695,14 @@ export default function ResidentProfile() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Chỉnh sửa hồ sơ</Text>
+            <Text style={styles.modalTitle}>Xem thông tin cá nhân</Text>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Họ và Tên *</Text>
+              <Text style={styles.label}>Tên đầy đủ *</Text>
               <TextInput
                 style={styles.input}
                 value={editingProfile.name}
-                onChangeText={(text) =>
-                  setEditingProfile({ ...editingProfile, name: text })
-                }
-                placeholder="Enter your full name"
+                editable={false}
               />
             </View>
 
@@ -710,11 +711,7 @@ export default function ResidentProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.email}
-                onChangeText={(text) =>
-                  setEditingProfile({ ...editingProfile, email: text })
-                }
-                placeholder="Enter your email"
-                keyboardType="email-address"
+                editable={false}
               />
             </View>
 
@@ -723,11 +720,7 @@ export default function ResidentProfile() {
               <TextInput
                 style={styles.input}
                 value={editingProfile.phone}
-                onChangeText={(text) =>
-                  setEditingProfile({ ...editingProfile, phone: text })
-                }
-                placeholder="Nhập số điện thoại"
-                keyboardType="phone-pad"
+                editable={false}
               />
             </View>
 
@@ -736,11 +729,11 @@ export default function ResidentProfile() {
                 style={styles.cancelButton}
                 onPress={() => setShowEditModal(false)}
               >
-                <Text style={styles.cancelButtonText}>Hủy</Text>
+                <Text style={styles.cancelButtonText}>Thoát</Text>
               </Pressable>
-              <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
+              {/* <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
                 <Text style={styles.submitButtonText}>Lưu</Text>
-              </Pressable>
+              </Pressable> */}
             </View>
           </View>
         </View>

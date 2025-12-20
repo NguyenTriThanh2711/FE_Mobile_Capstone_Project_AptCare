@@ -312,7 +312,7 @@ export default function TechnicianDashboard() {
               size={26}
               color={checkOutDisabled ? '#9CA3AF' : '#8E8E93'}
             />
-            <Text style={styles.quickActionText}>Kết thúc ngày</Text>
+            <Text style={styles.quickActionText}>Kết thúc ca</Text>
           </Pressable>
           {/* <Pressable
             style={styles.quickActionButton}

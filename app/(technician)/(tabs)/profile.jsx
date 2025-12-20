@@ -724,9 +724,9 @@ export default function TechnicianProfile() {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Tên đầy đủ *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: "#000" }]}
                 value={editingProfile.name}
-                disabled = {true}
+                editable={false}
                 //onChangeText={(text) => setEditingProfile({ ...editingProfile, name: text })}
                 placeholder=""
               />
@@ -735,9 +735,9 @@ export default function TechnicianProfile() {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Email *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: "#000" }]}
                 value={editingProfile.email}
-                disabled = {true}
+                editable={false}
                 //onChangeText={(text) => setEditingProfile({ ...editingProfile, email: text })}
                 //placeholder="Enter your email"
                 //keyboardType="email-address"
@@ -747,9 +747,10 @@ export default function TechnicianProfile() {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Số điện thoại</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: "#000" }]}
                 value={editingProfile.phone}
-                onChangeText={(text) => setEditingProfile({ ...editingProfile, phone: text })}
+                editable={false}
+                //onChangeText={(text) => setEditingProfile({ ...editingProfile, phone: text })}
                 placeholder="Nhập số điện thoại của bạn"
                 keyboardType="phone-pad"
               />
@@ -783,11 +784,11 @@ export default function TechnicianProfile() {
 
             <View style={styles.modalActions}>
               <Pressable style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
-                <Text style={styles.cancelButtonText}>Hủy</Text>
+                <Text style={styles.cancelButtonText}>Thoát</Text>
               </Pressable>
-              <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
+              {/* <Pressable style={styles.submitButton} onPress={handleSaveProfile}>
                 <Text style={styles.submitButtonText}>Lưu</Text>
-              </Pressable>
+              </Pressable> */}
             </View>
           </View>
         </View>

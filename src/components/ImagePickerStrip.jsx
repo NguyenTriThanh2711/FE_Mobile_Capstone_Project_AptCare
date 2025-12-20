@@ -110,7 +110,7 @@ export default function MediaSection({
   return (
     <View style={[styles.card, style]}>
       {/* Header */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { justifyContent: mode === 'update' ? 'space-between' : 'center' }]}>
         <Text style={styles.title}>{title}</Text>
         {mode === 'update' ? (
           <View style={styles.actions}>
@@ -238,8 +238,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 10,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'center'
   },
   title: { fontSize: 14, fontWeight: '700', color: '#111827' },
 

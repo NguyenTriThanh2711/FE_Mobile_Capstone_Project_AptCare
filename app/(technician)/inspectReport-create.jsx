@@ -139,6 +139,7 @@ export default function CreateInspectionReportScreen() {
     (async () => {
       try {
         setAccLoading(true);
+        console.log('[gọi acc nè]')
         const res = await http.get(ACCESSORY_LIST_ENDPOINT, {});
         const list = dotnetArr(res?.data);
         if (!mounted) return;
@@ -640,7 +641,7 @@ export default function CreateInspectionReportScreen() {
             price: Number(s.price),
           })),
         };
-
+        console.log('internalInvoicePayload',pretty(internalInvoicePayload))
         await dispatch(createInternalInvoice(internalInvoicePayload)).unwrap();
       }
 
@@ -748,13 +749,14 @@ export default function CreateInspectionReportScreen() {
           })
         ).unwrap();
       }
-
+      console.log('[inspection report create]',{...commonPayload,faultOwner: String(values.faultOwner),})
       Toast.show({
         type: 'success',
         text1: isMaintenance
           ? 'Đã tạo báo cáo kiểm tra bảo trì'
           : 'Đã tạo báo cáo khảo sát',
       });
+
       dispatch(fetchAppointmentById(Number(appointmentId)));
       router.back();
     } catch (err) {
@@ -1083,7 +1085,7 @@ export default function CreateInspectionReportScreen() {
                 <Text style={styles.cardTitle}>Vật tư trong kho</Text>
               </View>
 
-              <View style={{ marginBottom: 10 }}>
+              <View style={styles.suggestWrap}>
                 <Text style={styles.smallLabel}>Tìm nguyên vật liệu theo tên</Text>
                 <TextInput
                   value={accSearch}
@@ -1147,7 +1149,7 @@ export default function CreateInspectionReportScreen() {
               </View>
 
               {accFields.length === 0 ? (
-                <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ alignItems: 'center', marginBottom: 12, marginTop: 8 }}>
                   <Text style={{ color: zincColors[500] }}>
                     Chưa có dòng nguyên vật liệu nào.
                   </Text>
@@ -1309,7 +1311,7 @@ export default function CreateInspectionReportScreen() {
               </View>
 
               {purchaseAccFields.length === 0 ? (
-                <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ alignItems: 'center', marginBottom: 12, marginTop: 8 }}>
                   <Text style={{ color: zincColors[500] }}>
                     Chưa có dòng mua ngoài nào.
                   </Text>
@@ -1325,7 +1327,7 @@ export default function CreateInspectionReportScreen() {
                   <View key={row.id} style={styles.rowBlock}>
                     <View style={{ flex: 1.6 }}>
                       <Text style={styles.smallLabel}>
-                        Tên nguyên vật liệu {isCatalogRow ? '(theo danh mục)' : '(mua ngoài)'}
+                        Tên nguyên vật liệu {isCatalogRow ? '' : '(mua ngoài)'}
                       </Text>
                       <Controller
                         control={control}
@@ -1998,14 +2000,22 @@ const styles = StyleSheet.create({
   accInfoLine: { marginBottom: 4, flex: 1 , marginLeft: 15},
   accName: { fontSize: 13, fontWeight: '700', color: THEME.text },
   accMeta: { fontSize: 11, color: zincColors[600] },
-
+  suggestWrap: {
+    position: 'relative',
+    zIndex: 50,     
+    elevation: 50,     
+  },
   suggestionBox: {
-    marginTop: 6,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 10,
     backgroundColor: '#FFF',
-    maxHeight: 200,
+
+    maxHeight: 260,
+    overflow: 'hidden',
+
+    zIndex: 9999,    
+    elevation: 20,    
   },
   suggestionItem: {
     paddingHorizontal: 10,

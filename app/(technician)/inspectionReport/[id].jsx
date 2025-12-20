@@ -288,7 +288,7 @@ export default function InspectReportDetailScreen() {
             <Text style={styles.sectionTitle}>Kỹ thuật viên</Text>
             <Text style={styles.paragraph}>
               {report?.technican
-                ? `KTV. ${report.technican?.firstName || ''} ${
+                ? `${report.technican?.firstName || ''} ${
                     report.technican?.lastName || ''
                   } (${report.technican?.phoneNumber || '-'})`
                 : '-'}

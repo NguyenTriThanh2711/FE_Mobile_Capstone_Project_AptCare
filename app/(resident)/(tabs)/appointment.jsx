@@ -116,7 +116,7 @@ export default function ResidentScheduleScreen() {
         {/* Day header */}
         <View style={styles.dayHeader}>
           <Icon name="calendar" size={16} color="#6B7280" />
-          <Text style={styles.dayHeaderText}>Lịch hẹn ngày {dayDate(selectedDate)}</Text>
+          <Text style={styles.dayHeaderText}>Lịch hẹn của bạn, {dayDate(selectedDate)}</Text>
           <View style={{ flex: 1 }} />
           <View style={styles.countChip}>
             <Text style={styles.countChipText}>{dayAppointments.length}</Text>
@@ -214,7 +214,7 @@ export default function ResidentScheduleScreen() {
                     </View>
                   ) : <View style={[styles.itemRow, { marginTop: 4 }]}>
                         <Icon name="person.fill" size={14} color="#6B7280" />
-                        <Text style={styles.meta}>Kĩ thuật viên chưa được phân công!</Text>
+                        <Text style={styles.meta}>Kỹ thuật viên chưa được phân công!</Text>
                       </View>
                   }
                 </Pressable>

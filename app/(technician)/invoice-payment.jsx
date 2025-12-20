@@ -108,7 +108,7 @@ export default function CreateInvoiceScreen() {
     resolver: yupResolver(schema),
     defaultValues: {
       repairRequestId: defaultRRId,
-      isChargeable: true, // mặc định có tính phí, KTV có thể tắt nếu toà nhà chịu
+      isChargeable: true,
       accessories: [],
       services: [],
     },

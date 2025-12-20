@@ -19,7 +19,7 @@ import {
   getRequest,
   selectCurrentRequest,
 } from '@/src/features/requests/requestsSlice';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Badge from '@/src/components/Badge';
 import ImagePickerStrip from '@/src/components/ImagePickerStrip';
 import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
@@ -38,13 +38,17 @@ import {
 } from '@/src/features/feedback/feedbacksSlice';
 import Toast from 'react-native-toast-message';
 import { checkResidentApproveRepairReport, fetchRepairReportByAppointment } from '@/src/features/repairReport/repairReportSlice';
+import { pretty } from '@/src/helper/prettyLog';
+import GradientButton from '@/src/components/common/GradientButton';
+const FOOTER_HEIGHT = 64;
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const repairRequestId = Number(id);
   const rawData = useSelector(selectCurrentRequest);
   const data = useMemo(() => unwrapDotNetValuesDeep(rawData), [rawData]);
-
+  //console.log('datadf', pretty(data))
   const dispatch = useAppDispatch();
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -101,7 +105,7 @@ export default function RequestDetail() {
   const canSendFeedback =
     latestTrackingStatus === 'AcceptancePendingVerify' ||
     latestTrackingStatus === 'Completed';
-
+  const showCreateFollowUpBtn = latestTrackingStatus === 'AcceptancePendingVerify';
   const appts = useMemo(() => {
     if (!data) return [];
     return dotnetArr(data.appointments);
@@ -475,7 +479,10 @@ export default function RequestDetail() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: (showCreateFollowUpBtn ? FOOTER_HEIGHT + insets.bottom + 20 : 28),
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -517,7 +524,28 @@ export default function RequestDetail() {
             />
           </View>
         </View>
-
+        <View style ={{
+          flexDirection: 'row',
+          marginBottom: 10,
+          marginLeft: 8,
+          marginRight: 5,
+        }}>
+          <View style={[styles.row]}>
+            <Icon name="building.2" size={16} color="#0C4A6E" />
+            <Text style={styles.cardLabel}>Căn hộ : </Text>
+          </View>
+          <Text style={{fontSize: 15,color: '#111827',fontWeight: '600'}}>
+            {data?.apartment
+              ? `Tầng ${
+                  data?.apartment?.floor
+                    ? data?.apartment?.floor
+                    : data?.apartment?.floorId
+                    ? data?.apartment?.floorId
+                    : '-'
+                } - Phòng.${data?.apartment?.room ?? ''}`
+              : '—'}
+          </Text>    
+        </View>
         <View style={styles.card}>
           <View style={styles.row}>
             <Icon
@@ -527,28 +555,9 @@ export default function RequestDetail() {
             />
             <Text style={styles.cardLabel}>Vấn đề</Text>
           </View>
-          <Text style={styles.cardValue}>
+          <Text style={{fontSize: 15,color: '#111827',fontWeight: '600', marginBottom: 16, marginTop: 4}}>
             {data?.issue?.name || 'Khác'}
           </Text>
-
-          <View style={[styles.row, { marginTop: 12 }]}>
-            <Icon name="building.2" size={16} color="#0C4A6E" />
-            <Text style={styles.cardLabel}>Căn hộ</Text>
-          </View>
-          <Text style={styles.cardValue}>
-            {data?.apartment
-              ? `Tầng ${
-                  data?.apartment?.floor
-                    ? data?.apartment?.floor
-                    : data?.apartment?.floorId
-                    ? data?.apartment?.floorId
-                    : '-'
-                } - P.${data?.apartment?.room ?? ''}`
-              : '—'}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
           <View style={styles.row}>
             <Icon name="doc.text" size={16} color="#6B7280" />
             <Text style={styles.cardLabel}>Mô tả</Text>
@@ -566,7 +575,7 @@ export default function RequestDetail() {
 
         {appts?.length ? (
           <View style={styles.card}>
-            <View style={styles.row}>
+            <View style={[styles.row,  { justifyContent: 'center' }]}>
               <Icon name="calendar" size={16} color="#0C4A6E" />
               <Text style={styles.cardLabel}>Lịch hẹn</Text>
             </View>
@@ -575,10 +584,15 @@ export default function RequestDetail() {
               const techs = dotnetArr(ap?.technicians);
               return (
                 <View key={ap.appointmentId} style={styles.apptItem}>
-                  <Badge
-                    status={ap.status}
-                    style={{ fontSize: 14, fontWeight: '700' }}
-                  />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                      Lịch hẹn #{ap.appointmentId}
+                    </Text>
+                    <Badge
+                      status={ap.status}
+                      style={{ fontSize: 14, fontWeight: '700' }}
+                    />
+                  </View>
                   <View style={styles.apptRow}>
                     <Icon
                       name="clock.fill"
@@ -621,7 +635,9 @@ export default function RequestDetail() {
           </View>
 
           {repairReports.length === 0 ? (
-            <Text style={styles.emptyLine}>Chưa có báo cáo sửa chữa.</Text>
+            <View style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
+              <Text style={styles.emptyLine}>Chưa có báo cáo sửa chữa cho yêu cầu này.</Text>
+            </View>
           ) : (
             repairReports.map((rp) => {
               const status = String(rp?.status || '');
@@ -653,7 +669,7 @@ export default function RequestDetail() {
                     </View>
 
                     <Text style={styles.reportMeta}>
-                      KTV: {rp.userFullName || '-'}
+                     {rp.userFullName || '-'}
                     </Text>
 
                     <Text style={styles.reportMeta}>
@@ -695,9 +711,11 @@ export default function RequestDetail() {
               </Text>
             </View>
           ) : internalInvoices.length === 0 ? (
-            <Text style={styles.emptyLine}>
-              Chưa có hoá đơn cho yêu cầu này.
-            </Text>
+            <View style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
+              <Text style={styles.emptyLine}>
+                Chưa có hoá đơn cho yêu cầu này.
+              </Text>
+            </View>
           ) : (
             internalInvoices.map((inv) => (
               <Pressable
@@ -935,7 +953,7 @@ export default function RequestDetail() {
           <View style={styles.card}>
             <View style={styles.row}>
               <Icon name="person.fill" size={16} color="#6B7280" />
-              <Text style={styles.cardLabel}>Người gửi đơn</Text>
+              <Text style={styles.cardLabel}>Người gửi yêu cầu sửa chữa</Text>
             </View>
             <Text style={styles.cardValue}>
               {(data?.user?.firstName || '') +
@@ -1033,6 +1051,24 @@ export default function RequestDetail() {
           </View>
         </View>
       </Modal>
+      {showCreateFollowUpBtn && (
+        <View style={[styles.footer, { height: FOOTER_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
+          <GradientButton
+            title="Yêu cầu sửa chữa lại"
+            scheme="normal"
+            onPress={() =>
+              router.push({
+                pathname: '/(resident)/request-create',
+                params: {
+                  parentRequestId: String(repairRequestId),
+                  emergency: 'false',
+                },
+              })
+            }
+            style={{ borderRadius: 14 }}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1079,6 +1115,7 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 18,
     fontWeight: '700',
+    paddingBottom: 6,
     color: '#111827',
     lineHeight: 22,
   },
@@ -1383,5 +1420,16 @@ const styles = StyleSheet.create({
   },
   reportMeta: { fontSize: 13, color: '#4B5563', marginTop: 2 },
   reportWarn: { fontSize: 12, color: '#B45309', marginTop: 6, fontWeight: '600' },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
 
 });

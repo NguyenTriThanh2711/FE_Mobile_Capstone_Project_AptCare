@@ -183,7 +183,7 @@ export default function RequestListItem({ item }) {
             <View style={s.metaItem}>
               <Icon name="calendar" size={14} color={C.blue} />
               <Text style={[s.metaTxt, s.arrivalTxt]}>
-                K/Thuật viên tới: {timeDayDate(startAppointment)}
+                Kỹ thuật viên tới: {timeDayDate(startAppointment)}
               </Text>
             </View>
           </View>

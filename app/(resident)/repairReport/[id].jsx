@@ -102,7 +102,7 @@ export default function RepairReportDetailScreen() {
           }}
         >
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Mô tả công việc kĩ thuật viên đã làm</Text>
+            <Text style={styles.sectionTitle}>Mô tả công việc kỹ thuật viên đã làm</Text>
             <Text style={styles.paragraph}>{report.description || '-'}</Text>
           </View>
           {/* Medias */}
@@ -138,13 +138,13 @@ export default function RepairReportDetailScreen() {
             <Row label="Giờ kết thúc" value={appt?.endTime ? timeDayDate(appt.endTime) : '-'} />
             <Row label="Ghi chú" value={appt?.note || '-'} />
             <View style={{ display: 'flex', alignItems: 'center' }}><Text style={[styles.sectionTitle, { marginTop: 16 }]}>Thông tin yêu cầu sửa chữa</Text></View>
-            <Row label="Đối tượng muốn sửa" value={req?.object || '-'} />
+            <Row label="Đối tượng" value={req?.object || '-'} />
             <Row label="Mô tả chi tiết tình huống"   value={req?.description || '-'} />
-            <Row label="Có phải trường hợp khẩn cấp" value={String(req?.isEmergency ? 'Khẩn cấp' : 'Không')} />
+            <Row label="Khẩn cấp" value={String(req?.isEmergency ? 'Khẩn cấp' : 'Không')} />
 
             <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Căn hộ</Text>
-            <Row label="Phòng" value={apt?.room || apt?.roomNumber || '-'} />
             <Row label="Tầng"  value={apt?.floor ?? apt?.floorId ?? '-'} />
+            <Row label="Phòng" value={apt?.room || apt?.roomNumber || '-'} />
             <Row label="Mô tả" value={apt?.description || '-'} />
           </View>
 
@@ -158,7 +158,7 @@ export default function RepairReportDetailScreen() {
                 <View key={ap.reportApprovalId} style={styles.apprRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.apprName}>
-                      {ap.fullName || '-'} <Text style={styles.apprRole}>({ap.role === 'Resident' ? 'Cư dân' : ap.role === 'TechnicianLead' ? 'Kỹ thuật viên Trưởng' : ap.role === 'Manager' ? 'Quản lý' : '-'})</Text>
+                      {ap.fullName || '-'} <Text style={styles.apprRole}>({ap.role === 'Resident' ? 'Cư dân' : ap.role === 'TechnicianLead' ? 'Kỹ thuật viên trưởng' : ap.role === 'Manager' ? 'Quản lý' : '-'})</Text>
                     </Text>
                     <Text style={styles.apprMeta}>
                       {<Badge status={ap.status} />} • {ap.createdAt ? timeDayDate(ap.createdAt) : '-'}

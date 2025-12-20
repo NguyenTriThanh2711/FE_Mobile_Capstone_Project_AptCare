@@ -97,7 +97,7 @@ export default function ResidentTabsLayout() {
       <Tab.Screen
         name="schedule"
         component={ResidentScheduleScreen}
-        options={{ title: 'Lịch', headerTitle: 'Lịch của tôi' }}
+        options={{ title: 'Lịch', headerTitle: 'Lịch hẹn của bạn' }}
       />
       <Tab.Screen
         name="chat"

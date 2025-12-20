@@ -75,6 +75,8 @@ import {
   selectTasksErrorByRepairRequestId,
 } from '@/src/features/repairRequestTasks/repairRequestTasksSlice';
 import { statusMaintance } from '@/src/utils/map';
+import MediaSection from '@/src/components/ImagePickerStrip';
+import AppointmentCard from '@/src/components/AppointmentCard';
 
 const THEME = Colors.light;
 const OWNER_LABEL = {
@@ -128,7 +130,7 @@ export default function AppointmentDetailsScreen() {
   const invoiceStatusRaw =mainInvoice?.status || mainInvoice?.invoiceStatus || '';
   const invoiceStatusNorm =typeof invoiceStatusRaw === 'string'? invoiceStatusRaw.toLowerCase(): '';
   const hasApprovedInvoice =!!mainInvoice && invoiceStatusNorm === 'approved';
-
+  console.log('[appointment]', pretty(appointment))
   const invoicesLoading = useAppSelector((state) =>
     repairRequestId
       ? selectInvoicesLoadingByRepairRequest(state, repairRequestId)
@@ -144,6 +146,45 @@ export default function AppointmentDetailsScreen() {
     selectAppointmentCompleting(state, id)
   );
   const currentRequest = useAppSelector(selectCurrentRequest);
+  const requestAppointments = useMemo(() => {
+    const raw = currentRequest?.appointments;
+    const arr = raw?.$values ?? raw ?? [];
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  }, [currentRequest?.appointments]);
+  const sortedAppointments = useMemo(() => {
+    const list = requestAppointments.slice();
+    list.sort((a, b) => {
+      const ta = new Date(a.startTime || a.createdAt || 0).getTime();
+      const tb = new Date(b.startTime || b.createdAt || 0).getTime();
+      return ta - tb;
+    });
+    return list;
+  }, [requestAppointments]);
+  const { previousAppts, nextAppts } = useMemo(() => {
+    const currentId = appointment?.appointmentId;
+    const currentStart = appointment?.startTime || appointment?.createdAt;
+
+    if (!currentId || !currentStart) return { previousAppts: [], nextAppts: [] };
+
+    const curT = new Date(currentStart).getTime();
+
+    const prev = [];
+    const next = [];
+
+    for (const ap of sortedAppointments) {
+      if (String(ap?.appointmentId) === String(currentId)) continue;
+
+      const t = new Date(ap.startTime || ap.createdAt || 0).getTime();
+      if (!t) continue;
+
+      if (t < curT) prev.push(ap);
+      else if (t > curT) next.push(ap);
+    }
+    prev.sort((a, b) => new Date(b.startTime || b.createdAt || 0) - new Date(a.startTime || a.createdAt || 0));
+    next.sort((a, b) => new Date(a.startTime || a.createdAt || 0) - new Date(b.startTime || b.createdAt || 0));
+    return { previousAppts: prev, nextAppts: next };
+  }, [sortedAppointments, appointment?.appointmentId, appointment?.startTime, appointment?.createdAt]);
+
 
   const commonArea = appointment?.repairRequest?.commonArea;
   const isMaintenance = !!appointment?.repairRequest?.maintenanceScheduleId || !!commonArea;
@@ -588,7 +629,7 @@ export default function AppointmentDetailsScreen() {
 
     Alert.alert(
       'Kết thúc buổi hiện tại',
-      'Bạn sẽ hẹn lịch mới cho lần sửa tiếp theo.',
+      'Bạn sẽ kết thúc buổi hẹn hiện tại. Bạn có chắc chắn muốn tiếp tục?',
       [
         { text: 'Huỷ', style: 'cancel' },
         {
@@ -598,7 +639,7 @@ export default function AppointmentDetailsScreen() {
               await dispatch(
                 completeAppointment({
                   id: Number(id),
-                  note: 'Kết thúc buổi hẹn, sẽ có lịch hẹn tiếp theo.',
+                  note: 'Kết thúc buổi hẹn.',
                   hasNextAppointment: true,
                   acceptanceTime: null,
                 })
@@ -891,14 +932,14 @@ export default function AppointmentDetailsScreen() {
           {appointment?.technicians?.map((tech) => (
             <View style={styles.metaItem} key={tech.userId}>
               <Icon name="person" size={16} color={zincColors[500]} />
-              <Text style={styles.metaText}>KTV. {tech.lastName}</Text>
+              <Text style={styles.metaText}>Kĩ thuật viên {tech.lastName}</Text>
             </View>
           ))}
         </View>
       </View>
 
       <View style={styles.tabContainer}>
-        {['details', 'updates', 'chat'].map((tab) => (
+        {['details', 'request', 'updates', 'chat'].map((tab) => (
           <Pressable
             key={tab}
             onPress={() => setActiveTab(tab)}
@@ -912,6 +953,8 @@ export default function AppointmentDetailsScreen() {
             >
               {tab === 'details'
                 ? 'Chi tiết'
+                : tab === 'request'
+                ? 'Yêu cầu'
                 : tab === 'updates'
                 ? 'Tiến độ'
                 : 'Chat'}
@@ -1129,7 +1172,79 @@ export default function AppointmentDetailsScreen() {
                 </View>
               )}
             </View>
+            {previousAppts.length > 0  ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Lịch hẹn trước đó</Text>
+                {previousAppts.length === 0 ? (
+                  <Text style={{ color: zincColors[500], marginLeft: 40 }}>
+                    Không có lịch hẹn trước đó.
+                  </Text>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    {previousAppts.map((ap) => (
+                      <View
+                        key={String(ap.appointmentId)}
+                        style={{
+                          backgroundColor: '#fff',
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: borderColor,
+                          padding: 14,
+                        }}
+                      >
+                        <AppointmentCard
+                          appt={ap}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/(technician)/appointment/[id]',
+                              params: { id: String(ap.appointmentId) },
+                            })
+                          }
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ): null}
+            {nextAppts.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Lịch hẹn sau đó</Text>
 
+                {nextAppts.length === 0 ? (
+                  <Text style={{ color: zincColors[500], marginLeft: 40 }}>
+                    Không có lịch hẹn sau đó.
+                  </Text>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    {nextAppts.map((ap) => (
+                      <View
+                        key={String(ap.appointmentId)}
+                        style={{
+                          backgroundColor: '#fff',
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: borderColor,
+                          padding: 14,
+                        }}
+                      >
+                        <AppointmentCard
+                          appt={ap}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/(technician)/appointment/[id]',
+                              params: { id: String(ap.appointmentId) },
+                            })
+                          }
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+              ): null
+            }
+            
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
                 {isMaintenance ? 'Khu vực' : 'Căn hộ'}
@@ -1164,14 +1279,14 @@ export default function AppointmentDetailsScreen() {
                 ) : (
                   <>
                     <Item
-                      icon="building.2"
-                      label="Căn hộ"
-                      value={appointment?.repairRequest?.apartment?.room || '-'}
-                    />
-                    <Item
                       icon="door.left.hand.closed"
                       label="Tầng"
                       value={appointment?.repairRequest?.apartment?.floor || '-'}
+                    />
+                    <Item
+                      icon="building.2"
+                      label="Căn hộ"
+                      value={appointment?.repairRequest?.apartment?.room || '-'}
                     />
                     <Item
                       icon="map.pin"
@@ -1200,6 +1315,65 @@ export default function AppointmentDetailsScreen() {
                 )}
               </View>
             </View>
+          </View>
+        )}
+        {activeTab === 'request' && (
+          <View style={styles.sectionWrap}>
+            {(() => {
+              const rr = appointment?.repairRequest;
+              const issue = rr?.issue;
+              const apt = rr?.apartment;
+
+              const medias = rr?.medias?.$values ?? rr?.medias ?? [];
+
+              return (
+                <>
+                  <View style={styles.section}>
+                    <View style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                      <Text style={styles.sectionTitle}>Thông tin yêu cầu</Text>
+                    </View>
+                    <View style={styles.infoBlock}>
+                      <Item icon="doc.text" label="ID yêu cầu" value={rr?.repairRequestId || '-'} />
+                      <Item icon="hammer.fill" label="Đối tượng" value={rr?.object|| '-'} />
+                      <Item icon="text.justify" label="Mô tả" value={rr?.description || '-'} />
+                      <Item
+                        icon="exclamationmark.triangle"
+                        label="Khẩn cấp"
+                        value={rr?.isEmergency ? 'Có' : 'Không'}
+                      />
+                      <Item icon="clock" label="Ngày tạo" value={timeDayDate(rr?.createdAt) || '-'} />
+                    </View>
+                  </View>
+                  <MediaSection
+                    mode="view"
+                    title="Hình ảnh kèm theo"
+                    thumbCols={2}
+                    items={medias}
+                    mapUri={(it) => it?.filePath || ''}
+                    mapKey={(it, i) => String(it?.mediaId || it?.id || i)}
+                    style={{ marginTop: 2 }}
+                  />
+                  <View style={styles.section}>
+                    <View style={{ display: 'flex', alignItems: 'center', marginBottom: 8, marginTop: 16 }}>
+                      <Text style={styles.sectionTitle}>Thông tin sự cố</Text>
+                    </View>
+                    <View style={styles.infoBlock}>
+                      <Item icon="list.bullet" label="Tên sự cố" value={issue?.name || '-'} />
+                      <Item
+                        icon="person.2"
+                        label="Số kỹ thuật viên cần"
+                        value={issue?.requiredTechnician != null ? String(issue.requiredTechnician) : '-'}
+                      />
+                      <Item
+                        icon="hourglass"
+                        label="Thời gian ước tính"
+                        value={issue?.estimatedDuration != null ? `${issue.estimatedDuration} giờ` : '-'}
+                      />
+                    </View>
+                  </View>
+                </>
+              );
+            })()}
           </View>
         )}
 
@@ -1351,7 +1525,7 @@ export default function AppointmentDetailsScreen() {
               style={styles.secondaryBtn}
               onPress={handleStartRepair}
             >
-              <Icon name="pencil" size={20} color={appleBlue} />
+              <Icon name="hammer" size={20} color={appleBlue} />
               <Text style={styles.secondaryBtnText}>
                 Bắt đầu sửa chữa
               </Text>
@@ -1382,7 +1556,7 @@ export default function AppointmentDetailsScreen() {
                     onPress={handleStartRepair}
                   >
                     <Icon
-                      name="pencil"
+                      name="hammer"
                       size={20}
                       color={appleBlue}
                     />
@@ -1396,7 +1570,7 @@ export default function AppointmentDetailsScreen() {
                   style={styles.secondaryBtn}
                   onPress={handleStartRepair}
                 >
-                  <Icon name="pencil" size={20} color={appleBlue} />
+                  <Icon name="hammer" size={20} color={appleBlue} />
                   <Text style={styles.secondaryBtnText}>
                     Bắt đầu sửa chữa
                   </Text>
@@ -1515,7 +1689,7 @@ function Item({ icon, label, value }) {
     <View style={[styles.itemRow]}>
       <Icon name={icon} size={16} color={zincColors[500]} />
       <Text style={styles.itemLabel}>{label}</Text>
-      <Text style={styles.itemValue} numberOfLines={2}>
+      <Text style={styles.itemValue} numberOfLines={15}>
         {value || '-'}
       </Text>
     </View>
@@ -1807,4 +1981,45 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     elevation: 9999,
   },
+  apptCard: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: zincColors[100],
+    borderWidth: 1,
+    borderColor: borderColor,
+  },
+  apptCardActive: {
+    borderColor: appleBlue,
+    backgroundColor: zincColors[50],
+  },
+  apptTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  apptTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: THEME.text,
+  },
+  apptMeta: {
+    fontSize: 12,
+    color: zincColors[600],
+    marginTop: 2,
+  },
+  apptNote: {
+    marginTop: 6,
+    fontSize: 13,
+    color: zincColors[700],
+    lineHeight: 18,
+  },
+  apptCurrent: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '800',
+    color: appleBlue,
+  },
+
 });
