@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, Image, StyleSheet, Pressable, Linking } from 'react-native';
 
 function getInitials(name) {
   if (!name) return '?';
@@ -9,9 +9,33 @@ function getInitials(name) {
   return (a + b).toUpperCase();
 }
 
+function isHttpUrl(s) {
+  if (!s) return false;
+  return /^https?:\/\/\S+$/i.test(String(s).trim());
+}
+
+function isImageUrl(url) {
+  if (!isHttpUrl(url)) return false;
+  const u = String(url).trim();
+  const noQuery = u.split('?')[0].split('#')[0];
+  return /\.(png|jpe?g|gif|webp|bmp|heic)$/i.test(noQuery);
+}
+
 export default function MessageItem({ msg, meId, showSender = true }) {
   const mine = msg?.senderId === meId;
-  const isFile = (msg?.type || '').toLowerCase() !== 'text' && (msg?.content || '').startsWith('http');
+  const content = String(msg?.content || '').trim();
+
+  const isLink = useMemo(() => isHttpUrl(content), [content]);
+  const isImage = useMemo(() => isImageUrl(content), [content]);
+
+  const [imgError, setImgError] = useState(false);
+
+  const openLink = async () => {
+    if (!isLink) return;
+    try {
+      await Linking.openURL(content);
+    } catch (e) {}
+  };
 
   return (
     <View style={[styles.bWrap, mine ? styles.right : styles.left]}>
@@ -26,17 +50,45 @@ export default function MessageItem({ msg, meId, showSender = true }) {
           )}
         </View>
       )}
+
       <View style={[styles.bubble, mine ? styles.bRight : styles.bLeft]}>
         {showSender && !mine && !!msg?.senderName && (
           <Text style={styles.senderName} numberOfLines={1}>
             {msg.senderName}
           </Text>
         )}
-        <Text style={[styles.content, mine && { color: '#fff' }]} selectable={isFile}>
-          {msg.content}
-        </Text>
+
+        {isImage && !imgError ? (
+          <Pressable onPress={openLink} style={styles.imgWrap}>
+            <Image
+              source={{ uri: content }}
+              style={styles.img}
+              resizeMode="cover"
+              onError={() => setImgError(true)}
+            />
+          </Pressable>
+        ) : isLink ? (
+          <Pressable onPress={openLink} hitSlop={8}>
+            <Text style={[styles.content, mine && { color: '#fff' }]}>
+              {content}
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={[styles.content, mine && { color: '#fff' }]}>
+            {content}
+          </Text>
+        )}
+
         <Text style={[styles.time, mine && { color: '#e5e7eb' }]}>
-          {new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+          {msg?.createdAt
+          ? new Date(msg.createdAt).toLocaleString('vi-VN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : ''}
         </Text>
       </View>
     </View>
@@ -63,4 +115,16 @@ const styles = StyleSheet.create({
   },
   avatarTxt: { fontSize: 12, fontWeight: '700', color: '#374151' },
   senderName: { fontSize: 11, color: '#6B7280', marginBottom: 2, fontWeight: '600' },
+
+  imgWrap: {
+    marginTop: 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  img: {
+    width: 220,
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
 });

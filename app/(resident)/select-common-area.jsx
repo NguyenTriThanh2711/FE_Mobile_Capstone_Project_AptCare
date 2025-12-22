@@ -66,9 +66,9 @@ export default function SelectCommonAreaScreen() {
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {item.name}
               </Text>
-              <Text style={styles.cardStatus(item.status)}>
+              {/* <Text style={styles.cardStatus(item.status)}>
                 {item.status === 'Active' ? 'Hoạt động' : item.status}
-              </Text>
+              </Text> */}
             </View>
 
             <View style={styles.cardMetaRow}>
@@ -150,7 +150,7 @@ export default function SelectCommonAreaScreen() {
           />
         </View>
 
-        <View style={styles.statusFilterWrap}>
+        {/* <View style={styles.statusFilterWrap}>
           {['Active', 'Inactive', 'All'].map((st) => (
             <TouchableOpacity
               key={st}
@@ -170,7 +170,7 @@ export default function SelectCommonAreaScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </View> */}
       </View>
 
       {loading && <ActivityIndicator style={{ marginTop: 16 }} />}

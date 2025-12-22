@@ -34,21 +34,27 @@ function AuthGate() {
   useChatGlobalRealtime();
 
   console.log('AuthGate: segments =', segments);
+
+  const fcmAttachedRef = useRef(false);
   useEffect(() => {
     if (!user) return;
+    if (fcmAttachedRef.current) return;
+
     let unsubscribeForeground = null;
     (async () => {
       const fcmToken = await registerForPushAsync();
-      console.log('[FCM Token ->]', fcmToken);
-      dispatch(registerFcm({ fcmToken }));
-      if (fcmToken) {
-        unsubscribeForeground = attachForegroundListener();
-      }
+      if (!fcmToken) return;
+
+      await dispatch(registerFcm({ fcmToken })).unwrap?.();
+      unsubscribeForeground = attachForegroundListener();
+      fcmAttachedRef.current = true;
     })();
+
     return () => {
       if (unsubscribeForeground) unsubscribeForeground();
+      fcmAttachedRef.current = false;
     };
-  }, [user, dispatch]);
+  }, [user?.userId, dispatch]);
   
   useEffect(() => {
     (async () => {

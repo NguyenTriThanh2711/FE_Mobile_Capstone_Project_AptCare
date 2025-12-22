@@ -179,6 +179,8 @@ const MAP = {
   "tag": "pricetag-outline",
   "tag.fill": "pricetag",
   "device": "hardware-chip-outline",
+  "message" : "chatbubble-ellipses-outline",
+  "message_fill" : "chatbubble-ellipses",
 };
 
 export function Icon({ name, size = 24, color = "#000", style }) {

@@ -85,6 +85,18 @@ export default function TechnicianStackLayout() {
           headerShown: false, // vì bạn đã tự render header trong file
         }}
       />
+      <Stack.Screen
+        name="support/index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="support/policies"
+        options={{
+          headerShown: false,
+        }}
+      />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
     </Stack>
   );

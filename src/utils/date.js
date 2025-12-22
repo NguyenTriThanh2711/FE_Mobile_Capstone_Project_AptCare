@@ -63,3 +63,10 @@ export const dayDate = (ds) => { // thứ, dd/mm/yyyy
   const [y,m,d] = ds.split('-').map(Number);
   return new Date(y, m-1, d).toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
 };
+export const onlyTime = (ds) => { // hh:mm
+  try {
+    return new Date(ds).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return ds;
+  }
+}

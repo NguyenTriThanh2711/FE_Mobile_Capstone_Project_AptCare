@@ -20,6 +20,7 @@ import { dotnetArr } from '@/src/helper/dotnetArr';
 import { allowCheckIn, allowCheckOut } from '@/src/helper/canShowCheckIn-Out';
 import { pretty } from '@/src/helper/prettyLog';
 import { shortenLabel } from '@/src/helper/label';
+import { fetchMyNotifications } from '@/src/features/notifications/notificationsSlice';
 
 const StatCard = ({ colors, children, start, end }) => (
   <LinearGradient colors={colors} start={start} end={end} style={styles.statCard}>
@@ -40,6 +41,7 @@ export default function TechnicianDashboard() {
   const schedError = useAppSelector(selectWorkSlotsError);
   //console.log('[scheduleRaw]', pretty(scheduleRaw));
   useEffect(() => {
+    dispatch(fetchMyNotifications());
     dispatch(fetchSlots());
     const today = new Date();
     const from = new Date(today);

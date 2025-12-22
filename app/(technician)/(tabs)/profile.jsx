@@ -486,9 +486,9 @@ export default function TechnicianProfile() {
         onPress: async () => {
           try {
             setIsLogOut(true);
-            router.replace("/(auth)/login");
             await dispatch(logout()).unwrap();
             await persistor.purge();
+            router.replace("/(auth)/auth");
           } catch (e) {
             Alert.alert("Lỗi", "Đăng xuất không thành công. Vui lòng thử lại.");
           } finally {
@@ -676,7 +676,10 @@ export default function TechnicianProfile() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hỗ trợ</Text>
 
-          <Pressable style={styles.menuItem}>
+          <Pressable
+            style={styles.menuItem}
+            onPress={() => router.push("/(technician)/support")}
+          >
             <Icon
               name="questionmark.circle"
               size={24}
@@ -690,7 +693,10 @@ export default function TechnicianProfile() {
             <Icon name="chevron.right" size={16} color="#ccc" style={styles.menuItemArrow} />
           </Pressable>
 
-          <Pressable style={styles.menuItem}>
+          <Pressable
+            style={styles.menuItem}
+            onPress={() => router.push("/(technician)/support/policies")}
+          >
             <Icon name="doc.text" size={24} color="#007AFF" style={styles.menuItemIcon} />
             <View style={styles.menuItemContent}>
               <Text style={styles.menuItemTitle}>Điều khoản & Chính sách</Text>

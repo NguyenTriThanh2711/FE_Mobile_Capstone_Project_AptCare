@@ -195,7 +195,7 @@ export default function MyReportsScreen() {
         </View>
 
         <View style={styles.filterChipsRow}>
-          {['All', 'Active', 'Inactive'].map((st) => (
+          {/* {['All', 'Active', 'Inactive'].map((st) => (
             <TouchableOpacity
               key={st}
               style={[
@@ -217,7 +217,7 @@ export default function MyReportsScreen() {
                   : 'Inactive'}
               </Text>
             </TouchableOpacity>
-          ))}
+          ))} */}
           <TouchableOpacity
             style={styles.sortChip}
             onPress={() =>

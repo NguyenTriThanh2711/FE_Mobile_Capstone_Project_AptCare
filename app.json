@@ -26,7 +26,8 @@
             "notification_channel_name": "AptCare"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

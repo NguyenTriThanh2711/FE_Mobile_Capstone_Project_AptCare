@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Icon } from './Icon.native';
 
 const PALETTE = {
   muted:   { bg: '#F3F4F6', fg: '#374151' }, // zinc-100 / zinc-700
@@ -27,6 +28,8 @@ const PALETTE = {
   externalContractor: { bg: '#800080', fg: '#FFFFFF' }, // tím
   accessoryPurchase: { bg: '#c7d2fe', fg: '#FFFFF' }, // vàng nhạt
   maintenance: { bg: '#FF69B4', fg: '#FFFFFF' }, // hồng
+  waitingManagerApproval: { bg: '#ffcc00', fg: '#FFFFF' }, // vàng
+  residentApproved : { bg: '#0A84FF', fg: '#FFFFFF' },
 };
 
 const STATUS_LABEL = {
@@ -51,12 +54,15 @@ const STATUS_LABEL = {
   Confirmed:   'Đã xác nhận',
   AwaitingIRApproval: 'Chờ duyệt báo cáo',
   AccessoryPurchase: 'Mua vật liệu',
+  WaitingManagerApproval: 'Chờ quản lý duyệt',
+  ResidentApproved: 'Cư dân đã duyệt',
   Draft : 'Bản nháp',
   AwaitingPayment: 'Chờ thanh toán',
   Scheduling : 'Đang lên lịch',
   AcceptancePendingVerify : 'Chờ nghiệm thu',
   Paid : 'Đã thanh toán',
   ExternalContractor: 'Bên thứ ba',
+  YouAreApproved: 'Bạn đã duyệt',
   Maintenance: 'Bảo trì',
 };
 
@@ -90,6 +96,10 @@ function mapStatusToTone(status) {
       return 'success';
     case 'Approved':
       return 'success';
+    case 'WaitingManagerApproval':
+      return 'waitingManagerApproval';
+    case 'ResidentApproved':
+      return 'residentApproved';
     case 'InProgress':
       return 'inProgress';
     case 'Assigned':
@@ -116,6 +126,8 @@ function mapStatusToTone(status) {
       return 'externalContractor';
     case 'AccessoryPurchase':
       return 'accessoryPurchase';
+    case 'YouAreApproved':
+      return 'success';
     case 'Maintenance':
       return 'maintenance';
     default:
@@ -145,6 +157,9 @@ export default function Badge({
 
   return (
     <View style={[styles.badge, { backgroundColor: palette.bg, minWidth, maxWidth }, style]}>
+      {status === 'YouAreApproved' && (
+        <Icon name="checkmark.circle.fill" size={16} color="#0A84FF" />
+      )}
       <Text numberOfLines={1} style={[styles.badgeText, { color: palette.fg }, textStyle]}>
         {display}
       </Text>
@@ -154,6 +169,7 @@ export default function Badge({
 
 const styles = StyleSheet.create({
   badge: {
+    flexDirection: 'row',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,

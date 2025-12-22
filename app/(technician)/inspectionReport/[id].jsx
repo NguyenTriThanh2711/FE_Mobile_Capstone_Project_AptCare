@@ -80,7 +80,7 @@ export default function InspectReportDetailScreen() {
   );
   const report = useAppSelector((s) => selectReportById(s, reportId));
 
-  //console.log('[data => isreport]', pretty(report));
+  console.log('[data => isreport]', pretty(report));
 
   useEffect(() => {
     if (reportId) dispatch(fetchInspectionReportById(reportId));
@@ -190,9 +190,11 @@ export default function InspectReportDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Hình ảnh đính kèm</Text>
             {medias.length === 0 ? (
-              <Text style={{ color: zincColors[500] }}>
-                Không có hình ảnh.
-              </Text>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: zincColors[500] }}>
+                  Không có hình ảnh.
+                </Text>
+              </View>
             ) : (
               <ImagePickerStrip
                 mode="view"
@@ -257,23 +259,29 @@ export default function InspectReportDetailScreen() {
           )}
 
           <View style={styles.card}>
-            <View style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Căn hộ & yêu cầu sửa chữa</Text></View>
-            <Row
-              label="Căn hộ"
-              value={apartment?.room || '-'}
-            />
-            <Row
-              label="Tầng"
-              value={
-                apartment?.floorId ??
-                apartment?.floor ??
-                '-'
-              }
-            />
-            <Row
-              label="Mô tả căn hộ"
-              value={apartment?.description || '-'}
-            />
+            {apartment ? (<>
+              <View style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Căn hộ & yêu cầu sửa chữa</Text></View>
+              <Row
+                label="Căn hộ"
+                value={apartment?.room || '-'}
+              />
+              <Row
+                label="Tầng"
+                value={
+                  apartment?.floorId ??
+                  apartment?.floor ??
+                  '-'
+                }
+              />
+              <Row
+                label="Mô tả căn hộ"
+                value={apartment?.description || '-'}
+              />
+            </>)
+             : (
+              <View style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}><Text style={styles.sectionTitle}>Đối tượng bảo trì</Text></View>
+             )
+            }
             <Row
               label="Đối tượng sửa chữa"
               value={repairRequest?.object || '-'}
@@ -410,9 +418,11 @@ export default function InspectReportDetailScreen() {
           ) : (
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Hóa đơn liên quan</Text>
-              <Text style={{ color: zincColors[500] }}>
-                Không có hóa đơn.
-              </Text>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: zincColors[500] }}>
+                  Không có hóa đơn.
+                </Text>
+              </View>
             </View>
           )}
 

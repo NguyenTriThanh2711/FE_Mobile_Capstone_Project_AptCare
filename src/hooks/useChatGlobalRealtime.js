@@ -7,6 +7,7 @@ import {
 } from '@/src/features/chat/chatSlice';
 import { getAccessToken } from '@/src/services/secure-store';
 import { selectConversations } from '@/src/features/chat/chatSlice';
+import Toast from 'react-native-toast-message';
 
 const HUB_URL = process.env.EXPO_PUBLIC_API_CHAT_HUB_URL;
 
@@ -15,7 +16,9 @@ export default function useChatGlobalRealtime() {
   const dispatch = useAppDispatch();
   const meId = useAppSelector((s) => s.auth.user?.userId);
   const conversations = useAppSelector(selectConversations);
-
+  const currentConversationId = useAppSelector((s) => s.chat.currentConversationId);
+  console.log('[currentConversationId]', currentConversationId);
+  console.log('[meId]',meId)
   const connectionRef = useRef(null);
   const startedRef = useRef(false);
   const joinedRoomsRef = useRef(new Set());
@@ -40,18 +43,18 @@ export default function useChatGlobalRealtime() {
     }
 
     if (connectionRef.current) return;
-
+    const silentLogger = {
+      log: () => {}, 
+    };
     const conn = new signalR.HubConnectionBuilder()
       .withUrl(HUB_URL, {
         accessTokenFactory: async () => {
           const token = await getAccessToken();
           return token || '';
-        },
-        transport: signalR.HttpTransportType.WebSockets,
-        skipNegotiation: true,
+        }
       })
       .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging(silentLogger)
       .build();
 
     connectionRef.current = conn;
@@ -103,26 +106,36 @@ export default function useChatGlobalRealtime() {
     joinAll();
   }, [conversations]);
 
-  // ===== 3. Lắng nghe ReceiveMessage cho TẤT CẢ các phòng đã join =====
   useEffect(() => {
     const conn = connectionRef.current;
     if (!conn) return;
 
     const handleReceive = async (message) => {
       if (!message) return;
-
       console.log('[SignalR-GLOBAL] ReceiveMessage', message);
-
-      const cid =
-        message.conversationId ?? message.conversation?.conversationId;
+      const cid = message.conversationId ?? message.conversation?.conversationId;
       if (!cid) return;
 
-      // update redux: messages, lastMessage, unread
-      dispatch(incomingMessage(message));
+      const senderId = Number(message.senderId);
+      const mine = meId != null && senderId === Number(meId);
 
-      // nếu không phải mình gửi -> markDelivered
-      const senderId = String(message.senderId ?? '');
-      if (meId && senderId && senderId !== String(meId)) {
+      const normalized = { ...message, isMine: mine };
+      dispatch(incomingMessage(normalized));
+
+      const openingThisChat = Number(currentConversationId) === Number(cid);
+
+      if (!mine && !openingThisChat) {
+        Toast.show({
+          type: 'info',
+          text1: message.senderName || 'Tin nhắn mới',
+          text2: message.content ? String(message.content).slice(0, 120) : 'Bạn có tin nhắn mới',
+          position: 'top',
+          visibilityTime: 2200,
+          topOffset: 60,
+        });
+      }
+
+      if (!mine) {
         try {
           await dispatch(markDelivered(cid)).unwrap();
         } catch (err) {
@@ -150,5 +163,5 @@ export default function useChatGlobalRealtime() {
       conn.off('markasread', handleMarkAsRead);
       conn.off('MarkAsDeliveried', handleMarkAsDelivered);
     };
-  }, [dispatch, meId]);
+  }, [dispatch, meId, currentConversationId]);
 }

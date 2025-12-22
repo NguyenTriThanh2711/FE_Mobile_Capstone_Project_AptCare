@@ -1621,7 +1621,7 @@ export default function CreateInspectionReportScreen() {
                       control={control}
                       name={`extAccessories.${idx}.quantity`}
                       render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ width: 80 }}>
+                        <View style={{ width: 70 }}>
                           <Text style={styles.smallLabel}>Số lượng</Text>
                           <TextInput
                             value={String(value ?? '')}
@@ -1644,7 +1644,7 @@ export default function CreateInspectionReportScreen() {
                       control={control}
                       name={`extAccessories.${idx}.price`}
                       render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ width: 100 }}>
+                        <View style={{ width: 90 }}>
                           <Text style={styles.smallLabel}>Đơn giá</Text>
                           <TextInput
                             value={String(value ?? '')}

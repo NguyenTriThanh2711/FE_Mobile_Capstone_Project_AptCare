@@ -44,8 +44,9 @@ function AppointmentCard({ appt, onPress }) {
     !!appt?.repairRequest?.maintenanceScheduleId || !!commonArea;
   const status = appt?.status || 'New';
   const emergency = appt?.repairRequest?.isEmergency ? 'Emergency' : 'Normal';
-  const room = appt?.repairRequest?.apartment?.room || '-';
-  const floor = appt?.repairRequest?.apartment?.floor ? appt?.repairRequest?.apartment?.floor : ( appt?.repairRequest?.apartment?.floorId ? appt?.repairRequest?.apartment?.floorId : '-');
+  const room = appt?.repairRequest?.apartment?.room;
+  const floor = appt?.repairRequest?.apartment?.floor ? appt?.repairRequest?.apartment?.floor : ( appt?.repairRequest?.apartment?.floorId ? appt?.repairRequest?.apartment?.floorId : null);
+  console.log('[floor]', floor);
   const resident = appt?.repairRequest?.apartment?.users || {};
   const residentName =
     resident?.firstName || resident?.lastName
@@ -104,7 +105,9 @@ function AppointmentCard({ appt, onPress }) {
           {floor !== undefined && floor !== null ? (
             <Pill icon="building.2">Tầng {String(floor)}</Pill>
           ) : null}
-          <Pill icon="list.number">Căn hộ {room}</Pill>
+          {room !== undefined && room !== null ? (
+            <Pill icon="list.number">Căn hộ {String(room)}</Pill>
+          ) : null}
           {/* {!!appt?.appointmentId && <Pill icon="list.number">{`IdCH: ${appt.appointmentId}`}</Pill>} */}
         </View>
       )}

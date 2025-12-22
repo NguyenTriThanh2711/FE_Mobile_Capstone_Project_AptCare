@@ -40,6 +40,18 @@ export default function ResidentStackLayout() {
       <Stack.Screen name="report/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="repairReport/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="support/index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="support/policies"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

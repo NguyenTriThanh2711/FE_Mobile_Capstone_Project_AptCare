@@ -18,6 +18,8 @@ import {
   fetchRepairRequests,
   getRequest,
   selectCurrentRequest,
+  selectRequestUpdatingStatus,
+  updateRepairRequestStatus,
 } from '@/src/features/requests/requestsSlice';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Badge from '@/src/components/Badge';
@@ -70,6 +72,9 @@ export default function RequestDetail() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [trackExpanded, setTrackExpanded] = useState(false);
+  const [confirmCancelVisible, setConfirmCancelVisible] = useState(false);
+  const updatingStatus = useAppSelector(selectRequestUpdatingStatus);
 
   const [showCreateFeedbackForm, setShowCreateFeedbackForm] = useState(false);
   const [replyModalVisible, setReplyModalVisible] = useState(false);
@@ -77,7 +82,7 @@ export default function RequestDetail() {
   const [replyComment, setReplyComment] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
   const [repairReports, setRepairReports] = useState([]);
-
+  //console.log('[repairReports]', pretty(repairReports))
   const internalInvoices = useMemo(
     () =>
       Array.isArray(invoices)
@@ -106,6 +111,7 @@ export default function RequestDetail() {
     latestTrackingStatus === 'AcceptancePendingVerify' ||
     latestTrackingStatus === 'Completed';
   const showCreateFollowUpBtn = latestTrackingStatus === 'AcceptancePendingVerify';
+  const isCanCancel = latestTrackingStatus === "Pending" || latestTrackingStatus === "Approved" || latestTrackingStatus === "Assigned";
   const appts = useMemo(() => {
     if (!data) return [];
     return dotnetArr(data.appointments);
@@ -321,6 +327,32 @@ export default function RequestDetail() {
       setSubmittingReply(false);
     }
   }, [dispatch, repairRequestId, replyTarget, replyComment, closeReplyModal]);
+  const handleConfirmCancelRequest = useCallback(async () => {
+    try {
+      await dispatch(
+        updateRepairRequestStatus({
+          repairRequestId,
+          newStatus: "Cancelled",
+          note: "Cư dân hủy yêu cầu",
+        })
+      ).unwrap();
+
+      Toast.show({
+        type: "success",
+        text1: "Đã hủy yêu cầu",
+      });
+
+      setConfirmCancelVisible(false);
+
+      await dispatch(getRequest(id)).unwrap?.();
+    } catch (e) {
+      Toast.show({
+        type: "error",
+        text1: "Không hủy được yêu cầu",
+        text2: e?.message || e?.payload?.message || "Vui lòng thử lại",
+      });
+    }
+  }, [dispatch, repairRequestId, id]);
 
   const renderFeedbackItem = useCallback(
     (fb) => {
@@ -641,7 +673,21 @@ export default function RequestDetail() {
           ) : (
             repairReports.map((rp) => {
               const status = String(rp?.status || '');
-              const isNeedApprove = status === 'Pending'; 
+              const getResidentApprovalStatus = (rp) => {
+                const approvals = dotnetArr(rp?.reportApprovals);
+                const resident = approvals.find((a) => a?.role === 'Resident');
+                return resident?.status || null;
+              };
+
+              const needResidentApprove = (rp) => {
+                const residentStatus = getResidentApprovalStatus(rp);
+                if (!residentStatus) return true;
+                if (residentStatus === 'ResidentApproved') return false;
+                if (residentStatus === 'ResidentRejected') return false;
+                return true;
+              };
+
+              const isNeedApprove = needResidentApprove(rp);
               return (
                 <Pressable
                   key={rp.repairReportId}
@@ -665,7 +711,12 @@ export default function RequestDetail() {
                       <Text style={styles.reportTitle}>
                         Báo cáo #{rp.repairReportId}
                       </Text>
-                      <Badge status={status} />
+                      <View style={{ flexDirection: 'row', gap: 2 }}>
+                        {!isNeedApprove && (<>
+                          <Badge status="YouAreApproved" /></>
+                        )}
+                        <Badge status={status} />
+                      </View>
                     </View>
 
                     <Text style={styles.reportMeta}>
@@ -750,26 +801,45 @@ export default function RequestDetail() {
         </View>
 
         <View style={styles.card}>
-          <View style={styles.row}>
-            <Icon
-              name="arrow.up.arrow.down"
-              size={16}
-              color="#6B7280"
-            />
-            <Text style={styles.cardLabel}>Tiến trình</Text>
-          </View>
+          <Pressable
+            onPress={() => setTrackExpanded((v) => !v)}
+            style={[styles.row, { justifyContent: 'space-between' }]}
+            hitSlop={8}
+          >
+            <View style={[styles.row, { gap: 8 }]}>
+              <Icon name="arrow.up.arrow.down" size={16} color="#6B7280" />
+              <Text style={styles.cardLabel}>Lịch sử trạng thái</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {!!trackings?.length && !trackExpanded && trackings.length > 1 && (
+                <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                  +{trackings.length - 1} trước
+                </Text>
+              )}
+              <Icon
+                name={trackExpanded ? 'chevron.up' : 'chevron.down'}
+                size={18}
+                color="#9CA3AF"
+              />
+            </View>
+          </Pressable>
+
           {!trackings || trackings.length === 0 ? (
             <Text style={styles.emptyLine}>Chưa có cập nhật.</Text>
           ) : (
-            <View style={{ marginTop: 8 }}>
-              {trackings.map((t, idx) => {
-                const isLatest = idx === trackings.length - 1;
+            <View style={{ marginTop: 10 }}>
+              {(trackExpanded ? trackings : [trackings[trackings.length - 1]]).map((t, idx) => {
+                const isLatest = trackExpanded
+                  ? idx === trackings.length - 1
+                  : true;
+
                 return (
                   <View
-                    key={t.requestTrackingId}
+                    key={t.requestTrackingId ?? `${t.status}-${t.updatedAt}-${idx}`}
                     style={[
                       styles.trackRow,
-                      !isLatest && { opacity: 0.4 },
+                      trackExpanded && !isLatest && { opacity: 0.4 },
                     ]}
                   >
                     <View style={styles.trackDot} />
@@ -778,13 +848,10 @@ export default function RequestDetail() {
                         status={t.status}
                         style={{ fontSize: 14, fontWeight: '700' }}
                       />
-                      <Text style={styles.trackTime}>
-                        {timeDate(t.updatedAt)}
-                      </Text>
+                      <Text style={styles.trackTime}>{timeDate(t.updatedAt)}</Text>
                       {t.updatedByUser ? (
                         <Text style={styles.trackBy}>
-                          bởi {t.updatedByUser.firstName}{' '}
-                          {t.updatedByUser.lastName}
+                          bởi {t.updatedByUser.firstName} {t.updatedByUser.lastName}
                         </Text>
                       ) : null}
                     </View>
@@ -982,8 +1049,66 @@ export default function RequestDetail() {
             </View>
           </View>
         )}
-      </ScrollView>
+        {isCanCancel && (
+          <View style={{ marginTop: 10 }}>
+            <Pressable
+              onPress={() => setConfirmCancelVisible(true)}
+              disabled={updatingStatus}
+              style={[
+                styles.cancelBtn,
+                updatingStatus && { opacity: 0.7 },
+              ]}
+            >
+              {updatingStatus ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.cancelBtnText}>Hủy yêu cầu</Text>
+              )}
+            </Pressable>
 
+          </View>
+        )}
+      </ScrollView>
+      <Modal
+        transparent
+        visible={confirmCancelVisible}
+        animationType="fade"
+        onRequestClose={() => setConfirmCancelVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Xác nhận hủy yêu cầu</Text>
+            <Text style={styles.modalDesc}>
+              Bạn có chắc chắn muốn hủy yêu cầu sửa chữa này không?
+            </Text>
+
+            <View style={styles.modalActionsRow}>
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={() => setConfirmCancelVisible(false)}
+                disabled={updatingStatus}
+              >
+                <Text style={styles.modalCancelText}>Không</Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.modalDangerBtn,
+                  updatingStatus && { opacity: 0.7 },
+                ]}
+                onPress={handleConfirmCancelRequest}
+                disabled={updatingStatus}
+              >
+                {updatingStatus ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalDangerText}>Có, hủy</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <Modal
         transparent
         visible={replyModalVisible}
@@ -1430,6 +1555,36 @@ const styles = StyleSheet.create({
     borderTopColor: '#e5e5e5',
     justifyContent: 'center',
     paddingHorizontal: 16,
+  },
+  cancelBtn: {
+    marginTop: 8,
+    backgroundColor: "#EF4444",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBtnText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 15,
+  },
+  modalDesc: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "#374151",
+    lineHeight: 18,
+  },
+  modalDangerBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#EF4444",
+  },
+  modalDangerText: {
+    fontSize: 13,
+    color: "#fff",
+    fontWeight: "800",
   },
 
 });

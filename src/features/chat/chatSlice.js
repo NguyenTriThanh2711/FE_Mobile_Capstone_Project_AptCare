@@ -12,6 +12,40 @@ export const fetchMyConversations = createAsyncThunk(
     return dotnetArr(data);
   }
 );
+export const RECEPTIONIST_ID = 4;
+
+export const getOrCreateReceptionConversation = createAsyncThunk(
+  'chat/getOrCreateReceptionConversation',
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      const existingConvId = await dispatch(
+        checkExistingConversation(RECEPTIONIST_ID)
+      ).unwrap();
+
+      if (existingConvId) return { conversationId: existingConvId };
+
+      const res = await dispatch(
+        createConversation({
+          title: 'Lễ tân',
+          userIds: [RECEPTIONIST_ID],
+        })
+      ).unwrap();
+      console.log('res',res)
+      const conv = res?.data || res;
+      const conversationId = conv?.conversationId ?? conv?.id;
+
+      if (!conversationId) {
+        return rejectWithValue('Không nhận được conversationId từ server');
+      }
+
+      return { conversationId };
+    } catch (err) {
+      return rejectWithValue(
+        err?.message || err || 'Không thể tạo/mở chat với lễ tân'
+      );
+    }
+  }
+);
 
 export const createConversation = createAsyncThunk(
   'chat/createConversation',

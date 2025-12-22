@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, isRejectedWithValue } from '@reduxjs/too
 import http from '@/src/services/http';
 import { dotnetArr } from '@/src/helper/dotnetArr';
 import { bool } from 'yup';
+import { pretty } from '@/src/helper/prettyLog';
 
 export const createNormalRepairRequest = createAsyncThunk(
   'requests/createNormalRepairRequest',
@@ -140,9 +141,37 @@ export const cancelRequest = createAsyncThunk('requests/cancel', async (id) => {
 
 export const getRequest = createAsyncThunk('requests/get', async (id) => {
   const { data } = await http.get(`/api/repairrequests/${id}`);
+  //console.log('[request id]',pretty(data))
   return data;
 });
+export const updateRepairRequestStatus = createAsyncThunk(
+  "requests/updateStatus",
+  async (
+    { repairRequestId, newStatus, note },
+    { rejectWithValue }
+  ) => {
+    try {
+      const { data } = await http.patch("/api/repairrequests/approve-request", null, {
+        params: {
+          RepairRequestId: repairRequestId,
+          NewStatus: newStatus,
+          Note: note ?? "",
+        },
+      });
 
+      return { repairRequestId, newStatus, data };
+    } catch (error) {
+      const res = error?.response;
+      const message =
+        res?.data?.detail ||
+        res?.data?.message ||
+        res?.data ||
+        error?.message ||
+        "Cập nhật trạng thái thất bại";
+      return rejectWithValue({ status: res?.status, message });
+    }
+  }
+);
 const slice = createSlice({
   name: 'requests',
   initialState: {
@@ -163,6 +192,9 @@ const slice = createSlice({
     recent: [],
     recentLoading: false,
     recentError: null,
+
+    updatingStatus: false,
+    updateStatusError: null,  
   },
   reducers: {
     setCurrentRequest(state, action) {
@@ -251,6 +283,23 @@ const slice = createSlice({
       })
       .addCase(getRequest.fulfilled, (s, a) => {
         s.current = a.payload;
+      })
+
+      .addCase(updateRepairRequestStatus.pending, (s) => {
+        s.updatingStatus = true;
+        s.updateStatusError = null;
+      })
+      .addCase(updateRepairRequestStatus.fulfilled, (s, a) => {
+        s.updatingStatus = false;
+
+        // Nếu current đang mở đúng request thì update nhẹ status (optional)
+        if (s.current && String(s.current?.repairRequestId) === String(a.payload.repairRequestId)) {
+          s.current = { ...s.current, status: a.payload.newStatus };
+        }
+      })
+      .addCase(updateRepairRequestStatus.rejected, (s, a) => {
+        s.updatingStatus = false;
+        s.updateStatusError = a.payload || a.error;
       });
   },
 });
@@ -277,3 +326,6 @@ export const selectCurrentRequest = (s) => s.requests.current;
 export const selectRecentRequests = (s) => s.requests.recent;
 export const selectRecentRequestsLoading = (s) => s.requests.recentLoading;
 export const selectRecentRequestsError = (s) => s.requests.recentError;
+
+export const selectRequestUpdatingStatus = (s) => s.requests.updatingStatus;
+export const selectRequestUpdateStatusError = (s) => s.requests.updateStatusError;

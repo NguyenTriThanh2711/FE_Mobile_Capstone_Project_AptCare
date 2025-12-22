@@ -136,9 +136,9 @@ export default function CreateReportScreen() {
                 {item.name}
               </Text>
 
-              <Text style={styles.objectStatus(item.status)}>
+              {/* <Text style={styles.objectStatus(item.status)}>
                 {item.status === 'Active' ? 'Hoạt động' : item.status}
-              </Text>
+              </Text> */}
             </View>
 
             {!!item.description && (

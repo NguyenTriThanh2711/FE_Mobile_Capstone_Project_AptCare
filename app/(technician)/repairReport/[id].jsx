@@ -22,7 +22,7 @@ export default function RepairReportDetailScreen() {
 
   const loading = useAppSelector((s) => selectRepairReportByIdLoading(s, reportId));
   const report  = useAppSelector((s) => selectRepairReportById(s, reportId));
-
+  console.log('[report]', report)
   useEffect(() => {
     if (reportId) dispatch(fetchRepairReportById(reportId));
   }, [reportId, dispatch]);
@@ -35,7 +35,7 @@ export default function RepairReportDetailScreen() {
   const appt = report?.appointment;
   const req  = appt?.repairRequest;
   const apt  = req?.apartment;
-
+  console.log('[apt]', apt);
   return (
     <View style={{ flex: 1, backgroundColor: THEME.background, paddingTop: 40 }}>
       {/* Header */}
@@ -100,11 +100,17 @@ export default function RepairReportDetailScreen() {
             <Row label="Tiêu đề" value={req?.object || '-'} />
             <Row label="Mô tả"   value={req?.description || '-'} />
             <Row label="Khẩn cấp" value={String(req?.isEmergency ? 'Khẩn cấp' : 'Không')} />
-
-            <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Căn hộ</Text>
-            <Row label="Phòng" value={apt?.room || apt?.roomNumber || '-'} />
-            <Row label="Tầng"  value={apt?.floor ?? apt?.floorId ?? '-'} />
-            <Row label="Mô tả" value={apt?.description || '-'} />
+            {
+              apt && (
+                <>
+                <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Căn hộ</Text>
+                <Row label="Phòng" value={apt?.room || apt?.roomNumber || '-'} />
+                <Row label="Tầng"  value={apt?.floor ?? apt?.floorId ?? '-'} />
+                <Row label="Mô tả" value={apt?.description || '-'} />
+                </>
+              )
+            }
+            
           </View>
 
           {/* Approvals */}

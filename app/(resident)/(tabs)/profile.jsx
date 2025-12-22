@@ -368,7 +368,7 @@ export default function ResidentProfile() {
             setIsLogOut(true);
             await dispatch(logout()).unwrap();
             await persistor.purge();
-            router.replace("/(auth)/login");
+            router.replace("/(auth)/auth");
           } catch (e) {
             Alert.alert("Lỗi", "Đăng xuất không thành công. Vui lòng thử lại.");
           }
@@ -631,7 +631,10 @@ export default function ResidentProfile() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Hỗ Trợ</Text>
 
-          <Pressable style={styles.menuItem}>
+          <Pressable
+            style={styles.menuItem}
+            onPress={() => router.push("/(resident)/support")}
+          >
             <Icon
               name="questionmark.circle"
               size={24}
@@ -652,7 +655,10 @@ export default function ResidentProfile() {
             />
           </Pressable>
 
-          <Pressable style={styles.menuItem}>
+          <Pressable
+            style={styles.menuItem}
+            onPress={() => router.push("/(resident)/support/policies")}
+          >
             <Icon
               name="doc.text"
               size={24}

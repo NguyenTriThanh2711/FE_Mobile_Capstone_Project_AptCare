@@ -39,7 +39,7 @@ import {
 } from '@/src/features/chat/chatSlice';
 import Badge from '@/src/components/Badge';
 import { capitalizeFirst } from '@/src/helper/capitalizeFirst';
-import { timeDayDate } from '@/src/utils/date';
+import { onlyTime, timeDate, timeDayDate } from '@/src/utils/date';
 import ReportListItem from '@/src/components/ReportListItem';
 import {
   fetchInspectionReportByAppointmentId,
@@ -105,6 +105,8 @@ export default function AppointmentDetailsScreen() {
 
   const dispatch = useAppDispatch();
 
+  const meId = useAppSelector((s) => s.auth.user?.userId);
+
   const appointment = useAppSelector((state) =>selectAppointmentById(state, id));
   const loading = useAppSelector((state) =>selectAppointmentLoading(state, id));
   const error = useAppSelector((state) =>selectAppointmentError(state, id));
@@ -126,11 +128,11 @@ export default function AppointmentDetailsScreen() {
   const mainInvoiceId = mainInvoice?.invoiceId;
   const mainInvoiceCancelling = useAppSelector((state) => mainInvoiceId ? selectInvoiceCancellingById(state, mainInvoiceId) : false);
   const mainInvoiceCancelError = useAppSelector((state) =>mainInvoiceId ? selectInvoiceCancelErrorById(state, mainInvoiceId) : null);
-  console.log('mainInvoice', mainInvoice)
+  //console.log('mainInvoice', mainInvoice)
   const invoiceStatusRaw =mainInvoice?.status || mainInvoice?.invoiceStatus || '';
   const invoiceStatusNorm =typeof invoiceStatusRaw === 'string'? invoiceStatusRaw.toLowerCase(): '';
   const hasApprovedInvoice =!!mainInvoice && invoiceStatusNorm === 'approved';
-  console.log('[appointment]', pretty(appointment))
+  //console.log('[appointment]', pretty(appointment))
   const invoicesLoading = useAppSelector((state) =>
     repairRequestId
       ? selectInvoicesLoadingByRepairRequest(state, repairRequestId)
@@ -151,6 +153,7 @@ export default function AppointmentDetailsScreen() {
     const arr = raw?.$values ?? raw ?? [];
     return Array.isArray(arr) ? arr.filter(Boolean) : [];
   }, [currentRequest?.appointments]);
+  console.log('[requestAppointments]',requestAppointments)
   const sortedAppointments = useMemo(() => {
     const list = requestAppointments.slice();
     list.sort((a, b) => {
@@ -184,7 +187,7 @@ export default function AppointmentDetailsScreen() {
     next.sort((a, b) => new Date(a.startTime || a.createdAt || 0) - new Date(b.startTime || b.createdAt || 0));
     return { previousAppts: prev, nextAppts: next };
   }, [sortedAppointments, appointment?.appointmentId, appointment?.startTime, appointment?.createdAt]);
-
+  console.log('[sau đó]',nextAppts)
 
   const commonArea = appointment?.repairRequest?.commonArea;
   const isMaintenance = !!appointment?.repairRequest?.maintenanceScheduleId || !!commonArea;
@@ -201,7 +204,25 @@ export default function AppointmentDetailsScreen() {
       ? selectTasksErrorByRepairRequestId(s, repairRequestId)
       : null
   );
+  const TABS = useMemo(() => {
+    const base = [
+      { key: 'details', label: 'Chi tiết' },
+      { key: 'updates', label: 'Tiến độ' },
+      { key: 'chat', label: 'Chat' },
+    ];
 
+    if (!isMaintenance) {
+      base.splice(1, 0, { key: 'request', label: 'Yêu cầu' }); 
+    }
+
+    return base;
+  }, [isMaintenance]);
+
+  useEffect(() => {
+    if (isMaintenance && activeTab === 'request') {
+      setActiveTab('details');
+    }
+  }, [isMaintenance, activeTab]);
   useEffect(() => {
     if (id) {
       dispatch(fetchAppointmentById(id));
@@ -466,11 +487,11 @@ export default function AppointmentDetailsScreen() {
       await Promise.all(promises);
     } catch (e) {
       console.log('Refresh error', e);
-      Toast.show({
-        type: 'error',
-        text1: 'Làm mới thất bại',
-        text2: e.message || 'Vui lòng thử lại.',
-      });
+      // Toast.show({
+      //   type: 'error',
+      //   text1: 'Làm mới thất bại',
+      //   text2: e.message || 'Vui lòng thử lại.',
+      // });
     } finally {
       setRefreshing(false);
     }
@@ -929,35 +950,28 @@ export default function AppointmentDetailsScreen() {
 
         <View style={styles.metaRow}>
           <Badge status={appointment?.status} />
-          {appointment?.technicians?.map((tech) => (
-            <View style={styles.metaItem} key={tech.userId}>
-              <Icon name="person" size={16} color={zincColors[500]} />
-              <Text style={styles.metaText}>Kĩ thuật viên {tech.lastName}</Text>
-            </View>
-          ))}
+          {appointment?.technicians?.map((tech) => {
+            const isMe = Number(tech?.userId) === Number(meId);
+            const label = isMe ? 'Bạn' : (`Kĩ thuật viên ${tech?.lastName || tech?.fullName || `#${tech?.userId}`}`);
+            return (
+              <View style={styles.metaItem} key={tech.userId}>
+                <Icon name="person" size={16} color={zincColors[500]} />
+                <Text style={styles.metaText}>{label}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
 
       <View style={styles.tabContainer}>
-        {['details', 'request', 'updates', 'chat'].map((tab) => (
+        {TABS.map((t) => (
           <Pressable
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
+            key={t.key}
+            onPress={() => setActiveTab(t.key)}
+            style={[styles.tab, activeTab === t.key && styles.activeTab]}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab && styles.activeTabText,
-              ]}
-            >
-              {tab === 'details'
-                ? 'Chi tiết'
-                : tab === 'request'
-                ? 'Yêu cầu'
-                : tab === 'updates'
-                ? 'Tiến độ'
-                : 'Chat'}
+            <Text style={[styles.tabText, activeTab === t.key && styles.activeTabText]}>
+              {t.label}
             </Text>
           </Pressable>
         ))}
@@ -981,7 +995,7 @@ export default function AppointmentDetailsScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Thông tin </Text>
+              <Text style={styles.sectionTitle}>Thông tin cuộc hẹn</Text>
               <View style={styles.infoBlock}>
                 <Item
                   icon="doc.text"
@@ -996,6 +1010,13 @@ export default function AppointmentDetailsScreen() {
                   label="ID cuộc hẹn"
                   value={appointment?.appointmentId || '-'}
                 />
+                {appointment?.startTime ? (
+                  <Item
+                    icon="clock.fill"
+                    label="Thời gian hẹn"
+                    value={onlyTime(appointment?.startTime) +'-'+ timeDate(appointment?.endTime)}
+                  />
+                ) : null}
                 {!isMaintenance &&(
                     <Item
                   icon="flag"
@@ -1019,12 +1040,11 @@ export default function AppointmentDetailsScreen() {
                   }
                 />
 
-                <Item
+                {/* <Item
                   icon="clock"
                   label="Ngày tạo"
                   value={timeDayDate(appointment?.createdAt) || '-'}
-                />
-
+                /> */}
                 <Item
                   icon="text.justify"
                   label="Mô tả hiện trạng"
@@ -1246,9 +1266,11 @@ export default function AppointmentDetailsScreen() {
             }
             
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {isMaintenance ? 'Khu vực' : 'Căn hộ'}
-              </Text>
+              <View style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={styles.sectionTitle}>
+                  {isMaintenance ? 'Khu vực' : 'Căn hộ'}
+                </Text>
+              </View>
 
               <View style={styles.infoBlock}>
                 {isMaintenance ? (
@@ -1304,13 +1326,6 @@ export default function AppointmentDetailsScreen() {
                         appointment?.repairRequest?.apartment?.description || '-'
                       }
                     />
-                    {appointment?.startTime ? (
-                      <Item
-                        icon="clock.fill"
-                        label="Lịch hẹn"
-                        value={timeDayDate(appointment?.startTime)}
-                      />
-                    ) : null}
                   </>
                 )}
               </View>
@@ -1342,6 +1357,13 @@ export default function AppointmentDetailsScreen() {
                         value={rr?.isEmergency ? 'Có' : 'Không'}
                       />
                       <Item icon="clock" label="Ngày tạo" value={timeDayDate(rr?.createdAt) || '-'} />
+                      {appointment?.startTime ? (
+                        <Item
+                          icon="clock.fill"
+                          label="Lịch hẹn"
+                          value={timeDayDate(appointment?.startTime)}
+                        />
+                      ) : null}
                     </View>
                   </View>
                   <MediaSection
@@ -1380,8 +1402,9 @@ export default function AppointmentDetailsScreen() {
         {activeTab === 'updates' && (
           <View style={styles.sectionWrap}>
             {(() => {
-              const trackings = normalizeTrackings(appointment);
-              const currentIndex = computeCurrentIndex(trackings);
+              const trackingsRaw = normalizeTrackings(appointment);
+              const trackings = dedupeTrackingsKeepLast(trackingsRaw);
+              const currentIndex = computeCurrentIndex(trackingsRaw);
 
               return (
                 <View>
@@ -1536,21 +1559,7 @@ export default function AppointmentDetailsScreen() {
           inspectionApproved && (
             <>
               {isOutsource ? (
-                !isThirdOrLaterAppointment ? (
-                  <Pressable
-                    style={styles.secondaryBtn}
-                    onPress={handleCompleteAndPlanNext}
-                  >
-                    <Icon
-                      name="checkmark.circle"
-                      size={20}
-                      color={appleGreen}
-                    />
-                    <Text style={styles.secondaryBtnText}>
-                      Hoàn tất & lịch mới
-                    </Text>
-                  </Pressable>
-                ) : (
+                !isThirdOrLaterAppointment ? null : (
                   <Pressable
                     style={styles.secondaryBtn}
                     onPress={handleStartRepair}
@@ -1710,7 +1719,17 @@ function TimelineItem({ icon, title, date, desc }) {
     </View>
   );
 }
-
+function dedupeTrackingsKeepLast(trackings) {
+  if (!Array.isArray(trackings) || trackings.length === 0) return [];
+  const lastByStatus = new Map();
+  for (const t of trackings) {
+    if (!t?.status) continue;
+    lastByStatus.set(t.status, t);
+  }
+  return Array.from(lastByStatus.values()).sort(
+    (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
+  );
+}
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: THEME.background, paddingTop: 30 },
   header: {

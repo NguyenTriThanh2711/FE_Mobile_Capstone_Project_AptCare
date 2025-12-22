@@ -39,9 +39,9 @@ export default function ProgressStepper({
               {/* line phải */}
               {i !== steps.length - 1 && <View style={[s.line, { backgroundColor: lineColor }]} />}
 
-              <Text style={[s.label, { color: COLORS.text }]} numberOfLines={1}>
+              {/* <Text style={[s.label, { color: COLORS.text }]} numberOfLines={1}>
                 {label}
-              </Text>
+              </Text> */}
             </View>
           );
         })}
