@@ -52,6 +52,7 @@ const SolutionType = {
   Repair: 'Repair',
   Replacement: 'Replacement',
   Outsource: 'Outsource',
+  Ok: 'Ok',
 };
 
 const FAULT_OWNER_OPTIONS = [
@@ -62,6 +63,7 @@ const SOLUTION_TYPE_OPTIONS = [
   { label: 'Sửa chữa', value: SolutionType.Repair },
   { label: 'Thay thế', value: SolutionType.Replacement },
   { label: 'Thuê ngoài', value: SolutionType.Outsource },
+  { label: 'Tất cả ổn', value: SolutionType.Ok },
 ];
 
 const schema = yup.object({
@@ -134,6 +136,17 @@ export default function CreateInspectionReportScreen() {
     Array.isArray(maintenanceTasksFromStore) &&
     maintenanceTasksFromStore.length > 0;
   console.log('isMaintenance',isMaintenance)
+  const allMaintenancePassed = useMemo(() => {
+    if (!isMaintenance) return false;
+    if (!Array.isArray(maintenanceTasksWatch) || maintenanceTasksWatch.length === 0) return false;
+    return maintenanceTasksWatch.every((t) => t?.status === 'Completed');
+  }, [isMaintenance, maintenanceTasksWatch]);
+
+  const hasMaintenanceFailed = useMemo(() => {
+    if (!isMaintenance) return false;
+    if (!Array.isArray(maintenanceTasksWatch) || maintenanceTasksWatch.length === 0) return false;
+    return maintenanceTasksWatch.some((t) => t?.status === 'Failed');
+  }, [isMaintenance, maintenanceTasksWatch]);
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -204,8 +217,9 @@ export default function CreateInspectionReportScreen() {
     if (faultOwnerWatch === FaultOwner.ResidentFault) {
       return SOLUTION_TYPE_OPTIONS.filter((o) => o.value !== SolutionType.Outsource);
     }
+    if (!isMaintenance) return SOLUTION_TYPE_OPTIONS.filter((o) => o.value !== SolutionType.Ok);
     return SOLUTION_TYPE_OPTIONS;
-  }, [faultOwnerWatch]);
+  }, [faultOwnerWatch,isMaintenance]);
 
   useEffect(() => {
     if (
@@ -387,6 +401,29 @@ export default function CreateInspectionReportScreen() {
       }
     });
   }, [masterSig]);
+  useEffect(() => {
+    if (!isMaintenance) return;
+    if (allMaintenancePassed) {
+      if (solutionTypeWatch !== SolutionType.Ok) {
+        setValue('solutionType', SolutionType.Ok, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+      clearErrors('solutionType');
+      return;
+    }
+    if (!allMaintenancePassed && solutionTypeWatch === SolutionType.Ok) {
+      setError('solutionType', {
+        type: 'manual',
+        message: 'Có nhiệm vụ chưa đạt nên không thể chọn "Ok". Vui lòng chọn giải pháp xử lý.',
+      });
+    } else {
+      clearErrors('solutionType');
+    }
+  }, [isMaintenance, allMaintenancePassed, solutionTypeWatch, setValue, setError, clearErrors]);
+
+
   const isBusy = isSubmitting || accLoading || maintenanceTasksLoading;
   const filteredAccessories = useMemo(() => {
     const keyword = accSearch.trim().toLowerCase();
@@ -532,6 +569,24 @@ export default function CreateInspectionReportScreen() {
         });
 
         if (hasStatusError || hasInspectionError) return;
+        if (isMaintenance) {
+          const passed = maintenanceTasksWatch.every((t) => t?.status === 'Completed');
+          const failed = maintenanceTasksWatch.some((t) => t?.status === 'Failed');
+          if (failed && values.solutionType === SolutionType.Ok) {
+            setError('solutionType', {
+              type: 'manual',
+              message: 'Có nhiệm vụ "Chưa đạt" nên không thể chọn "Tất cả ổn".',
+            });
+            return;
+          }
+          if (passed && values.solutionType !== SolutionType.Ok) {
+            setError('solutionType', {
+              type: 'manual',
+              message: 'Tất cả nhiệm vụ đều "Đạt" nên phải chọn "Tất cả ổn".',
+            });
+            return;
+          }
+        }
 
         const batchItems = maintenanceTasksWatch.map((t) => ({
           repairRequestTaskId: Number(t.repairRequestTaskId),
@@ -539,7 +594,6 @@ export default function CreateInspectionReportScreen() {
           technicianNote: String(t.technicianNote || '').trim(),
           inspectionResult: String(t.inspectionResult || '').trim(),
         }));
-
         await dispatch(
           updateRepairRequestTasksBatch({
             repairRequestId: rrIdNum,
@@ -753,7 +807,7 @@ export default function CreateInspectionReportScreen() {
       Toast.show({
         type: 'success',
         text1: isMaintenance
-          ? 'Đã tạo báo cáo kiểm tra bảo trì'
+          ? 'Đã tạo Báo cáo khảo sát bảo trì'
           : 'Đã tạo báo cáo khảo sát',
       });
 
@@ -794,6 +848,7 @@ export default function CreateInspectionReportScreen() {
 
     return hasAcc || hasPurchaseAcc || hasSvc;
   }, [accessoriesWatch, purchaseAccessoriesWatch, servicesWatch]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -806,7 +861,7 @@ export default function CreateInspectionReportScreen() {
         </Pressable>
         <Icon name="doc.text" size={20} color={appleBlue} />
         <Text style={styles.headerTitle}>
-          {isMaintenance ? 'Báo cáo kiểm tra bảo trì' : 'Báo cáo khảo sát'}
+          {isMaintenance ? 'Báo cáo khảo sát bảo trì' : 'Báo cáo khảo sát'}
         </Text>
       </View>
 
@@ -814,84 +869,6 @@ export default function CreateInspectionReportScreen() {
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        {!isMaintenance && (
-          <>
-            <Controller
-              control={control}
-              name="faultOwner"
-              render={({ field: { value, onChange } }) => (
-                <ChipRadioGroup
-                  label="Nguyên nhân sự cố"
-                  value={value}
-                  onChange={onChange}
-                  options={FAULT_OWNER_OPTIONS}
-                />
-              )}
-            />
-            {!!errors.faultOwner?.message && (
-              <Text style={styles.errText}>{errors.faultOwner.message}</Text>
-            )}
-          </>
-        )}
-
-        <Controller
-          control={control}
-          name="solutionType"
-          render={({ field: { value, onChange } }) => (
-            <ChipRadioGroup
-              label="Giải pháp đề xuất"
-              value={value}
-              onChange={onChange}
-              options={solutionTypeOptions}
-            />
-          )}
-        />
-        {!!errors.solutionType?.message && (
-          <Text style={styles.errText}>{errors.solutionType.message}</Text>
-        )}
-
-        <Controller
-          control={control}
-          name="description"
-          render={({ field: { value, onChange, onBlur } }) => (
-            <MUITextField
-              label="Mô tả hiện trạng"
-              placeholder="Mô tả chi tiết tình trạng, vị trí, ghi chú thêm…"
-              multiline
-              numberOfLines={4}
-              value={value}
-              onBlur={onBlur}
-              size="large"
-              onChangeText={onChange}
-              error={errors.description?.message}
-            />
-          )}
-        />
-        {!!errors.description?.message && (
-          <Text style={styles.errText}>{errors.description.message}</Text>
-        )}
-
-        <Controller
-          control={control}
-          name="solution"
-          render={({ field: { value, onChange, onBlur } }) => (
-            <MUITextField
-              label="Phương án xử lý"
-              placeholder="Mô tả cách xử lý/đối tượng thay thế/vật tư dự kiến…"
-              multiline
-              numberOfLines={4}
-              value={value}
-              size="large"
-              style={{ marginTop: 14 }}
-              onBlur={onBlur}
-              onChangeText={onChange}
-              error={errors.solution?.message}
-            />
-          )}
-        />
-        {!!errors.solution?.message && (
-          <Text style={styles.errText}>{errors.solution.message}</Text>
-        )}
         {isMaintenance && (
           <View style={[styles.invoiceBlock, { marginTop: 12 }]}>
             <View style={{ marginBottom: 12, display: 'flex', alignItems: 'center' }}><Text style={styles.invoiceTitle}>Danh sách nhiệm vụ kiểm tra bảo trì</Text></View>
@@ -989,8 +966,8 @@ export default function CreateInspectionReportScreen() {
                     <Controller
                       control={control}
                       name={`maintenanceTasks.${idx}.inspectionResult`}
-                      render={({ field: { value, onChange, onBlur } }) => (
-                        <MUITextField
+                      render={({ field: { value, onChange, onBlur } }) => (<>
+                      <MUITextField
                           label="Kết quả kiểm tra"
                           placeholder='VD: "OK", "Cần sửa chữa", "Cần thay thế"...'
                           multiline
@@ -1001,6 +978,10 @@ export default function CreateInspectionReportScreen() {
                           error={rowErrors?.inspectionResult?.message}
                           style={{ marginTop: 8 }}
                         />
+                        {!!rowErrors?.inspectionResult?.message && (
+                          <Text style={styles.errText}>{rowErrors.inspectionResult.message}</Text>
+                        )}
+                      </>
                       )}
                     />
                   </View>
@@ -1020,6 +1001,93 @@ export default function CreateInspectionReportScreen() {
             </Text>
           </View>
         )}
+        
+        {!isMaintenance ? (
+          <>
+            <Controller
+              control={control}
+              name="faultOwner"
+              render={({ field: { value, onChange } }) => (
+                <ChipRadioGroup
+                  label="Nguyên nhân sự cố"
+                  value={value}
+                  onChange={onChange}
+                  options={FAULT_OWNER_OPTIONS}
+                />
+              )}
+            />
+            {!!errors.faultOwner?.message && (
+              <Text style={styles.errText}>{errors.faultOwner.message}</Text>
+            )}
+          </>
+        ):(
+          <View style={{display: 'flex', alignItems: 'center', marginTop: 12,}}>
+            <Text style ={{borderTopWidth: 1, marginTop: 12, paddingTop: 12,fontSize: 16, fontWeight: '600',marginBottom: 12,
+              borderTopColor: borderColor,}}>
+              Nội dung báo cáo sửa chữa
+            </Text>
+          </View>
+          )}
+
+        <Controller
+          control={control}
+          name="solutionType"
+          render={({ field: { value, onChange } }) => (
+            <ChipRadioGroup
+              label="Giải pháp đề xuất"
+              value={value}
+              onChange={onChange}
+              options={solutionTypeOptions}
+            />
+          )}
+        />
+        {!!errors.solutionType?.message && (
+          <Text style={styles.errText}>{errors.solutionType.message}</Text>
+        )}
+
+        <Controller
+          control={control}
+          name="description"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <MUITextField
+              label="Mô tả hiện trạng"
+              placeholder="Mô tả chi tiết tình trạng, vị trí, ghi chú thêm…"
+              multiline
+              numberOfLines={4}
+              value={value}
+              onBlur={onBlur}
+              size="large"
+              onChangeText={onChange}
+              error={errors.description?.message}
+            />
+          )}
+        />
+        {!!errors.description?.message && (
+          <Text style={styles.errText}>{errors.description.message}</Text>
+        )}
+
+        <Controller
+          control={control}
+          name="solution"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <MUITextField
+              label="Phương án xử lý"
+              placeholder="Mô tả cách xử lý/đối tượng thay thế/vật tư dự kiến…"
+              multiline
+              numberOfLines={4}
+              value={value}
+              size="large"
+              style={{ marginTop: 14 }}
+              onBlur={onBlur}
+              onChangeText={onChange}
+              error={errors.solution?.message}
+            />
+          )}
+        />
+        {!!errors.solution?.message && (
+          <Text style={styles.errText}>{errors.solution.message}</Text>
+        )}
+        
         <ImagePickerStrip
           style={{ marginTop: 14 }}
           mode="update"
@@ -1725,7 +1793,7 @@ export default function CreateInspectionReportScreen() {
                       control={control}
                       name={`extServices.${idx}.price`}
                       render={({ field: { value, onChange, onBlur } }) => (
-                        <View style={{ width: 70 }}>
+                        <View style={{ width: 90 }}>
                           <Text style={styles.smallLabel}>Giá</Text>
                           <TextInput
                             value={String(value ?? '')}
@@ -1851,7 +1919,6 @@ const styles = StyleSheet.create({
   errText: {
     color: '#B91C1C',
     fontSize: 12,
-    marginTop: 2,
     marginBottom: 0,
     marginLeft: 4,
   },
@@ -1880,9 +1947,7 @@ const styles = StyleSheet.create({
 
   invoiceBlock: {
     marginTop: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: borderColor,
+    paddingTop: 12
   },
   invoiceTitle: {
     fontSize: 16,
@@ -2065,6 +2130,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: zincColors[500],
     marginTop: 4,
+    paddingBottom: 10,
   },
 
   statusChip: {

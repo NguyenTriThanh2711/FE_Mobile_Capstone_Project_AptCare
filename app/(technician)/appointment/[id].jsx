@@ -204,6 +204,19 @@ export default function AppointmentDetailsScreen() {
       ? selectTasksErrorByRepairRequestId(s, repairRequestId)
       : null
   );
+  const hasMaintenanceTasks = isMaintenance && maintenanceTasks.length > 0;
+  const allMaintenanceHaveStatus = useMemo(() => {
+    if (!hasMaintenanceTasks) return false;
+    return maintenanceTasks.every((t) => !!t?.status); // phải chọn status hết
+  }, [hasMaintenanceTasks, maintenanceTasks]);
+
+  const allMaintenancePassed = useMemo(() => {
+    if (!hasMaintenanceTasks) return false;
+    return maintenanceTasks.every((t) => t?.status === 'Completed');
+  }, [hasMaintenanceTasks, maintenanceTasks]);
+
+  const canCompleteMaintenanceAppointment =
+    isMaintenance && allMaintenanceHaveStatus && allMaintenancePassed;
   const TABS = useMemo(() => {
     const base = [
       { key: 'details', label: 'Chi tiết' },
@@ -549,6 +562,21 @@ export default function AppointmentDetailsScreen() {
 
   const handleStartRepair = async () => {
     if (!id) return;
+    if (isMaintenance) {
+      const tasks =  maintenanceTasks || [];
+
+      const allHaveStatus = tasks.length > 0 && tasks.every((t) => !!t?.status);
+      const allPassed = tasks.length > 0 && tasks.every((t) => t?.status === 'Completed');
+
+      if (allHaveStatus && allPassed) {
+        Toast.show({
+          type: 'info',
+          text1: 'Tất cả đã đạt',
+          text2: 'Vui lòng hoàn thành cuộc hẹn.',
+        });
+        return;
+      }
+    }
     try {
       await dispatch(startAppointmentRepair(id)).unwrap();
       dispatch(fetchAppointmentById(id));
@@ -587,31 +615,31 @@ export default function AppointmentDetailsScreen() {
   const handleMarkCompleted = async () => {
     if (!id) return;
     if (isMaintenance) {
-      setShowAcceptancePicker(true);
-      return;
-    }
-    if (!lastRepairReportId) {
-      Toast.show({
-        type: 'info',
-        text1: 'Chưa có báo cáo sửa chữa',
-        text2: 'Vui lòng tạo báo cáo sửa chữa trước khi hoàn tất.',
-      });
+      if (!canCompleteMaintenanceAppointment) {
+        Toast.show({
+          type: 'info',
+          text1: 'Chưa thể kết thúc',
+          text2: 'Hãy cập nhật tất cả nhiệm vụ và đảm bảo tất cả đều "Đạt".',
+        });
+        return;
+      }
+      await handleAcceptancePicked(null);
       return;
     }
 
     try {
-      const { approved } = await dispatch(checkResidentApproveRepairReport({ reportId: lastRepairReportId })).unwrap();
-      console.log('[checkResidentApproveRepairReport]', approved);
+      const { approved } = await dispatch( checkResidentApproveRepairReport({ reportId: lastRepairReportId })).unwrap();
       if (!approved) {
         setResidentNotApprovedMsg('Sửa chữa chưa được cư dân chấp thuận.');
         setShowResidentNotApprovedModal(true);
         return;
       }
       setShowAcceptancePicker(true);
+      return;
     } catch (e) {
       Toast.show({
         type: 'error',
-        text1: 'Không kiểm tra được chấp thuận',
+        text1: 'Báo cáo chưa được chấp thuận',
         text2: e?.message || String(e) || 'Vui lòng thử lại.',
       });
     }
@@ -630,6 +658,7 @@ export default function AppointmentDetailsScreen() {
           acceptanceTime,
         })
       ).unwrap();
+      onRefresh();
       Toast.show({
         type: 'success',
         text1: 'Đã hoàn tất lịch hẹn',
@@ -882,7 +911,7 @@ export default function AppointmentDetailsScreen() {
     Assigned: 'Đã phân công',
     Confirmed: 'Đã xác nhận',
     InVisit: 'Đã check-in',
-    AwaitingIRApproval: 'Chờ duyệt báo cáo kiểm tra',
+    AwaitingIRApproval: 'Chờ duyệt Báo cáo khảo sát',
     InRepair: 'Đang sửa chữa',
     Completed: 'Hoàn tất',
   };

@@ -252,7 +252,7 @@ export default function TechnicianDashboard() {
           <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#eb9625', '#9aeb25']}>
             <Icon name="calendar" size={22} color="#1976D2" />
             <Text style={styles.statNumber}>{stats.todayTotal}</Text>
-            <Text style={styles.statLabel}>Tổng công việc</Text>
+            <Text style={styles.statLabel}>Tổng cuộc hẹn</Text>
           </StatCard>
 
           <StatCard start={{ x: 0, y: 1 }} end={{ x: 1, y: 1 }} colors={['#9aeb25', '#1cff00']}>
@@ -336,7 +336,7 @@ export default function TechnicianDashboard() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Công việc hôm nay (gần nhất)</Text>
+        <Text style={styles.sectionTitle}>Các cuộc hẹn hôm nay (gần nhất)</Text>
 
         {todayJobs.length > 0 ? todayJobs.map((job) => (
           <View key={job.id} style={styles.card}>
