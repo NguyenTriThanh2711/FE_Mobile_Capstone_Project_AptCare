@@ -85,7 +85,7 @@ export const checkResidentApproveRepairReport = createAsyncThunk(
       if (res?.status === 404) {
         return { reportId, approved: false };
       }
-
+      console.log('[res]')
       const message =
         res?.data?.detail ||
         res?.data?.message ||

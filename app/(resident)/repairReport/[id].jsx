@@ -60,7 +60,6 @@ export default function RepairReportDetailScreen() {
             text1: 'Đã chấp thuận báo cáo sửa chữa',
           });
         }
-      throw new Error('Báo cáo sửa chữa chưa được chấp thuận. Vui lòng thử lại sau!');
     } catch (e) {
       console.log('[error approveResidentRepairReport]', e);
       Toast.show({

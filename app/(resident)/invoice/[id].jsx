@@ -59,8 +59,7 @@ export default function InvoiceDetailScreen() {
     INVOICE_STATUS_LABEL[invoiceStatusUpper] ||
     invoice?.status ||
     '-';
-  const invoiceTypeUpper = String(invoice?.type || '').toUpperCase();
-  const isOutsource = invoiceTypeUpper === 'EXTERNALCONTRACTOR';
+
   // unwrap accessories & services an toàn
   const accessories = useMemo(() => {
     const raw = invoice?.accessories;
@@ -68,38 +67,6 @@ export default function InvoiceDetailScreen() {
     return Array.isArray(arr) ? arr : [];
   }, [invoice]);
   console.log('[accessories]', accessories);
-  const { purchasedAccessories, stockAccessories } = useMemo(() => {
-    const purchased = [];
-    const stock = [];
-
-    for (const a of accessories) {
-      const st = String(a?.sourceType || '').trim();
-      if (st === 'ToBePurchased') purchased.push(a);
-      else stock.push(a);
-    }
-
-    return { purchasedAccessories: purchased, stockAccessories: stock };
-  }, [accessories]);
-  function renderAccessoryRow(a) {
-    return (
-      <View
-        key={a.invoiceAccessoryId ?? `${a.accessoryId}-${a.name}`}
-        style={styles.row}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>{a.name}</Text>
-          <Text style={styles.rowMeta}>
-            {a?.accessoryId ? `Mã nguyên vật liệu: ${a.accessoryId} • ` : ''}
-            SL: {a.quantity ?? 1}
-          </Text>
-        </View>
-
-        <Text style={styles.rowAmount}>
-          {(a.price ?? 0).toLocaleString('vi-VN')} đ
-        </Text>
-      </View>
-    );
-  }
   const services = useMemo(() => {
     const raw = invoice?.services;
     const arr = raw?.$values ?? raw ?? [];
@@ -321,52 +288,36 @@ export default function InvoiceDetailScreen() {
 
             {/* Accessories */}
             <View style={styles.card}>
-              <View style={{ display: 'flex', alignItems: 'center' }}>
-                <Text style={styles.sectionTitle}>Nguyên vật liệu</Text>
-              </View>
-
+              <Text style={styles.sectionTitle}>Nguyên vật liệu</Text>
               {accessories.length === 0 ? (
-                <View style={{ display: 'flex', alignItems: 'center' }}>
-                  <Text style={styles.emptyText}>Không có nguyên vật liệu.</Text>
-                </View>
-              ) : isOutsource ? (
-                accessories.map(renderAccessoryRow)
+                <Text style={styles.emptyText}>Không có nguyên vật liệu.</Text>
               ) : (
-                <>
-                  <Text style={[styles.subSectionTitle, { marginTop: 4 }]}>
-                    Nguyên vật liệu trong kho
-                  </Text>
-                  {stockAccessories.length === 0 ? (
-                    <View style={{ display: 'flex', alignItems: 'center' }}>
-                      <Text style={styles.emptyText}>Không có nguyên vật liệu trong kho.</Text>
+                accessories.map((a) => (
+                  <View
+                    key={a.invoiceAccessoryId ?? `${a.accessoryId}-${a.name}`}
+                    style={styles.row}
+                  >
+                    <View><Text></Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rowTitle}>{a.name}</Text>
+                      <Text style={styles.rowMeta}>
+                        Mã nguyên vật liệu: {a.accessoryId} • SL:{' '}
+                        {a.quantity ?? 1}
+                      </Text>
                     </View>
-                  ) : (
-                    stockAccessories.map(renderAccessoryRow)
-                  )}
-
-                  <Text style={[styles.subSectionTitle, { marginTop: 12 }]}>
-                    Nguyên vật liệu nhập thêm
-                  </Text>
-                  {purchasedAccessories.length === 0 ? (
-                    <View style={{ display: 'flex', alignItems: 'center' }}>
-                      <Text style={styles.emptyText}>Không có nguyên vật liệu nhập thêm.</Text>
-                    </View>
-                  ) : (
-                    purchasedAccessories.map(renderAccessoryRow)
-                  )}
-                </>
+                    <Text style={styles.rowAmount}>
+                      {(a.price ?? 0).toLocaleString('vi-VN')} đ
+                    </Text>
+                  </View>
+                ))
               )}
             </View>
-
-
 
             {/* Services */}
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Công việc làm</Text>
               {services.length === 0 ? (
-                <View style={{ display: 'flex', alignItems: 'center' }}>
-                  <Text style={styles.emptyText}>Không có công việc.</Text>
-                </View>
+                <Text style={styles.emptyText}>Không có công việc.</Text>
               ) : (
                 services.map((s) => (
                   <View
@@ -530,7 +481,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E5E7EB',
   },
-  rowTitle: { fontSize: 13, fontWeight: '500', color: THEME.text },
+  rowTitle: { fontSize: 14, fontWeight: '600', color: THEME.text },
   rowMeta: { fontSize: 12, color: zincColors[600], marginTop: 2 },
   rowAmount: { fontSize: 14, fontWeight: '700', color: appleBlue, marginLeft: 8 },
 
@@ -581,11 +532,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: THEME.text,
   },
-  subSectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: zincColors[900],
-    marginBottom: 6,
-  },
-
 });

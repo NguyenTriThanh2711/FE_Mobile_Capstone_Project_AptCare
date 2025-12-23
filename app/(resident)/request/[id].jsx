@@ -90,7 +90,7 @@ export default function RequestDetail() {
         : [],
     [invoices]
   );
-
+  console.log('[internalInvoices]', pretty(internalInvoices));
   const medias = useMemo(() => {
     if (!data) return [];
     return dotnetArr(data.medias);
@@ -771,7 +771,13 @@ export default function RequestDetail() {
             internalInvoices.map((inv) => (
               <Pressable
                 key={inv.invoiceId}
-                style={[styles.invoiceItem, { marginTop: 10 }]}
+                style={[styles.reportItem, { marginTop: 10 }]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(resident)/invoice/[id]',
+                    params: { id: String(inv.invoiceId) },
+                  })
+                }
               >
                 <View style={{ flex: 1 }}>
                   <View

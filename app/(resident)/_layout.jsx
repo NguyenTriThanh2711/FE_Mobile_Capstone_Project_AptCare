@@ -52,6 +52,12 @@ export default function ResidentStackLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="invoice/[id]"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
