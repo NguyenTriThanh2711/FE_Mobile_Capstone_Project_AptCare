@@ -45,7 +45,7 @@ function AuthGate() {
       const fcmToken = await registerForPushAsync();
       if (!fcmToken) return;
 
-      await dispatch(registerFcm({ fcmToken })).unwrap?.();
+      await dispatch(registerFcm({ fcmToken }));
       unsubscribeForeground = attachForegroundListener();
       fcmAttachedRef.current = true;
     })();

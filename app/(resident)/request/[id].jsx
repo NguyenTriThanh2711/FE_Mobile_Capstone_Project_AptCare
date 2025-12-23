@@ -764,7 +764,7 @@ export default function RequestDetail() {
           ) : internalInvoices.length === 0 ? (
             <View style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
               <Text style={styles.emptyLine}>
-                Chưa có hoá đơn cho yêu cầu này.
+                Chưa có hóa đơn cho yêu cầu này.
               </Text>
             </View>
           ) : (

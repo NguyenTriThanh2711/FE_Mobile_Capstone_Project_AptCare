@@ -339,7 +339,7 @@ export default function InvoiceDetailScreen() {
       </ScrollView>
 
       {/* Action Bar: tạo link PayOS + Thu tiền mặt */}
-      {invoice && (
+      {/* {invoice && (
         <View style={styles.actionBar}>
           <GradientButton
             title={
@@ -370,7 +370,7 @@ export default function InvoiceDetailScreen() {
             <Text style={styles.secondaryBtnText}>Thu tiền mặt</Text>
           </Pressable>
         </View>
-      )}
+      )} */}
 
       {/* Modal thu tiền mặt */}
       <Modal

@@ -171,7 +171,7 @@ export default function CreateRepairReportScreen() {
           value={images}
           onChange={setImages}
           maxCount={10}
-          title="Ảnh sửa trước/ sau"
+          title="Ảnh sau khi sửa"
         />
       </ScrollView>
 

@@ -215,7 +215,7 @@ export default function CreateInspectionReportScreen() {
   
   const solutionTypeOptions = useMemo(() => {
     if (faultOwnerWatch === FaultOwner.ResidentFault) {
-      return SOLUTION_TYPE_OPTIONS.filter((o) => (o.value !== SolutionType.Outsource || o.value === SolutionType.Ok));
+      return SOLUTION_TYPE_OPTIONS.filter((o) => (o.value !== SolutionType.Outsource && o.value !== SolutionType.Ok));
     }
     if (!isMaintenance) return SOLUTION_TYPE_OPTIONS.filter((o) => o.value !== SolutionType.Ok);
     return SOLUTION_TYPE_OPTIONS;
